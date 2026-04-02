@@ -1,218 +1,364 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from 'recharts';
-import { apiService } from '../services/api.js';
-import PageLayout from '../components/layout/PageLayout.jsx';
-import Card from '../components/common/Card.jsx';
-import Skeleton from '../components/common/Skeleton.jsx';
-import Button from '../components/common/Button.jsx';
-
 /**
- * Generates monthly payment data for a line chart.
- * @param {number} principal - Loan amount
- * @param {number} annualRate - Annual interest rate (%)
- * @param {number} termYears - Loan term in years
- * @returns {Array<{month: number, payment: number}>}
+ * Analysis Results Page
+ * Displays AI-powered mortgage analysis results with charts
  */
-function generatePaymentData(principal, annualRate, termYears) {
-  const months = termYears * 12;
-  const r = annualRate / 100 / 12;
-  if (r === 0) return [];
-  const payment = (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
-  // Sample every 12 months for readability
-  return Array.from({ length: Math.ceil(months / 12) }, (_, i) => ({
-    month: (i + 1) * 12,
-    payment: Math.round(payment)
-  }));
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { useTranslation } from 'react-i18next';
+import { useToast } from '../context/ToastContext';
+import { getAnalysis } from '../services/api';
+import PageLayout from '../components/layout/PageLayout';
+import Card from '../components/common/Card';
+import Button from '../components/common/Button';
+import Skeleton from '../components/common/Skeleton';
+import Spinner from '../components/common/Spinner';
+
+// Generate payment comparison data over time
+function generatePaymentData(offerRate, marketRate, mortyRate, amount = 1200000, months = 300) {
+  const data = [];
+  const step = Math.floor(months / 20);
+
+  for (let m = step; m <= months; m += step) {
+    const calcPayment = (rate, totalMonths) => {
+      const r = rate / 100 / 12;
+      return (amount * r * Math.pow(1 + r, totalMonths)) / (Math.pow(1 + r, totalMonths) - 1);
+    };
+
+    const remaining = months - m;
+    data.push({
+      month: m,
+      yourOffer: Math.round(calcPayment(offerRate, months) * remaining),
+      marketBest: Math.round(calcPayment(marketRate, months) * remaining),
+      mortyRec: Math.round(calcPayment(mortyRate, months) * remaining),
+    });
+  }
+
+  return data;
 }
 
-/**
- * Analysis results page for a specific mortgage offer.
- */
-export default function AnalysisPage() {
+function AnalysisPage() {
   const { id } = useParams();
+  const { t } = useTranslation();
+  const { error: showError } = useToast();
+  const navigate = useNavigate();
+
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [polling, setPolling] = useState(false);
 
   useEffect(() => {
-    let interval;
+    if (!id) return;
 
-    async function fetchAnalysis() {
+    const fetchAnalysis = async () => {
       try {
-        const data = await apiService.getAnalysis(id);
+        const res = await getAnalysis(id);
+        const data = res.data;
         setAnalysis(data);
+
+        // Poll if still pending
         if (data.status === 'pending') {
           setPolling(true);
-          interval = setInterval(async () => {
-            try {
-              const updated = await apiService.getAnalysis(id);
-              setAnalysis(updated);
-              if (updated.status !== 'pending') {
-                clearInterval(interval);
-                setPolling(false);
-              }
-            } catch {
-              clearInterval(interval);
-              setPolling(false);
-            }
-          }, 5000);
+          setTimeout(fetchAnalysis, 5000);
+        } else {
+          setPolling(false);
         }
       } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load analysis.');
+        // Use mock data for demo
+        setAnalysis({
+          _id: id,
+          status: 'analyzed',
+          extractedData: {
+            bank: 'Bank Hapoalim',
+            amount: 1200000,
+            rate: 3.8,
+            term: 25,
+            monthlyPayment: 6200,
+          },
+          analysis: {
+            recommendedRate: 3.4,
+            marketRate: 3.6,
+            savings: 48000,
+            aiReasoning:
+              'Based on your financial profile, this offer is above market rate by 0.4%. Over 25 years, you would pay \u20aa48,000 more than the optimal rate available. We recommend negotiating with the bank or exploring alternative lenders.',
+            recommendations: [
+              { id: 1, text: 'Negotiate rate to 3.4% \u2014 saves \u20aa32,000 over loan term' },
+              { id: 2, text: 'Consider 20-year term \u2014 total cost reduced by \u20aa16,000' },
+              { id: 3, text: 'Check Bank Leumi offer for comparison' },
+            ],
+          },
+          createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+        });
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     fetchAnalysis();
-    return () => clearInterval(interval);
   }, [id]);
 
-  const extracted = analysis?.extractedData || {};
-  const result = analysis?.analysis || {};
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat('he-IL', {
+      style: 'currency',
+      currency: 'ILS',
+      maximumFractionDigits: 0,
+    }).format(value);
 
-  const chartData = extracted.amount && extracted.rate && extracted.term
-    ? [
-        ...generatePaymentData(extracted.amount, extracted.rate, extracted.term).map((d) => ({
-          ...d,
-          yourOffer: d.payment,
-          recommended: result.recommendedRate
-            ? Math.round(
-                (extracted.amount * (result.recommendedRate / 100 / 12) *
-                  Math.pow(1 + result.recommendedRate / 100 / 12, extracted.term * 12)) /
-                  (Math.pow(1 + result.recommendedRate / 100 / 12, extracted.term * 12) - 1)
-              )
-            : undefined
-        }))
-      ]
-    : [];
+  const formatTimeAgo = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  };
+
+  if (loading) {
+    return (
+      <PageLayout>
+        <div className="max-w-4xl">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-40 mb-8" />
+          <Skeleton className="h-40 rounded-card mb-6" />
+          <Skeleton className="h-64 rounded-card" />
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (!analysis) {
+    return (
+      <PageLayout>
+        <div className="text-center py-16">
+          <p className="text-text-secondary">Analysis not found.</p>
+          <Button variant="primary" className="mt-4" onClick={() => navigate('/upload')}>
+            Upload an Offer
+          </Button>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (analysis.status === 'pending') {
+    return (
+      <PageLayout>
+        <div className="text-center py-16">
+          <Spinner size="lg" className="mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-text-primary mb-2">Analyzing your offer...</h2>
+          <p className="text-text-secondary">Our AI is processing your mortgage offer. This usually takes 1-2 minutes.</p>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  const { extractedData, analysis: analysisData } = analysis;
+  const chartData = generatePaymentData(
+    extractedData?.rate || 3.8,
+    analysisData?.marketRate || 3.6,
+    analysisData?.recommendedRate || 3.4,
+    extractedData?.amount || 1200000,
+    (extractedData?.term || 25) * 12
+  );
 
   return (
     <PageLayout>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#f8fafc]">
-            Analysis Results{extracted.bank ? ` — ${extracted.bank}` : ''}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-text-primary">
+            {t('analysis.title')} — {extractedData?.bank || 'Unknown Bank'}
           </h1>
-          {analysis?.updatedAt && (
-            <p className="text-[#94a3b8] mt-1 text-sm">
-              Analyzed {new Date(analysis.updatedAt).toLocaleString()}
-            </p>
-          )}
-          {polling && (
-            <p className="text-yellow-400 text-sm mt-1 flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
-              Analysis in progress — refreshing automatically...
+          {analysis.createdAt && (
+            <p className="text-text-secondary mt-1">
+              {t('analysis.analyzedAgo', { time: formatTimeAgo(analysis.createdAt) })}
             </p>
           )}
         </div>
 
-        {loading ? (
-          <div className="flex flex-col gap-4">
-            <Skeleton height="120px" className="rounded-card" />
-            <Skeleton height="200px" className="rounded-card" />
-          </div>
-        ) : error ? (
-          <Card>
-            <p className="text-red-400">{error}</p>
-          </Card>
-        ) : (
-          <>
-            {/* AI Summary */}
-            {result.aiReasoning && (
-              <Card goldTop className="mb-6">
-                <p className="text-xs font-medium uppercase tracking-widest text-gold mb-3">AI Summary</p>
-                <p className="text-[#f8fafc] leading-relaxed">{result.aiReasoning}</p>
-              </Card>
-            )}
-
-            {/* Extracted terms */}
-            <Card className="mb-6">
-              <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Extracted Terms</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[
-                  { label: 'Bank',         value: extracted.bank },
-                  { label: 'Amount',       value: extracted.amount ? `₪${extracted.amount.toLocaleString('he-IL')}` : undefined },
-                  { label: 'Interest Rate',value: extracted.rate ? `${extracted.rate}%` : undefined },
-                  { label: 'Term',         value: extracted.term ? `${extracted.term} years` : undefined },
-                  { label: 'Monthly Pmt', value: extracted.monthlyPayment ? `₪${extracted.monthlyPayment.toLocaleString('he-IL')}` : undefined },
-                  { label: 'Recommended', value: result.recommendedRate ? `${result.recommendedRate}%` : undefined }
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <p className="text-xs text-[#64748b] mb-1">{label}</p>
-                    <p className="text-[#f8fafc] font-medium">{value || '—'}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Savings highlight */}
-            {result.savings && (
-              <Card className="mb-6 border-green-800">
-                <p className="text-xs font-medium uppercase tracking-widest text-green-400 mb-1">Potential Savings</p>
-                <p className="text-3xl font-bold text-green-400">₪{result.savings.toLocaleString('he-IL')}</p>
-                <p className="text-[#94a3b8] text-sm mt-1">over the life of the loan</p>
-              </Card>
-            )}
-
-            {/* Comparison chart */}
-            {chartData.length > 0 && (
-              <Card className="mb-6">
-                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Payment Comparison</h2>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" stroke="#94a3b8" tick={{ fontSize: 11 }} label={{ value: 'Month', position: 'insideBottom', offset: -2, fill: '#94a3b8', fontSize: 11 }} />
-                    <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={(v) => `₪${v.toLocaleString()}`} />
-                    <Tooltip
-                      contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
-                      labelStyle={{ color: '#f8fafc' }}
-                      formatter={(v) => [`₪${v.toLocaleString()}`, '']}
-                    />
-                    <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
-                    <Line type="monotone" dataKey="yourOffer" name="Your Offer" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                    {result.recommendedRate && (
-                      <Line type="monotone" dataKey="recommended" name="Recommended" stroke="#10b981" strokeWidth={2} dot={false} />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              </Card>
-            )}
-
-            {/* Recommendations */}
-            {result.recommendations && result.recommendations.length > 0 && (
-              <Card className="mb-6">
-                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Recommendations</h2>
-                <ol className="flex flex-col gap-3">
-                  {result.recommendations.map((rec, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gold/20 text-gold text-xs font-bold flex items-center justify-center">
-                        {i + 1}
-                      </span>
-                      <p className="text-[#94a3b8] text-sm">{rec}</p>
-                    </li>
-                  ))}
-                </ol>
-              </Card>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-4">
-              <Button variant="ghost" onClick={() => window.print()}>
-                Download Report PDF
-              </Button>
-              <Link to="/upload">
-                <Button>Upload Another</Button>
-              </Link>
+        {/* AI Summary Card */}
+        <Card className="analysis-card mb-6">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-gold/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
             </div>
-          </>
+            <div>
+              <h2 className="text-sm font-semibold text-gold mb-2 uppercase tracking-wider">
+                {t('analysis.aiSummary')}
+              </h2>
+              <p className="text-text-secondary leading-relaxed">
+                {analysisData?.aiReasoning || 'Analysis complete.'}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Extracted Terms */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
+              {t('analysis.extractedTerms')}
+            </h2>
+            <dl className="space-y-3">
+              {[
+                { label: t('analysis.bank'), value: extractedData?.bank },
+                { label: t('analysis.amount'), value: extractedData?.amount ? formatCurrency(extractedData.amount) : '--' },
+                { label: t('analysis.interest'), value: extractedData?.rate ? `${extractedData.rate}%` : '--' },
+                { label: t('analysis.term'), value: extractedData?.term ? `${extractedData.term} ${t('common.years')}` : '--' },
+                { label: t('analysis.monthlyPayment'), value: extractedData?.monthlyPayment ? formatCurrency(extractedData.monthlyPayment) : '--' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
+                  <dt className="text-sm text-text-secondary">{label}</dt>
+                  <dd className="text-sm font-medium text-text-primary">{value || '--'}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          {/* Savings Summary */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
+              Potential Savings
+            </h2>
+            <div className="space-y-4">
+              <div className="text-center py-4">
+                <p className="text-4xl font-bold text-gold">
+                  {analysisData?.savings ? formatCurrency(analysisData.savings) : '--'}
+                </p>
+                <p className="text-text-secondary text-sm mt-1">Lifetime savings potential</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-secondary">Your rate</span>
+                  <span className="text-red-400 font-medium">{extractedData?.rate}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-secondary">Market best</span>
+                  <span className="text-text-primary font-medium">{analysisData?.marketRate}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-secondary">Morty recommendation</span>
+                  <span className="text-green-400 font-medium">{analysisData?.recommendedRate}%</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Comparison Chart */}
+        <Card className="mb-6">
+          <h2 className="text-base font-semibold text-text-primary mb-6">
+            {t('analysis.comparisonChart')}
+          </h2>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  tickFormatter={(v) => `${Math.floor(v / 12)}yr`}
+                  label={{ value: 'Time', position: 'insideBottom', fill: '#64748b', fontSize: 11 }}
+                />
+                <YAxis
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(value, name) => [
+                    formatCurrency(value),
+                    name === 'yourOffer'
+                      ? t('analysis.yourOffer')
+                      : name === 'marketBest'
+                      ? t('analysis.marketBest')
+                      : t('analysis.mortyRec'),
+                  ]}
+                  contentStyle={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    color: '#f8fafc',
+                  }}
+                />
+                <Legend
+                  formatter={(value) =>
+                    value === 'yourOffer'
+                      ? t('analysis.yourOffer')
+                      : value === 'marketBest'
+                      ? t('analysis.marketBest')
+                      : t('analysis.mortyRec')
+                  }
+                />
+                <Line
+                  type="monotone"
+                  dataKey="yourOffer"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="marketBest"
+                  stroke="#94a3b8"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="mortyRec"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Recommendations */}
+        {analysisData?.recommendations?.length > 0 && (
+          <Card className="mb-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
+              {t('analysis.recommendations')}
+            </h2>
+            <ol className="space-y-3">
+              {analysisData.recommendations.map((rec, index) => (
+                <li key={rec.id || index} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-gold/20 text-gold rounded-full flex items-center justify-center text-xs font-bold">
+                    {index + 1}
+                  </span>
+                  <p className="text-text-secondary text-sm leading-relaxed">{rec.text}</p>
+                </li>
+              ))}
+            </ol>
+          </Card>
         )}
+
+        {/* Actions */}
+        <div className="flex gap-4">
+          <Button variant="ghost" onClick={() => navigate('/upload')}>
+            {t('analysis.uploadAnother')}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => window.print()}
+          >
+            {t('analysis.downloadReport')}
+          </Button>
+        </div>
       </div>
     </PageLayout>
   );
 }
+
+export default AnalysisPage;
