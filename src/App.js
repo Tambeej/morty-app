@@ -1,15 +1,15 @@
 /**
- * Morty App - Main Application Component
- * Sets up routing, auth context, and toast notifications
+ * Morty App
+ * Main application component with routing and providers
  */
-
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/common/Toast';
 import Spinner from './components/common/Spinner';
-import './styles/globals.css';
+import useAuth from './hooks/useAuth';
+import './i18n';
 
 // Lazy load pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -18,136 +18,137 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const FinancialProfilePage = lazy(() => import('./pages/FinancialProfilePage'));
 const UploadPage = lazy(() => import('./pages/UploadPage'));
 const AnalysisPage = lazy(() => import('./pages/AnalysisPage'));
+const HelpPage = lazy(() => import('./pages/HelpPage'));
 
 /**
- * Full-page loading spinner
+ * Loading fallback component
  */
-const PageLoader = () => (
-  <div
-    className="min-h-screen bg-navy flex items-center justify-center"
-    role="status"
-    aria-label="Loading page"
-  >
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-8 h-8 bg-gold rounded-lg flex items-center justify-center">
-        <svg className="w-5 h-5 text-navy" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-        </svg>
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-navy flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 bg-gold rounded-xl flex items-center justify-center">
+          <svg className="w-7 h-7 text-navy" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+          </svg>
+        </div>
+        <Spinner size="md" />
       </div>
-      <Spinner size="md" />
     </div>
-  </div>
-);
+  );
+}
 
 /**
- * Protected Route - redirects to login if not authenticated
+ * Protected Route wrapper
+ * Redirects to login if not authenticated
  */
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
 
-  if (isLoading) {
-    return <PageLoader />;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  if (loading) return <PageLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return children;
-};
+}
 
 /**
- * Public Route - redirects to dashboard if already authenticated
+ * Public Route wrapper
+ * Redirects to dashboard if already authenticated
  */
-const PublicRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+function PublicRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
 
-  if (isLoading) {
-    return <PageLoader />;
-  }
-
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (loading) return <PageLoader />;
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
 
   return children;
-};
+}
 
 /**
  * App Routes
  */
-const AppRoutes = () => (
-  <Suspense fallback={<PageLoader />}>
-    <Routes>
-      {/* Public Routes */}
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <PublicRoute>
-            <RegisterPage />
-          </PublicRoute>
-        }
-      />
+function AppRoutes() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* Public routes */}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <RegisterPage />
+            </PublicRoute>
+          }
+        />
 
-      {/* Protected Routes */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <FinancialProfilePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/upload"
-        element={
-          <ProtectedRoute>
-            <UploadPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/analysis"
-        element={
-          <ProtectedRoute>
-            <AnalysisPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/analysis/:id"
-        element={
-          <ProtectedRoute>
-            <AnalysisPage />
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <FinancialProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <ProtectedRoute>
+              <UploadPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analysis"
+          element={
+            <ProtectedRoute>
+              <AnalysisPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analysis/:id"
+          element={
+            <ProtectedRoute>
+              <AnalysisPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/help"
+          element={
+            <ProtectedRoute>
+              <HelpPage />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
-  </Suspense>
-);
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Suspense>
+  );
+}
 
 /**
- * Root App Component
+ * Root App component
  */
 function App() {
   return (
