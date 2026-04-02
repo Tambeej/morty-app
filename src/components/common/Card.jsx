@@ -1,30 +1,37 @@
 /**
- * Card - Surface container component.
+ * Card Component
+ * Reusable card container with optional hover effects
  */
-import React from 'react';
-import PropTypes from 'prop-types';
 
-export default function Card({ children, className = '', style = {}, interactive = false }) {
+import React from 'react';
+
+/**
+ * @param {Object} props
+ * @param {boolean} props.interactive - Enable hover effects
+ * @param {boolean} props.goldTop - Add gold top border (analysis card style)
+ * @param {string} props.className - Additional CSS classes
+ * @param {React.ReactNode} props.children
+ */
+const Card = ({
+  interactive = false,
+  goldTop = false,
+  className = '',
+  children,
+  ...props
+}) => {
   return (
     <div
-      className={`rounded-card ${interactive ? 'stat-card' : ''} ${className}`}
-      style={{
-        background: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: '12px',
-        padding: '24px',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-        ...style,
-      }}
+      className={`
+        bg-navy-surface border border-border rounded-card p-6 shadow-card
+        ${interactive ? 'transition-all duration-200 hover:-translate-y-0.5 hover:border-gold cursor-pointer' : ''}
+        ${goldTop ? 'border-t-4 border-t-gold' : ''}
+        ${className}
+      `}
+      {...props}
     >
       {children}
     </div>
   );
-}
-
-Card.propTypes = {
-  children: PropTypes.node.isRequired,
-  className: PropTypes.string,
-  style: PropTypes.object,
-  interactive: PropTypes.bool,
 };
+
+export default Card;

@@ -1,47 +1,42 @@
 /**
- * Skeleton.jsx
- * Shimmer placeholder for loading states.
- *
- * Props:
- *   width   {string|number}  — CSS width  (default '100%')
- *   height  {string|number}  — CSS height (default '1rem')
- *   borderRadius {string}    — CSS border-radius (default '4px')
- *   className {string}
+ * Skeleton Loading Component
+ * Displays shimmer placeholder while content loads
  */
+
 import React from 'react';
 
-const Skeleton = ({
-  width = '100%',
-  height = '1rem',
-  borderRadius = '4px',
-  className = '',
-}) => {
-  const style = {
-    width,
-    height,
-    borderRadius,
-    background:
-      'linear-gradient(90deg, #273549 25%, #334155 50%, #273549 75%)',
-    backgroundSize: '200% 100%',
-    animation: 'morty-shimmer 1.5s infinite',
-    display: 'block',
-  };
+/**
+ * @param {string} className - CSS classes for sizing
+ */
+const Skeleton = ({ className = '' }) => (
+  <div
+    className={`shimmer rounded ${className}`}
+    aria-hidden="true"
+  />
+);
 
-  return (
-    <>
-      <style>{`
-        @keyframes morty-shimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
-      <span
-        aria-hidden="true"
-        className={className}
-        style={style}
-      />
-    </>
-  );
-};
+/**
+ * Skeleton Card - full card placeholder
+ */
+export const SkeletonCard = () => (
+  <div className="bg-navy-surface border border-border rounded-card p-6">
+    <Skeleton className="h-4 w-1/3 mb-4" />
+    <Skeleton className="h-8 w-1/2 mb-2" />
+    <Skeleton className="h-3 w-2/3" />
+  </div>
+);
+
+/**
+ * Skeleton Table Row
+ */
+export const SkeletonRow = ({ cols = 5 }) => (
+  <tr>
+    {Array.from({ length: cols }).map((_, i) => (
+      <td key={i} className="px-4 py-3">
+        <Skeleton className="h-4 w-full" />
+      </td>
+    ))}
+  </tr>
+);
 
 export default Skeleton;
