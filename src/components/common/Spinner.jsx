@@ -1,31 +1,39 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-
 /**
- * Spinner component — animated loading indicator.
- * @param {object} props
- * @param {string} [props.size] - 'sm' | 'md' | 'lg'
- * @param {string} [props.className]
+ * Spinner component
+ * Animated loading spinner using the gold accent color.
+ *
+ * @param {number} [size=24] - Size in pixels
+ * @param {string} [color='#f59e0b'] - Spinner color
+ * @param {string} [className] - Additional CSS class
  */
-const Spinner = ({ size = 'md', className = '' }) => {
-  const sizes = {
-    sm: 'w-4 h-4 border-2',
-    md: 'w-6 h-6 border-2',
-    lg: 'w-10 h-10 border-4',
-  };
+import React from 'react';
 
-  return (
-    <div
+const Spinner = ({ size = 24, color = '#f59e0b', className = '', style = {} }) => (
+  <>
+    <style>{`
+      @keyframes morty-spin {
+        to { transform: rotate(360deg); }
+      }
+      .morty-spinner {
+        animation: morty-spin 600ms linear infinite;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+    `}</style>
+    <span
       role="status"
       aria-label="Loading"
-      className={`${sizes[size]} rounded-full border-gold border-t-transparent animate-spin ${className}`}
+      className={`morty-spinner ${className}`}
+      style={{
+        width: size,
+        height: size,
+        border: `3px solid rgba(245, 158, 11, 0.2)`,
+        borderTopColor: color,
+        ...style,
+      }}
     />
-  );
-};
-
-Spinner.propTypes = {
-  size: PropTypes.oneOf(['sm', 'md', 'lg']),
-  className: PropTypes.string,
-};
+  </>
+);
 
 export default Spinner;
