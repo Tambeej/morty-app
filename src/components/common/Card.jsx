@@ -1,34 +1,30 @@
+/**
+ * Card - Surface container component.
+ */
 import React from 'react';
 import PropTypes from 'prop-types';
 
-/**
- * Card component — surface container with optional hover effect.
- * @param {object} props
- * @param {React.ReactNode} props.children
- * @param {string} [props.className]
- * @param {boolean} [props.interactive] - enables hover lift effect
- * @param {string} [props.goldTopBorder] - adds gold top border (analysis card style)
- */
-const Card = ({ children, className = '', interactive = false, goldTopBorder = false }) => {
-  const base =
-    'bg-navy-surface border border-border rounded-card p-6 shadow-card';
-  const hover = interactive
-    ? 'transition-transform duration-200 hover:-translate-y-0.5 hover:border-gold cursor-pointer'
-    : '';
-  const topBorder = goldTopBorder ? 'border-t-4 border-t-gold' : '';
-
+export default function Card({ children, className = '', style = {}, interactive = false }) {
   return (
-    <div className={`${base} ${hover} ${topBorder} ${className}`}>
+    <div
+      className={`rounded-card ${interactive ? 'stat-card' : ''} ${className}`}
+      style={{
+        background: '#1e293b',
+        border: '1px solid #334155',
+        borderRadius: '12px',
+        padding: '24px',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        ...style,
+      }}
+    >
       {children}
     </div>
   );
-};
+}
 
 Card.propTypes = {
   children: PropTypes.node.isRequired,
   className: PropTypes.string,
+  style: PropTypes.object,
   interactive: PropTypes.bool,
-  goldTopBorder: PropTypes.bool,
 };
-
-export default Card;

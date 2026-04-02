@@ -1,68 +1,45 @@
-import React from 'react';
-
 /**
- * ProgressBar component
- * Displays a progress bar with optional label and percentage.
- *
- * @param {number} value - Progress value (0-100)
- * @param {string} [label] - Optional label text
- * @param {boolean} [showPercent=true] - Whether to show percentage text
- * @param {string} [className] - Additional CSS classes
- * @param {'sm'|'md'|'lg'} [size='md'] - Bar height size
- * @param {'gold'|'success'|'error'|'info'} [color='gold'] - Bar color variant
+ * ProgressBar - Animated progress indicator.
  */
-const ProgressBar = ({
-  value = 0,
-  label,
-  showPercent = true,
-  className = '',
-  size = 'md',
-  color = 'gold',
-}) => {
-  const clampedValue = Math.min(100, Math.max(0, value));
+import React from 'react';
+import PropTypes from 'prop-types';
 
-  const heightMap = {
-    sm: 'h-1',
-    md: 'h-1.5',
-    lg: 'h-2.5',
-  };
-
-  const colorMap = {
-    gold: 'from-amber-500 to-amber-400',
-    success: 'from-emerald-500 to-emerald-400',
-    error: 'from-red-500 to-red-400',
-    info: 'from-blue-500 to-blue-400',
-  };
+export default function ProgressBar({ value = 0, max = 100, label, showPercent = false }) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
 
   return (
-    <div className={`w-full ${className}`}>
+    <div>
       {(label || showPercent) && (
-        <div className="flex justify-between items-center mb-1.5">
+        <div className="flex items-center justify-between mb-2">
           {label && (
-            <span className="text-xs font-medium text-slate-400">{label}</span>
+            <span className="text-sm" style={{ color: '#94a3b8' }}>
+              {label}
+            </span>
           )}
           {showPercent && (
-            <span className="text-xs font-semibold text-amber-400 ml-auto">
-              {clampedValue}%
+            <span className="text-sm" style={{ color: '#94a3b8' }}>
+              {Math.round(pct)}%
             </span>
           )}
         </div>
       )}
       <div
-        className={`w-full bg-slate-700 rounded-full overflow-hidden ${heightMap[size]}`}
+        className="progress-bar"
         role="progressbar"
-        aria-valuenow={clampedValue}
+        aria-valuenow={value}
         aria-valuemin={0}
-        aria-valuemax={100}
+        aria-valuemax={max}
         aria-label={label || 'Progress'}
       >
-        <div
-          className={`h-full bg-gradient-to-r ${colorMap[color]} rounded-full transition-all duration-300 ease-out`}
-          style={{ width: `${clampedValue}%` }}
-        />
+        <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
-};
+}
 
-export default ProgressBar;
+ProgressBar.propTypes = {
+  value: PropTypes.number,
+  max: PropTypes.number,
+  label: PropTypes.string,
+  showPercent: PropTypes.bool,
+};

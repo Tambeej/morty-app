@@ -1,27 +1,20 @@
+/**
+ * Skeleton - Shimmer placeholder for loading states.
+ */
 import React from 'react';
 import PropTypes from 'prop-types';
 
-/**
- * Skeleton component — shimmer placeholder for loading states.
- * @param {object} props
- * @param {string} [props.className]
- * @param {string} [props.width]
- * @param {string} [props.height]
- */
-const Skeleton = ({ className = '', width, height }) => {
+export default function Skeleton({ className = '', style = {} }) {
   return (
     <div
-      className={`skeleton rounded ${className}`}
-      style={{ width, height }}
+      className={`skeleton ${className}`}
+      style={style}
       aria-hidden="true"
     />
   );
-};
+}
 
 Skeleton.propTypes = {
   className: PropTypes.string,
-  width: PropTypes.string,
-  height: PropTypes.string,
+  style: PropTypes.object,
 };
-
-export default Skeleton;

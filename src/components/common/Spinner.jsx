@@ -1,39 +1,31 @@
 /**
- * Spinner component
- * Animated loading spinner using the gold accent color.
- *
- * @param {number} [size=24] - Size in pixels
- * @param {string} [color='#f59e0b'] - Spinner color
- * @param {string} [className] - Additional CSS class
+ * Spinner - Loading indicator.
+ * @param {number} size - Diameter in pixels (default 24).
+ * @param {string} color - Border color (default gold).
  */
 import React from 'react';
+import PropTypes from 'prop-types';
 
-const Spinner = ({ size = 24, color = '#f59e0b', className = '', style = {} }) => (
-  <>
-    <style>{`
-      @keyframes morty-spin {
-        to { transform: rotate(360deg); }
-      }
-      .morty-spinner {
-        animation: morty-spin 600ms linear infinite;
-        border-radius: 50%;
-        display: inline-block;
-        flex-shrink: 0;
-      }
-    `}</style>
+export default function Spinner({ size = 24, color = '#f59e0b' }) {
+  return (
     <span
       role="status"
       aria-label="Loading"
-      className={`morty-spinner ${className}`}
       style={{
+        display: 'inline-block',
         width: size,
         height: size,
-        border: `3px solid rgba(245, 158, 11, 0.2)`,
+        border: `2px solid rgba(255,255,255,0.1)`,
         borderTopColor: color,
-        ...style,
+        borderRadius: '50%',
+        animation: 'spin 600ms linear infinite',
+        flexShrink: 0,
       }}
     />
-  </>
-);
+  );
+}
 
-export default Spinner;
+Spinner.propTypes = {
+  size: PropTypes.number,
+  color: PropTypes.string,
+};
