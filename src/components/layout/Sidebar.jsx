@@ -1,177 +1,146 @@
 /**
- * Sidebar.jsx
- * Collapsible navigation sidebar for authenticated users.
- * Desktop: 240px fixed. Mobile: hidden, slides in as overlay.
+ * Sidebar Navigation Component
+ * Collapsible sidebar with active state indicators
  */
-import React from 'react';
+
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
 
-const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: '🏠' },
-  { to: '/profile', label: 'Financial Data', icon: '📊' },
-  { to: '/upload', label: 'Upload Offer', icon: '📤' },
-  { to: '/analysis', label: 'Analysis', icon: '🔍' },
+const navItems = [
+  {
+    path: '/dashboard',
+    label: 'Dashboard',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+  },
+  {
+    path: '/profile',
+    label: 'Financial Data',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    path: '/upload',
+    label: 'Upload Offer',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+      </svg>
+    ),
+  },
+  {
+    path: '/analysis',
+    label: 'Analysis',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+  },
 ];
 
+/**
+ * Sidebar Component
+ * @param {boolean} isOpen - Mobile sidebar open state
+ * @param {Function} onClose - Close sidebar callback
+ */
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
-  const { addToast } = useToast();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
-    addToast('You have been signed out.', 'info');
     navigate('/login');
   };
 
-  const initials = user?.fullName
-    ? user.fullName
-        .split(' ')
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-    : user?.email?.[0]?.toUpperCase() || '?';
-
   return (
-    <aside
-      aria-label="Main navigation"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: '240px',
-        background: '#1e293b',
-        borderRight: '1px solid #334155',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 40,
-        transform: isOpen ? 'translateX(0)' : undefined,
-        transition: 'transform 250ms ease',
-      }}
-      className="sidebar"
-    >
-      {/* Logo */}
-      <div
-        style={{
-          padding: '24px 20px',
-          borderBottom: '1px solid #334155',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}
-      >
-        <span style={{ fontSize: '1.5rem' }}>🏡</span>
-        <span
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: '#f59e0b',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Morty
-        </span>
-      </div>
-
-      {/* Nav links */}
-      <nav style={{ flex: 1, padding: '16px 0', overflowY: 'auto' }}>
-        {NAV_ITEMS.map(({ to, label, icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            onClick={onClose}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px 20px',
-              color: isActive ? '#f8fafc' : '#94a3b8',
-              textDecoration: 'none',
-              fontSize: '0.9375rem',
-              fontWeight: isActive ? 600 : 400,
-              background: isActive ? 'rgba(245,158,11,0.08)' : 'transparent',
-              borderLeft: isActive ? '3px solid #f59e0b' : '3px solid transparent',
-              transition: 'all 150ms ease',
-            })}
-          >
-            <span style={{ fontSize: '1.1rem' }}>{icon}</span>
-            {label}
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* User section */}
-      <div
-        style={{
-          padding: '16px 20px',
-          borderTop: '1px solid #334155',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-        }}
-      >
-        {/* Avatar */}
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
         <div
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            background: '#f59e0b',
-            color: '#0f172a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            flexShrink: 0,
-          }}
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          onClick={onClose}
           aria-hidden="true"
-        >
-          {initials}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed top-0 left-0 h-full z-30
+          w-60 bg-navy-surface border-r border-border
+          flex flex-col
+          transition-transform duration-300
+          lg:translate-x-0 lg:static lg:z-auto
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+        aria-label="Main navigation"
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
+          <div className="w-8 h-8 bg-gold rounded-lg flex items-center justify-center">
+            <svg className="w-5 h-5 text-navy" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+            </svg>
+          </div>
+          <span className="text-xl font-bold text-[#f8fafc]">Morty</span>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              color: '#f8fafc',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {user?.fullName || user?.email || 'User'}
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Sidebar navigation">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                ${isActive
+                  ? 'bg-navy-elevated text-[#f8fafc] border-l-2 border-gold pl-[10px]'
+                  : 'text-[#94a3b8] hover:bg-navy-elevated hover:text-[#f8fafc]'
+                }`
+              }
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* User Section */}
+        <div className="px-3 py-4 border-t border-border">
+          <div className="flex items-center gap-3 px-3 py-2 mb-2">
+            <div className="w-8 h-8 bg-gold/20 rounded-full flex items-center justify-center">
+              <span className="text-gold text-sm font-semibold">
+                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[#f8fafc] truncate">
+                {user?.name || 'User'}
+              </p>
+              <p className="text-xs text-[#64748b] truncate">{user?.email}</p>
+            </div>
           </div>
           <button
             onClick={handleLogout}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#64748b',
-              fontSize: '0.75rem',
-              padding: 0,
-              textAlign: 'left',
-            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#94a3b8] hover:bg-navy-elevated hover:text-error transition-all duration-150"
           >
-            Sign out
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Sign Out</span>
           </button>
         </div>
-      </div>
-
-      {/* Mobile: hide sidebar by default */}
-      <style>{`
-        @media (max-width: 768px) {
-          .sidebar {
-            transform: ${isOpen ? 'translateX(0)' : 'translateX(-100%)'};
-          }
-        }
-      `}</style>
-    </aside>
+      </aside>
+    </>
   );
 };
 
