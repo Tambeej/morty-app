@@ -1,18 +1,27 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 /**
- * Skeleton loading placeholder.
- *
- * @param {string} className - Additional CSS classes for sizing
- * @param {boolean} rounded - Use rounded-full for circular skeletons
+ * Skeleton component — shimmer placeholder for loading states.
+ * @param {object} props
+ * @param {string} [props.className]
+ * @param {string} [props.width]
+ * @param {string} [props.height]
  */
-const Skeleton = ({ className = '', rounded = false }) => {
+const Skeleton = ({ className = '', width, height }) => {
   return (
     <div
-      className={`skeleton ${rounded ? 'rounded-full' : 'rounded'} ${className}`}
+      className={`skeleton rounded ${className}`}
+      style={{ width, height }}
       aria-hidden="true"
     />
   );
+};
+
+Skeleton.propTypes = {
+  className: PropTypes.string,
+  width: PropTypes.string,
+  height: PropTypes.string,
 };
 
 export default Skeleton;

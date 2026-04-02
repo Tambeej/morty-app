@@ -1,151 +1,137 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
-/**
- * Toast notification system.
- * Provides a context for showing toast messages from anywhere in the app.
- */
+/** @type {React.Context} */
 const ToastContext = createContext(null);
 
-const TOAST_DURATION = 4000;
-
 /**
- * Individual Toast notification component.
+ * ToastProvider — wraps the app and provides toast notifications.
  */
-const ToastItem = ({ toast, onDismiss }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), TOAST_DURATION);
-    return () => clearTimeout(timer);
-  }, [toast.id, onDismiss]);
+export const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
 
-  const variants = {
-    success: {
-      borderColor: 'border-l-success',
-      icon: (
-        <svg className="h-5 w-5 text-success flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-            clipRule="evenodd"
-          />
-        </svg>
-      ),
-    },
-    error: {
-      borderColor: 'border-l-error',
-      icon: (
-        <svg className="h-5 w-5 text-error flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-            clipRule="evenodd"
-          />
-        </svg>
-      ),
-    },
-    info: {
-      borderColor: 'border-l-blue-500',
-      icon: (
-        <svg className="h-5 w-5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-            clipRule="evenodd"
-          />
-        </svg>
-      ),
-    },
-  };
+  const addToast = useCallback((message, type = 'info', duration = 4000) => {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    if (duration > 0) {
+      setTimeout(() => removeToast(id), duration);
+    }
+    return id;
+  }, []);
 
-  const variant = variants[toast.type] || variants.info;
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   return (
+    <ToastContext.Provider value={{ addToast, removeToast }}>
+      {children}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </ToastContext.Provider>
+  );
+};
+
+ToastProvider.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
+/**
+ * useToast hook — access toast functions.
+ */
+export const useToast = () => {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error('useToast must be used within ToastProvider');
+  return ctx;
+};
+
+/** Icon map per toast type */
+const icons = {
+  success: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+  ),
+  error: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  ),
+  info: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  warning: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+  ),
+};
+
+const borderColors = {
+  success: 'border-l-success',
+  error: 'border-l-error',
+  info: 'border-l-blue-400',
+  warning: 'border-l-warning',
+};
+
+const textColors = {
+  success: 'text-success',
+  error: 'text-error',
+  info: 'text-blue-400',
+  warning: 'text-warning',
+};
+
+/** Individual Toast item */
+const ToastItem = ({ toast, onRemove }) => {
+  return (
     <div
-      className={`flex items-start gap-3 w-80 bg-navy-surface border border-border border-l-4 ${variant.borderColor} rounded-lg p-4 shadow-lg animate-fade-in`}
       role="alert"
-      aria-live="polite"
+      aria-live="assertive"
+      className={`flex items-start gap-3 bg-navy-surface border border-border border-l-4 ${borderColors[toast.type]} rounded-input p-4 shadow-lg w-80 animate-fade-in`}
     >
-      {variant.icon}
-      <div className="flex-1 min-w-0">
-        {toast.title && (
-          <p className="text-sm font-semibold text-text-primary mb-0.5">{toast.title}</p>
-        )}
-        <p className="text-sm text-text-secondary">{toast.message}</p>
-      </div>
+      <span className={textColors[toast.type]}>{icons[toast.type]}</span>
+      <p className="flex-1 text-sm text-text-primary">{toast.message}</p>
       <button
-        onClick={() => onDismiss(toast.id)}
-        className="text-text-muted hover:text-text-secondary transition-colors flex-shrink-0"
+        onClick={() => onRemove(toast.id)}
+        className="text-text-muted hover:text-text-primary transition-colors"
         aria-label="Dismiss notification"
       >
-        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-            clipRule="evenodd"
-          />
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
     </div>
   );
 };
 
-/**
- * ToastProvider - Wraps the app to provide toast functionality.
- */
-export const ToastProvider = ({ children }) => {
-  const [toasts, setToasts] = useState([]);
+ToastItem.propTypes = {
+  toast: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    message: PropTypes.string.isRequired,
+    type: PropTypes.oneOf(['success', 'error', 'info', 'warning']).isRequired,
+  }).isRequired,
+  onRemove: PropTypes.func.isRequired,
+};
 
-  const dismiss = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const showToast = useCallback(({ type = 'info', title, message }) => {
-    const id = Date.now().toString();
-    setToasts((prev) => [...prev, { id, type, title, message }]);
-    return id;
-  }, []);
-
-  const success = useCallback(
-    (message, title) => showToast({ type: 'success', title, message }),
-    [showToast]
-  );
-
-  const error = useCallback(
-    (message, title) => showToast({ type: 'error', title, message }),
-    [showToast]
-  );
-
-  const info = useCallback(
-    (message, title) => showToast({ type: 'info', title, message }),
-    [showToast]
-  );
-
+/** Toast container — positioned top-right */
+const ToastContainer = ({ toasts, onRemove }) => {
+  if (toasts.length === 0) return null;
   return (
-    <ToastContext.Provider value={{ showToast, success, error, info, dismiss }}>
-      {children}
-      {/* Toast container - top-right */}
-      <div
-        className="fixed top-4 right-4 z-50 flex flex-col gap-3"
-        aria-label="Notifications"
-        aria-live="polite"
-      >
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
-        ))}
-      </div>
-    </ToastContext.Provider>
+    <div
+      className="fixed top-4 right-4 z-50 flex flex-col gap-2"
+      aria-label="Notifications"
+    >
+      {toasts.map((t) => (
+        <ToastItem key={t.id} toast={t} onRemove={onRemove} />
+      ))}
+    </div>
   );
 };
 
-/**
- * useToast - Hook for showing toast notifications.
- * @returns {{ success, error, info, showToast, dismiss }}
- */
-export const useToast = () => {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
+ToastContainer.propTypes = {
+  toasts: PropTypes.array.isRequired,
+  onRemove: PropTypes.func.isRequired,
 };
 
-export default ToastItem;
+export default ToastContainer;

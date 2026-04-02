@@ -14,12 +14,12 @@ module.exports = {
           light: '#fbbf24',
         },
         border: '#334155',
-        'text-primary': '#f8fafc',
-        'text-secondary': '#94a3b8',
-        'text-muted': '#64748b',
         success: '#10b981',
         warning: '#f59e0b',
         error: '#ef4444',
+        'text-primary': '#f8fafc',
+        'text-secondary': '#94a3b8',
+        'text-muted': '#64748b',
       },
       fontFamily: {
         sans: ['Inter', 'Rubik', 'system-ui', '-apple-system', 'sans-serif'],
@@ -32,8 +32,9 @@ module.exports = {
         card: '0 4px 24px rgba(0,0,0,0.3)',
       },
       animation: {
-        'fade-in': 'fadeIn 250ms ease-out forwards',
+        'fade-in': 'fadeIn 250ms ease-out both',
         shimmer: 'shimmer 1.5s infinite',
+        spin: 'spin 600ms linear infinite',
       },
       keyframes: {
         fadeIn: {

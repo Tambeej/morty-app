@@ -1,31 +1,28 @@
-/* Morty Global Styles */
+/* Morty — Global Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Import fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap');
-
-/* CSS Custom Properties */
+/* ─── CSS Custom Properties ─────────────────────────────────────────────── */
 :root {
-  --color-bg-primary: #0f172a;
-  --color-bg-surface: #1e293b;
-  --color-bg-elevated: #273549;
-  --color-accent-gold: #f59e0b;
-  --color-accent-light: #fbbf24;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-border: #334155;
+  --color-bg-primary:    #0f172a;
+  --color-bg-surface:    #1e293b;
+  --color-bg-elevated:   #273549;
+  --color-accent-gold:   #f59e0b;
+  --color-accent-light:  #fbbf24;
+  --color-text-primary:  #f8fafc;
+  --color-text-secondary:#94a3b8;
+  --color-text-muted:    #64748b;
+  --color-success:       #10b981;
+  --color-warning:       #f59e0b;
+  --color-error:         #ef4444;
+  --color-border:        #334155;
 }
 
-/* Base reset */
-*,
-*::before,
-*::after {
+/* ─── Base Reset ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -34,7 +31,6 @@ html {
 }
 
 body {
-  margin: 0;
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: 'Inter', 'Rubik', system-ui, -apple-system, sans-serif;
@@ -43,42 +39,33 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* RTL support */
-html[dir='rtl'] {
-  font-family: 'Rubik', 'Inter', system-ui, sans-serif;
+/* ─── RTL Support ────────────────────────────────────────────────────────── */
+html[dir="rtl"] {
+  font-family: 'Rubik', 'Inter', system-ui;
 }
 
-html[dir='rtl'] .toast-container {
+html[dir="rtl"] .toast-container {
   right: auto;
   left: 1rem;
 }
 
-/* Focus visible styles */
-:focus-visible {
-  outline: 2px solid var(--color-accent-gold);
-  outline-offset: 2px;
-}
-
-/* Scrollbar styling */
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: var(--color-bg-primary);
 }
-
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
 
-/* Progress bar */
+/* ─── Progress Bar ───────────────────────────────────────────────────────── */
 .progress-bar {
   height: 4px;
   background: var(--color-border);
@@ -88,12 +75,12 @@ html[dir='rtl'] .toast-container {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-accent-gold), var(--color-accent-light));
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
   border-radius: 2px;
   transition: width 300ms ease;
 }
 
-/* Skeleton loading animation */
+/* ─── Skeleton Shimmer ───────────────────────────────────────────────────── */
 .skeleton {
   background: var(--color-bg-elevated);
   position: relative;
@@ -114,15 +101,11 @@ html[dir='rtl'] .toast-container {
 }
 
 @keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-/* Page enter animation */
+/* ─── Animations ─────────────────────────────────────────────────────────── */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -135,47 +118,16 @@ html[dir='rtl'] .toast-container {
 }
 
 .animate-fade-in {
-  animation: fadeIn 250ms ease-out forwards;
+  animation: fadeIn 250ms ease-out both;
 }
 
-/* Upload dropzone */
-.dropzone {
-  border: 2px dashed var(--color-border);
-  border-radius: 12px;
-  padding: 48px;
-  text-align: center;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.dropzone:hover,
-.dropzone.active {
-  border-color: var(--color-accent-gold);
-  background-color: var(--color-bg-elevated);
-}
-
-.dropzone.drag-over {
-  border-color: var(--color-accent-gold);
-  background-color: var(--color-bg-elevated);
-  animation: borderPulse 1s infinite;
-}
-
-@keyframes borderPulse {
-  0%, 100% {
-    border-color: var(--color-accent-gold);
-  }
-  50% {
-    border-color: var(--color-accent-light);
-  }
-}
-
-/* Stat card */
+/* ─── Stat Card ──────────────────────────────────────────────────────────── */
 .stat-card {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 24px;
-  transition: transform 200ms ease, border-color 200ms ease;
+  transition: transform 200ms, border-color 200ms;
 }
 
 .stat-card:hover {
@@ -183,19 +135,39 @@ html[dir='rtl'] .toast-container {
   border-color: var(--color-accent-gold);
 }
 
-/* Analysis card with gold top border */
+/* ─── Analysis Card ──────────────────────────────────────────────────────── */
 .analysis-card {
   border-top: 3px solid var(--color-accent-gold);
 }
 
-/* Sidebar active item */
-.sidebar-item-active {
-  border-left: 3px solid var(--color-accent-gold);
-  background-color: var(--color-bg-elevated);
-  color: var(--color-text-primary);
+/* ─── Upload Dropzone ────────────────────────────────────────────────────── */
+.dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  padding: 48px;
+  text-align: center;
+  transition: all 200ms;
+  cursor: pointer;
 }
 
-html[dir='rtl'] .sidebar-item-active {
-  border-left: none;
-  border-right: 3px solid var(--color-accent-gold);
+.dropzone.active {
+  border-color: var(--color-accent-gold);
+  background: var(--color-bg-elevated);
+}
+
+.dropzone:hover {
+  border-color: var(--color-accent-gold);
+  background: var(--color-bg-elevated);
+}
+
+/* ─── Focus Visible ──────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-accent-gold);
+  outline-offset: 2px;
+}
+
+/* ─── Selection ──────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(245, 158, 11, 0.3);
+  color: var(--color-text-primary);
 }
