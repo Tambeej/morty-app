@@ -1,8 +1,6 @@
 /**
- * Web Vitals Reporting
- * Measures and reports core web vitals for performance monitoring
+ * Web Vitals reporting utility
  */
-
 const reportWebVitals = (onPerfEntry) => {
   if (onPerfEntry && onPerfEntry instanceof Function) {
     import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {

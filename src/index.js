@@ -1,31 +1,25 @@
 /**
- * Morty App - Entry Point
- * Renders the React app and registers the service worker for PWA support
+ * Morty App Entry Point
+ * Initializes React app with service worker registration
  */
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './styles/globals.css';
 import App from './App';
 import { register as registerServiceWorker } from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-
 root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
 
-// Register service worker for PWA support
-// Cache-First for static assets, Network-First for API calls
+// Register service worker for PWA functionality
 registerServiceWorker({
-  onSuccess: (registration) => {
-    console.log('Morty is ready for offline use.');
-  },
-  onUpdate: (registration) => {
-    console.log('New version of Morty is available. Refresh to update.');
-  },
+  onSuccess: () => console.log('[Morty] App cached for offline use.'),
+  onUpdate: () => console.log('[Morty] New version available. Refresh to update.'),
 });
 
 // Report web vitals for performance monitoring

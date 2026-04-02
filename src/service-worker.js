@@ -1,12 +1,10 @@
 /* eslint-disable no-restricted-globals */
-
 /**
  * Morty Service Worker
  * Uses Workbox for caching strategies:
  * - Cache-First for static assets
  * - Network-First for API calls
  */
-
 import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
@@ -23,15 +21,9 @@ precacheAndRoute(self.__WB_MANIFEST);
 const fileExtensionRegexp = new RegExp('/[^/?]+\\.[^/]+$');
 registerRoute(
   ({ request, url }) => {
-    if (request.mode !== 'navigate') {
-      return false;
-    }
-    if (url.pathname.startsWith('/_')) {
-      return false;
-    }
-    if (url.pathname.match(fileExtensionRegexp)) {
-      return false;
-    }
+    if (request.mode !== 'navigate') return false;
+    if (url.pathname.startsWith('/_')) return false;
+    if (url.pathname.match(fileExtensionRegexp)) return false;
     return true;
   },
   createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html')
@@ -39,20 +31,39 @@ registerRoute(
 
 // Cache-First strategy for static assets (images, fonts, etc.)
 registerRoute(
-  ({ request }) =>
-    request.destination === 'image' ||
-    request.destination === 'font' ||
-    request.destination === 'style',
+  ({ url }) =>
+    url.origin === self.location.origin &&
+    (url.pathname.endsWith('.png') ||
+      url.pathname.endsWith('.jpg') ||
+      url.pathname.endsWith('.jpeg') ||
+      url.pathname.endsWith('.svg') ||
+      url.pathname.endsWith('.ico') ||
+      url.pathname.endsWith('.woff') ||
+      url.pathname.endsWith('.woff2')),
   new CacheFirst({
     cacheName: 'morty-static-assets',
     plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 60,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-      }),
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 }),
+    ],
+  })
+);
+
+// Cache Google Fonts
+registerRoute(
+  ({ url }) => url.origin === 'https://fonts.googleapis.com',
+  new StaleWhileRevalidate({
+    cacheName: 'morty-google-fonts-stylesheets',
+  })
+);
+
+registerRoute(
+  ({ url }) => url.origin === 'https://fonts.gstatic.com',
+  new CacheFirst({
+    cacheName: 'morty-google-fonts-webfonts',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 365 * 24 * 60 * 60 }),
     ],
   })
 );
@@ -64,32 +75,8 @@ registerRoute(
     cacheName: 'morty-api-cache',
     networkTimeoutSeconds: 10,
     plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 50,
-        maxAgeSeconds: 5 * 60, // 5 minutes
-      }),
-    ],
-  })
-);
-
-// StaleWhileRevalidate for Google Fonts
-registerRoute(
-  ({ url }) =>
-    url.origin === 'https://fonts.googleapis.com' ||
-    url.origin === 'https://fonts.gstatic.com',
-  new StaleWhileRevalidate({
-    cacheName: 'morty-google-fonts',
-    plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 20,
-        maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
-      }),
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 5 * 60 }),
     ],
   })
 );
