@@ -1,109 +1,182 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import RegisterForm from '../components/auth/RegisterForm';
-import Card from '../components/common/Card';
-import useAuth from '../hooks/useAuth';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../components/common/Toast';
+import Button from '../components/common/Button';
+import Input from '../components/common/Input';
 
 /**
- * RegisterPage - Full-page registration view.
- * Redirects to dashboard if already authenticated.
- * Features animated background and centered card layout.
+ * RegisterPage — new account registration form.
+ * Fields: Full Name, Email, Phone (+972), Password, Confirm Password.
  */
 const RegisterPage = () => {
+  const { register: registerUser } = useAuth();
+  const { addToast } = useToast();
   const navigate = useNavigate();
-  const { isAuthenticated, loading } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm();
+
+  const password = watch('password');
+
+  const onSubmit = async (data) => {
+    try {
+      await registerUser({
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        password: data.password,
+      });
+      addToast('Account created successfully! Welcome to Morty.', 'success');
       navigate('/dashboard', { replace: true });
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Registration failed. Please try again.';
+      addToast(msg, 'error');
     }
-  }, [isAuthenticated, loading, navigate]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-navy flex items-center justify-center">
-        <div className="h-10 w-10 rounded-full border-4 border-gold border-t-transparent animate-spin" />
-      </div>
-    );
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-navy flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          {/* Logo */}
-          <div className="h-8 w-8 bg-gold rounded-lg flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+    <div className="min-h-screen bg-navy flex items-center justify-center px-4 py-8">
+      {/* Animated background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gold/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gold/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-md animate-fade-in">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-gold rounded-xl flex items-center justify-center">
+            <svg className="w-6 h-6 text-navy" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
             </svg>
           </div>
-          <span className="text-xl font-bold text-text-primary">Morty</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-text-secondary">
-          <button className="hover:text-text-primary transition-colors">עברית</button>
-          <span>|</span>
-          <button className="text-gold font-medium">EN</button>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-8">
-        {/* Animated background gradient */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-gold/5 rounded-full blur-3xl" />
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gold/5 rounded-full blur-3xl" />
+          <span className="text-2xl font-bold text-text-primary">Morty</span>
         </div>
 
-        <div className="relative w-full max-w-md animate-fade-in">
-          <Card className="w-full">
-            {/* Card header */}
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-text-primary mb-2">Create Your Account</h1>
-              <p className="text-text-secondary text-sm">
-                Start optimizing your mortgage with AI-powered analysis
-              </p>
+        {/* Card */}
+        <div className="bg-navy-surface border border-border rounded-card p-8 shadow-card">
+          <h1 className="text-xl font-semibold text-text-primary mb-6">Create your account</h1>
+
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            <Input
+              label="Full Name"
+              type="text"
+              placeholder="Yoav Cohen"
+              autoComplete="name"
+              error={errors.fullName?.message}
+              {...register('fullName', {
+                required: 'Full name is required',
+                minLength: { value: 2, message: 'Name must be at least 2 characters' },
+              })}
+            />
+
+            <Input
+              label="Email"
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              error={errors.email?.message}
+              {...register('email', {
+                required: 'Email is required',
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Enter a valid email address',
+                },
+              })}
+            />
+
+            <Input
+              label="Phone (Israeli)"
+              type="tel"
+              placeholder="+972 50 000 0000"
+              autoComplete="tel"
+              error={errors.phone?.message}
+              {...register('phone', {
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^(\+972|0)[0-9]{8,9}$/,
+                  message: 'Enter a valid Israeli phone number',
+                },
+              })}
+            />
+
+            <div className="relative">
+              <Input
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Min. 8 characters"
+                autoComplete="new-password"
+                error={errors.password?.message}
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: { value: 8, message: 'Password must be at least 8 characters' },
+                  pattern: {
+                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                    message: 'Must include uppercase, lowercase, and a number',
+                  },
+                })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-8 text-text-muted hover:text-text-secondary transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
             </div>
 
-            <RegisterForm />
-          </Card>
+            <Input
+              label="Confirm Password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Repeat your password"
+              autoComplete="new-password"
+              error={errors.confirmPassword?.message}
+              {...register('confirmPassword', {
+                required: 'Please confirm your password',
+                validate: (v) => v === password || 'Passwords do not match',
+              })}
+            />
 
-          {/* Trust indicators */}
-          <div className="mt-6 flex items-center justify-center gap-6 text-xs text-text-muted">
-            <div className="flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-success" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>Free to start</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-success" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>Data encrypted</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-success" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>No credit card needed</span>
-            </div>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isSubmitting}
+              className="w-full mt-2"
+            >
+              Create Account
+            </Button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-border text-center">
+            <p className="text-sm text-text-secondary">
+              Already have an account?{' '}
+              <Link to="/login" className="text-gold hover:text-gold-light transition-colors font-medium">
+                Sign In
+              </Link>
+            </p>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

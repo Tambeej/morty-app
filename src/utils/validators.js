@@ -1,32 +1,29 @@
 /**
- * validators.js - Form validation schemas and utility functions.
- * Uses Zod for schema-based validation.
+ * Client-side validation utilities for Morty forms.
  */
 
 /**
- * Validate email format.
- * @param {string} email
- * @returns {boolean}
- */
-export const isValidEmail = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-/**
- * Validate Israeli phone number format.
- * Accepts: 05X-XXXXXXX, +972-5X-XXXXXXX, 05XXXXXXXX
+ * Validate Israeli phone number.
+ * Accepts formats: +972XXXXXXXXX, 0XXXXXXXXX
  * @param {string} phone
  * @returns {boolean}
  */
 export const isValidIsraeliPhone = (phone) => {
-  const phoneRegex = /^(\+972|0)(5[0-9])([-]?)(\d{7})$/;
-  return phoneRegex.test(phone.replace(/\s/g, ''));
+  return /^(\+972|0)[0-9]{8,9}$/.test(phone);
+};
+
+/**
+ * Validate email address.
+ * @param {string} email
+ * @returns {boolean}
+ */
+export const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
 /**
  * Validate password strength.
- * Minimum 8 characters, at least one letter and one number.
+ * Must have: min 8 chars, uppercase, lowercase, digit.
  * @param {string} password
  * @returns {{ valid: boolean, message: string }}
  */
@@ -34,91 +31,51 @@ export const validatePassword = (password) => {
   if (!password || password.length < 8) {
     return { valid: false, message: 'Password must be at least 8 characters' };
   }
-  if (!/[a-zA-Z]/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one letter' };
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: 'Password must include an uppercase letter' };
   }
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one number' };
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: 'Password must include a lowercase letter' };
+  }
+  if (!/\d/.test(password)) {
+    return { valid: false, message: 'Password must include a number' };
   }
   return { valid: true, message: '' };
 };
 
 /**
- * Login form validation rules for React Hook Form.
- */
-export const loginValidationRules = {
-  email: {
-    required: 'Email is required',
-    validate: (value) => isValidEmail(value) || 'Please enter a valid email address',
-  },
-  password: {
-    required: 'Password is required',
-    minLength: {
-      value: 8,
-      message: 'Password must be at least 8 characters',
-    },
-  },
-};
-
-/**
- * Registration form validation rules for React Hook Form.
- */
-export const registerValidationRules = {
-  fullName: {
-    required: 'Full name is required',
-    minLength: {
-      value: 2,
-      message: 'Name must be at least 2 characters',
-    },
-    maxLength: {
-      value: 100,
-      message: 'Name must be less than 100 characters',
-    },
-  },
-  phone: {
-    required: 'Phone number is required',
-    validate: (value) =>
-      isValidIsraeliPhone(value) || 'Please enter a valid Israeli phone number (e.g., 050-1234567)',
-  },
-  email: {
-    required: 'Email is required',
-    validate: (value) => isValidEmail(value) || 'Please enter a valid email address',
-  },
-  password: {
-    required: 'Password is required',
-    validate: (value) => {
-      const result = validatePassword(value);
-      return result.valid || result.message;
-    },
-  },
-  confirmPassword: (getValues) => ({
-    required: 'Please confirm your password',
-    validate: (value) => value === getValues('password') || 'Passwords do not match',
-  }),
-};
-
-/**
- * Format Israeli phone number to standard format.
- * @param {string} phone
- * @returns {string}
- */
-export const formatIsraeliPhone = (phone) => {
-  const cleaned = phone.replace(/[^\d+]/g, '');
-  if (cleaned.startsWith('+972')) {
-    return cleaned;
-  }
-  if (cleaned.startsWith('0')) {
-    return '+972' + cleaned.slice(1);
-  }
-  return phone;
-};
-
-/**
- * Format number with Israeli locale (commas).
+ * Format a number as Israeli currency string.
  * @param {number} value
- * @returns {string}
+ * @returns {string} e.g. "1,234,567"
  */
 export const formatCurrency = (value) => {
-  if (value === null || value === undefined || value === '') return '';
-  return new Intl.NumberFormat('he-IL').format(value);
+  if (value === null || value === undefined || isNaN(value)) return '';
+  return Number(value).toLocaleString('he-IL');
+};
+
+/**
+ * Parse a formatted currency string back to a number.
+ * @param {string} str
+ * @returns {number}
+ */
+export const parseCurrency = (str) => {
+  if (!str) return 0;
+  return parseFloat(String(str).replace(/,/g, '')) || 0;
+};
+
+/**
+ * Calculate mortgage monthly payment using standard formula.
+ * @param {number} principal - Loan amount in ILS
+ * @param {number} annualRate - Annual interest rate (e.g. 3.5 for 3.5%)
+ * @param {number} termYears - Loan term in years
+ * @returns {number} Monthly payment amount
+ */
+export const calcMonthlyPayment = (principal, annualRate, termYears) => {
+  if (!principal || !annualRate || !termYears) return 0;
+  const r = annualRate / 100 / 12;
+  const n = termYears * 12;
+  if (r === 0) return principal / n;
+  return Math.round(
+    (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+  );
 };

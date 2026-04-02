@@ -1,152 +1,117 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 
 /**
- * AuthContext - Manages authentication state across the application.
- * Stores JWT access token and refresh token in localStorage.
- * Provides login, register, logout, and token refresh functionality.
+ * AuthContext — provides authentication state and actions throughout the app.
  */
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
+/**
+ * AuthProvider — wraps the app and manages JWT auth state.
+ * Stores access token in memory, refresh token in localStorage.
+ */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem('morty_token'));
-  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('morty_refresh_token'));
+  const [token, setToken] = useState(() => localStorage.getItem('morty_token') || null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  /**
-   * Persist tokens to localStorage and update state.
-   */
-  const persistTokens = useCallback((accessToken, newRefreshToken) => {
-    localStorage.setItem('morty_token', accessToken);
-    localStorage.setItem('morty_refresh_token', newRefreshToken);
-    setToken(accessToken);
-    setRefreshToken(newRefreshToken);
-  }, []);
-
-  /**
-   * Clear all auth data from state and localStorage.
-   */
-  const clearAuth = useCallback(() => {
-    localStorage.removeItem('morty_token');
-    localStorage.removeItem('morty_refresh_token');
-    setToken(null);
-    setRefreshToken(null);
-    setUser(null);
-  }, []);
-
-  /**
-   * Fetch current user profile using stored token.
-   */
-  const fetchCurrentUser = useCallback(async () => {
-    const storedToken = localStorage.getItem('morty_token');
-    if (!storedToken) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const response = await api.get('/auth/me');
-      if (response.data.success) {
-        setUser(response.data.user);
-      }
-    } catch (err) {
-      // Token might be expired, try refresh
-      const storedRefresh = localStorage.getItem('morty_refresh_token');
-      if (storedRefresh) {
-        try {
-          const refreshResponse = await api.post('/auth/refresh', { refreshToken: storedRefresh });
-          if (refreshResponse.data.success) {
-            persistTokens(refreshResponse.data.token, refreshResponse.data.refreshToken);
-            const userResponse = await api.get('/auth/me');
-            if (userResponse.data.success) {
-              setUser(userResponse.data.user);
-            }
-          }
-        } catch (refreshErr) {
-          clearAuth();
-        }
-      } else {
-        clearAuth();
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [persistTokens, clearAuth]);
-
-  // On mount, verify existing token
+  // Set axios default auth header whenever token changes
   useEffect(() => {
-    fetchCurrentUser();
-  }, [fetchCurrentUser]);
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      localStorage.setItem('morty_token', token);
+    } else {
+      delete api.defaults.headers.common['Authorization'];
+      localStorage.removeItem('morty_token');
+    }
+  }, [token]);
+
+  // On mount: verify token and load user
+  useEffect(() => {
+    const initAuth = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await api.get('/auth/me');
+        setUser(res.data?.user || null);
+      } catch (err) {
+        // Token invalid or expired — try refresh
+        const refreshToken = localStorage.getItem('morty_refresh_token');
+        if (refreshToken) {
+          try {
+            const refreshRes = await api.post('/auth/refresh', { refreshToken });
+            const newToken = refreshRes.data?.token;
+            const newRefresh = refreshRes.data?.refreshToken;
+            setToken(newToken);
+            if (newRefresh) localStorage.setItem('morty_refresh_token', newRefresh);
+            const meRes = await api.get('/auth/me');
+            setUser(meRes.data?.user || null);
+          } catch {
+            // Refresh failed — clear auth
+            setToken(null);
+            setUser(null);
+            localStorage.removeItem('morty_refresh_token');
+          }
+        } else {
+          setToken(null);
+          setUser(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    initAuth();
+  }, []);
 
   /**
    * Login with email and password.
    * @param {string} email
    * @param {string} password
-   * @returns {Object} user data
+   * @returns {Promise<{user, token}>}
    */
   const login = useCallback(async (email, password) => {
-    setError(null);
-    const response = await api.post('/auth/login', { email, password });
-    if (response.data.success) {
-      persistTokens(response.data.token, response.data.refreshToken);
-      setUser(response.data.user);
-      return response.data.user;
-    }
-    throw new Error(response.data.error || 'Login failed');
-  }, [persistTokens]);
+    const res = await api.post('/auth/login', { email, password });
+    const { token: newToken, refreshToken, user: newUser } = res.data;
+    setToken(newToken);
+    setUser(newUser);
+    if (refreshToken) localStorage.setItem('morty_refresh_token', refreshToken);
+    return { user: newUser, token: newToken };
+  }, []);
 
   /**
-   * Register a new user account.
-   * @param {Object} userData - { email, password, fullName, phone }
-   * @returns {Object} user data
+   * Register a new account.
+   * @param {object} data - { email, password, fullName, phone }
+   * @returns {Promise<{user, token}>}
    */
-  const register = useCallback(async (userData) => {
-    setError(null);
-    const response = await api.post('/auth/register', userData);
-    if (response.data.success) {
-      persistTokens(response.data.token, response.data.refreshToken);
-      setUser(response.data.user);
-      return response.data.user;
-    }
-    throw new Error(response.data.error || 'Registration failed');
-  }, [persistTokens]);
+  const register = useCallback(async (data) => {
+    const res = await api.post('/auth/register', data);
+    const { token: newToken, refreshToken, user: newUser } = res.data;
+    setToken(newToken);
+    setUser(newUser);
+    if (refreshToken) localStorage.setItem('morty_refresh_token', refreshToken);
+    return { user: newUser, token: newToken };
+  }, []);
 
   /**
-   * Logout the current user.
+   * Logout — invalidates token on server and clears local state.
    */
   const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
-    } catch (err) {
-      // Ignore logout API errors, clear local state anyway
+    } catch {
+      // Ignore errors on logout
     } finally {
-      clearAuth();
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem('morty_refresh_token');
     }
-  }, [clearAuth]);
+  }, []);
 
-  const value = {
-    user,
-    token,
-    refreshToken,
-    loading,
-    error,
-    isAuthenticated: !!user,
-    login,
-    register,
-    logout,
-    setError,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, loading, login, logout, register }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
-
-export const useAuthContext = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export default AuthContext;
