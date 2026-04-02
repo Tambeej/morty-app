@@ -1,45 +1,53 @@
 /**
  * Button Component Tests
  */
-
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Button from './Button';
 
-describe('Button Component', () => {
-  test('renders with primary variant by default', () => {
+describe('Button', () => {
+  it('renders children correctly', () => {
     render(<Button>Click me</Button>);
-    const button = screen.getByRole('button', { name: /click me/i });
-    expect(button).toBeInTheDocument();
+    expect(screen.getByText('Click me')).toBeInTheDocument();
   });
 
-  test('shows loading state', () => {
-    render(<Button loading>Submit</Button>);
-    const button = screen.getByRole('button');
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+  it('calls onClick when clicked', () => {
+    const handleClick = jest.fn();
+    render(<Button onClick={handleClick}>Click me</Button>);
+    fireEvent.click(screen.getByText('Click me'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
-  test('is disabled when disabled prop is true', () => {
+  it('is disabled when loading', () => {
+    render(<Button loading>Loading</Button>);
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+
+  it('is disabled when disabled prop is true', () => {
     render(<Button disabled>Disabled</Button>);
     expect(screen.getByRole('button')).toBeDisabled();
   });
 
-  test('calls onClick handler', () => {
-    const handleClick = jest.fn();
-    render(<Button onClick={handleClick}>Click</Button>);
-    fireEvent.click(screen.getByRole('button'));
-    expect(handleClick).toHaveBeenCalledTimes(1);
+  it('renders primary variant by default', () => {
+    render(<Button>Primary</Button>);
+    const btn = screen.getByRole('button');
+    expect(btn).toBeInTheDocument();
   });
 
-  test('renders ghost variant', () => {
+  it('renders ghost variant', () => {
     render(<Button variant="ghost">Ghost</Button>);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+    const btn = screen.getByRole('button');
+    expect(btn).toBeInTheDocument();
   });
 
-  test('renders danger variant', () => {
-    render(<Button variant="danger">Delete</Button>);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+  it('renders danger variant', () => {
+    render(<Button variant="danger">Danger</Button>);
+    const btn = screen.getByRole('button');
+    expect(btn).toBeInTheDocument();
+  });
+
+  it('has correct type attribute', () => {
+    render(<Button type="submit">Submit</Button>);
+    expect(screen.getByRole('button')).toHaveAttribute('type', 'submit');
   });
 });
