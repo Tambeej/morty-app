@@ -17,10 +17,10 @@ jobs:
     - name: Build
       run: npm run build
     - name: Add .nojekyll (required for SPA routing and PWA service workers)
-      run: touch ./build/.nojekyll
+      run: touch ./dist/.nojekyll
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./build
+        publish_dir: ./dist
         force_orphan: true
