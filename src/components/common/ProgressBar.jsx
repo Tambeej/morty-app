@@ -1,26 +1,30 @@
 import React from 'react';
-import { clsx } from 'clsx';
 
-export default function ProgressBar({ value, label, showLabel = false, className }) {
+/**
+ * ProgressBar component.
+ *
+ * @param {number} value - Progress value (0-100)
+ * @param {string} className - Additional CSS classes
+ * @param {boolean} showLabel - Show percentage label
+ */
+const ProgressBar = ({ value = 0, className = '', showLabel = false }) => {
   const clampedValue = Math.min(100, Math.max(0, value));
+
   return (
-    <div className={clsx('w-full', className)}>
-      {showLabel && (
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-slate-400">{label}</span>
-          <span className="text-xs font-medium text-gold">{clampedValue}%</span>
-        </div>
-      )}
-      <div
-        className="progress-bar"
-        role="progressbar"
-        aria-valuenow={clampedValue}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={label || 'Progress'}
-      >
-        <div className="progress-fill" style={{ width: `${clampedValue}%` }} />
+    <div className={`flex items-center gap-3 ${className}`}>
+      <div className="progress-bar flex-1" role="progressbar" aria-valuenow={clampedValue} aria-valuemin={0} aria-valuemax={100}>
+        <div
+          className="progress-fill"
+          style={{ width: `${clampedValue}%` }}
+        />
       </div>
+      {showLabel && (
+        <span className="text-xs text-text-secondary font-medium w-10 text-right">
+          {clampedValue}%
+        </span>
+      )}
     </div>
   );
-}
+};
+
+export default ProgressBar;

@@ -1,18 +1,29 @@
 import React from 'react';
-import { clsx } from 'clsx';
 
-export default function Card({ interactive = false, goldTop = false, className, children, ...props }) {
+/**
+ * Card component following Morty design system.
+ *
+ * @param {string} className - Additional CSS classes
+ * @param {boolean} interactive - Enable hover effects
+ * @param {boolean} goldTopBorder - Add gold top border (for analysis cards)
+ * @param {React.ReactNode} children - Card content
+ */
+const Card = ({ className = '', interactive = false, goldTopBorder = false, children, ...props }) => {
   return (
     <div
-      className={clsx(
+      className={[
         'bg-navy-surface border border-border rounded-card p-6 shadow-card',
-        interactive && 'transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-gold',
-        goldTop && 'border-t-[3px] border-t-gold',
-        className
-      )}
+        interactive && 'cursor-pointer transition-transform duration-200 hover:-translate-y-0.5 hover:border-gold',
+        goldTopBorder && 'border-t-4 border-t-gold',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       {...props}
     >
       {children}
     </div>
   );
-}
+};
+
+export default Card;

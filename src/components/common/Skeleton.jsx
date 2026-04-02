@@ -1,17 +1,18 @@
 import React from 'react';
-import { clsx } from 'clsx';
 
-export default function Skeleton({ className, variant = 'rect' }) {
+/**
+ * Skeleton loading placeholder.
+ *
+ * @param {string} className - Additional CSS classes for sizing
+ * @param {boolean} rounded - Use rounded-full for circular skeletons
+ */
+const Skeleton = ({ className = '', rounded = false }) => {
   return (
     <div
-      className={clsx(
-        'bg-navy-elevated animate-shimmer bg-gradient-to-r from-navy-elevated via-navy-surface to-navy-elevated bg-[length:200%_100%]',
-        variant === 'circle' && 'rounded-full',
-        variant === 'text' && 'rounded h-4',
-        variant === 'rect' && 'rounded-card',
-        className
-      )}
+      className={`skeleton ${rounded ? 'rounded-full' : 'rounded'} ${className}`}
       aria-hidden="true"
     />
   );
-}
+};
+
+export default Skeleton;
