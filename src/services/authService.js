@@ -1,28 +1,69 @@
+/**
+ * Authentication service module.
+ * Handles all auth-related API calls: register, login, logout, refresh, profile.
+ */
 import api from './api';
+import { setStoredToken, setStoredRefreshToken, clearStoredTokens } from '../utils/storage';
 
-export const authService = {
-  async login(email, password) {
-    const response = await api.post('/auth/login', { email, password });
-    return response.data;
-  },
-  async register(userData) {
-    const response = await api.post('/auth/register', userData);
-    return response.data;
-  },
-  async logout() {
-    const refreshToken = localStorage.getItem('morty_refresh_token');
-    await api.post('/auth/logout', { refreshToken });
-  },
-  async refreshToken() {
-    const refreshToken = localStorage.getItem('morty_refresh_token');
-    if (!refreshToken) throw new Error('No refresh token available');
-    const response = await api.post('/auth/refresh', { refreshToken });
-    const { token } = response.data;
-    localStorage.setItem('morty_access_token', token);
-    return response.data;
-  },
-  async getProfile() {
-    const response = await api.get('/auth/me');
-    return response.data.user;
+/**
+ * Register a new user
+ * @param {Object} data - { email, password, fullName, phone }
+ * @returns {Promise<{token, refreshToken, user}>}
+ */
+export const register = async (data) => {
+  const response = await api.post('/auth/register', data);
+  const { token, refreshToken, user } = response.data;
+  setStoredToken(token);
+  setStoredRefreshToken(refreshToken);
+  return { token, refreshToken, user };
+};
+
+/**
+ * Login an existing user
+ * @param {Object} data - { email, password }
+ * @returns {Promise<{token, refreshToken, user}>}
+ */
+export const login = async (data) => {
+  const response = await api.post('/auth/login', data);
+  const { token, refreshToken, user } = response.data;
+  setStoredToken(token);
+  setStoredRefreshToken(refreshToken);
+  return { token, refreshToken, user };
+};
+
+/**
+ * Logout the current user
+ * @returns {Promise<void>}
+ */
+export const logout = async () => {
+  try {
+    await api.post('/auth/logout');
+  } catch (err) {
+    // Ignore errors on logout — clear tokens regardless
+    console.warn('Logout API call failed:', err.message);
+  } finally {
+    clearStoredTokens();
   }
+};
+
+/**
+ * Refresh the access token using the stored refresh token
+ * @param {string} refreshToken
+ * @returns {Promise<{token, refreshToken}>}
+ */
+export const refreshAccessToken = async (refreshToken) => {
+  const response = await api.post('/auth/refresh', { refreshToken });
+  const { token, refreshToken: newRefreshToken } = response.data;
+  setStoredToken(token);
+  setStoredRefreshToken(newRefreshToken);
+  return { token, refreshToken: newRefreshToken };
+};
+
+/**
+ * Get the current authenticated user's profile
+ * @returns {Promise<{user}>}
+ */
+export const getMe = async () => {
+  const response = await api.get('/auth/me');
+  return response.data.user;
 };
