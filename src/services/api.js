@@ -1,109 +1,72 @@
 /**
- * api.js
- * Axios instance pre-configured for the Morty backend.
- *
- * - Base URL from REACT_APP_API_URL env var (defaults to Render deployment).
- * - Attaches Authorization header from localStorage on every request.
- * - Handles 401 responses by attempting a token refresh, then retrying once.
- * - On refresh failure, clears session and redirects to /login.
+ * Morty API Service Layer
+ * Axios instance with JWT interceptors for authenticated requests
  */
+
 import axios from 'axios';
 
-const BASE_URL =
-  process.env.REACT_APP_API_URL ||
-  'https://morty-backend.onrender.com/api/v1';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
+/**
+ * Create Axios instance with base configuration
+ */
 const api = axios.create({
-  baseURL: BASE_URL,
-  timeout: 30000,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
-// ---------------------------------------------------------------------------
-// Request interceptor — attach JWT
-// ---------------------------------------------------------------------------
+/**
+ * Request interceptor - attach JWT token to requests
+ */
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('morty_access_token');
+    const token = localStorage.getItem('morty_token');
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ---------------------------------------------------------------------------
-// Response interceptor — handle 401 with token refresh
-// ---------------------------------------------------------------------------
-let isRefreshing = false;
-let failedQueue = [];
-
-function processQueue(error, token = null) {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-}
-
+/**
+ * Response interceptor - handle token refresh and errors
+ */
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/')
-    ) {
-      if (isRefreshing) {
-        // Queue the request until refresh completes
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers['Authorization'] = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
+    // Handle 401 - attempt token refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      isRefreshing = true;
-
-      const refreshToken = localStorage.getItem('morty_refresh_token');
-      if (!refreshToken) {
-        isRefreshing = false;
-        clearSessionAndRedirect();
-        return Promise.reject(error);
-      }
 
       try {
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
+        const refreshToken = localStorage.getItem('morty_refresh_token');
+        if (!refreshToken) {
+          throw new Error('No refresh token');
+        }
+
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
           refreshToken,
         });
-        const newToken = data.token;
-        const newRefresh = data.refreshToken;
 
-        localStorage.setItem('morty_access_token', newToken);
-        localStorage.setItem('morty_refresh_token', newRefresh);
-        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        const { token } = response.data;
+        localStorage.setItem('morty_token', token);
+        originalRequest.headers.Authorization = `Bearer ${token}`;
 
-        processQueue(null, newToken);
-        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        clearSessionAndRedirect();
+        // Refresh failed - clear auth and redirect to login
+        localStorage.removeItem('morty_token');
+        localStorage.removeItem('morty_refresh_token');
+        localStorage.removeItem('morty_user');
+        window.location.href = '/login';
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 
@@ -111,14 +74,98 @@ api.interceptors.response.use(
   }
 );
 
-function clearSessionAndRedirect() {
-  localStorage.removeItem('morty_access_token');
-  localStorage.removeItem('morty_refresh_token');
-  localStorage.removeItem('morty_user');
-  // Avoid redirect loop on auth pages
-  if (!window.location.pathname.startsWith('/login')) {
-    window.location.href = '/login';
-  }
-}
+// ============================================================
+// Auth API
+// ============================================================
+
+/**
+ * Register a new user
+ * @param {Object} data - { name, email, phone, password }
+ */
+export const register = (data) => api.post('/auth/register', data);
+
+/**
+ * Login user
+ * @param {Object} data - { email, password }
+ */
+export const login = (data) => api.post('/auth/login', data);
+
+/**
+ * Logout user
+ */
+export const logout = () => api.post('/auth/logout');
+
+/**
+ * Refresh access token
+ * @param {string} refreshToken
+ */
+export const refreshToken = (token) =>
+  api.post('/auth/refresh', { refreshToken: token });
+
+// ============================================================
+// Profile / Financial Data API
+// ============================================================
+
+/**
+ * Get user financial profile
+ */
+export const getFinancials = () => api.get('/profile');
+
+/**
+ * Update user financial profile
+ * @param {Object} data - Financial data object
+ */
+export const updateFinancials = (data) => api.put('/profile', data);
+
+// ============================================================
+// Offers API
+// ============================================================
+
+/**
+ * Upload a mortgage offer file
+ * @param {FormData} formData - File + metadata
+ * @param {Function} onUploadProgress - Progress callback
+ */
+export const uploadOffer = (formData, onUploadProgress) =>
+  api.post('/offers', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress,
+  });
+
+/**
+ * Get all offers for the current user
+ */
+export const getOffers = () => api.get('/offers');
+
+/**
+ * Get a specific offer by ID
+ * @param {string} id - Offer ID
+ */
+export const getOffer = (id) => api.get(`/offers/${id}`);
+
+/**
+ * Delete an offer
+ * @param {string} id - Offer ID
+ */
+export const deleteOffer = (id) => api.delete(`/offers/${id}`);
+
+// ============================================================
+// Analysis API
+// ============================================================
+
+/**
+ * Get analysis results for an offer
+ * @param {string} id - Offer ID
+ */
+export const getAnalysis = (id) => api.get(`/analysis/${id}`);
+
+// ============================================================
+// Dashboard API
+// ============================================================
+
+/**
+ * Get dashboard summary data
+ */
+export const getDashboard = () => api.get('/dashboard');
 
 export default api;
