@@ -1,32 +1,31 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import Sidebar from './Sidebar.jsx';
-import Navbar from './Navbar.jsx';
-
 /**
- * Authenticated page shell: sidebar + top navbar + main content area.
+ * Page Layout Component
+ * Wraps authenticated pages with sidebar and navbar
  */
-export default function PageLayout({ children }) {
+import React, { useState } from 'react';
+import Sidebar from './Sidebar';
+import Navbar from './Navbar';
+
+function PageLayout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  return (
-    <div className="flex min-h-screen bg-navy">
-      {/* Sidebar — hidden on mobile, shown on md+ */}
-      <div className="hidden md:block">
-        <Sidebar collapsed={sidebarCollapsed} />
-      </div>
+  const toggleSidebar = () => setSidebarCollapsed((prev) => !prev);
 
-      {/* Main area */}
-      <div className="flex flex-col flex-1 min-w-0">
-        <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />
-        <main className="flex-1 p-6 md:p-8 page-enter">
-          {children}
-        </main>
-      </div>
+  return (
+    <div className="min-h-screen bg-navy">
+      <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+      <Navbar onMenuToggle={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
+
+      <main
+        className="transition-all duration-300 pt-16"
+        style={{
+          marginLeft: sidebarCollapsed ? '4rem' : '15rem',
+        }}
+      >
+        <div className="p-8 page-enter">{children}</div>
+      </main>
     </div>
   );
 }
 
-PageLayout.propTypes = {
-  children: PropTypes.node.isRequired
-};
+export default PageLayout;
