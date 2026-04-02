@@ -3,7 +3,10 @@ node_modules/
 /.pnp
 .pnp.js
 
-# Build output
+# Testing
+/coverage
+
+# Production build
 /build
 
 # Environment variables
@@ -20,10 +23,11 @@ yarn-error.log*
 
 # Editor
 .DS_Store
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
 
-# Testing
-/coverage
+# Misc
+.cache/
+dist/

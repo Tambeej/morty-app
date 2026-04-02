@@ -1,124 +1,89 @@
-# Morty 🏠
+# Morty - AI-Powered Mortgage Analysis
 
-AI-powered mortgage analysis SaaS for Israeli users.
+Morty is a React SPA that helps Israeli users analyze their mortgage offers using AI.
+
+## Features
+
+- 🔐 **Secure Authentication** - JWT-based login and registration
+- 📊 **Financial Profile** - Input and track your financial data
+- 📄 **Document Upload** - Upload mortgage offer PDFs/images
+- 🤖 **AI Analysis** - Get AI-powered mortgage analysis and recommendations
+- 📱 **PWA Support** - Works offline with service worker caching
+- 🇮🇱 **RTL Support** - Hebrew language support
 
 ## Tech Stack
 
-- **Framework**: React 18 (Create React App)
-- **Routing**: React Router v6
-- **Styling**: Tailwind CSS v3
-- **Forms**: React Hook Form + Zod validation
-- **HTTP**: Axios with JWT interceptors
-- **Charts**: Recharts
-- **PWA**: Workbox service worker (Cache-First assets, Network-First API)
+- **React 18** with React Router v6
+- **Tailwind CSS** for styling
+- **React Hook Form** + **Zod** for form validation
+- **Axios** for API communication
+- **Recharts** for data visualization
+- **Workbox** for PWA/service worker
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
-- npm 9+
+- npm 10+
 
 ### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/Tambeej/morty-app.git
+cd morty-app
+
+# Install dependencies
 npm install
-```
 
-### Environment Variables
-
-Copy `.env.example` to `.env.local` and set your backend URL:
-
-```bash
+# Copy environment variables
 cp .env.example .env.local
-```
 
-```env
-REACT_APP_API_URL=http://localhost:5000/api/v1
-```
+# Edit .env.local with your backend URL
+# REACT_APP_API_URL=https://your-backend.onrender.com/api/v1
 
-### Development
-
-```bash
+# Start development server
 npm start
 ```
 
-Opens [http://localhost:3000](http://localhost:3000).
-
-### Production Build
+### Build for Production
 
 ```bash
 npm run build
 ```
 
-Outputs to `./build`.
-
-### Tests
+### Deploy to GitHub Pages
 
 ```bash
-npm test
+npm run deploy
 ```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `REACT_APP_API_URL` | Backend API base URL | `http://localhost:5000/api/v1` |
 
 ## Project Structure
 
 ```
 src/
-  App.js                    # Root component with routing
-  index.js                  # Entry point + service worker registration
-  service-worker.js         # Workbox PWA service worker
-  serviceWorkerRegistration.js
-  context/
-    AuthContext.jsx          # Auth state: login, register, logout
-    ToastContext.jsx         # Unified toast notifications: addToast
   components/
-    common/
-      Button.jsx
-      Card.jsx
-      Input.jsx
-      Spinner.jsx
-      Skeleton.jsx
-      ProgressBar.jsx
-    layout/
-      Sidebar.jsx
-      Navbar.jsx
-      PageLayout.jsx
-  pages/
-    LoginPage.jsx
-    RegisterPage.jsx
-    DashboardPage.jsx
-    FinancialProfilePage.jsx
-    UploadPage.jsx
-    AnalysisPage.jsx
-  services/
-    api.js                   # Axios instance with token refresh
-  styles/
-    globals.css              # Tailwind directives + global styles
+    common/          # Reusable UI components
+    layout/          # Layout components (Sidebar, Navbar)
+  context/           # React Context (Auth, Toast)
+  pages/             # Page components
+  services/          # API service layer
+  styles/            # Global CSS
 ```
 
 ## API Integration
 
-All API calls go through `src/services/api.js` which:
-- Attaches `Authorization: Bearer <token>` header automatically
-- Handles 401 responses by refreshing the token
-- Redirects to `/login` if refresh fails
+The frontend connects to the Morty backend API at `REACT_APP_API_URL`.
 
-Base URL is configured via `REACT_APP_API_URL` environment variable.
+See the [Architecture Design](../morty-backend/README.md) for full API documentation.
 
-## Authentication
+## License
 
-- JWT access tokens (24h) stored in `localStorage`
-- Refresh tokens (7d) stored in `localStorage`
-- Auto-refresh on 401 responses
-- `useAuth()` hook exposes: `{ user, token, loading, login, register, logout }`
-
-## PWA Features
-
-- Offline support via Workbox service worker
-- Cache-First strategy for static assets
-- Network-First strategy for API calls
-- Installable on mobile and desktop
-
-## Deployment
-
-Deployed to GitHub Pages. The `homepage` field in `package.json` is set to
-`https://Tambeej.github.io/morty-app`.
+MIT
