@@ -1,0 +1,22 @@
+{
+  "name": "Morty - Mortgage Analysis",
+  "short_name": "Morty",
+  "description": "AI-powered mortgage analysis for Israeli users",
+  "start_url": "/morty-app/",
+  "scope": "/morty-app/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "/morty-app/pwa-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/morty-app/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Dashboard", "short_name": "Dashboard", "description": "View your mortgage analysis dashboard", "url": "/morty-app/dashboard", "icons": [{ "src": "/morty-app/pwa-192x192.png", "sizes": "192x192" }] },
+    { "name": "Upload Offer", "short_name": "Upload", "description": "Upload a new mortgage offer", "url": "/morty-app/upload", "icons": [{ "src": "/morty-app/pwa-192x192.png", "sizes": "192x192" }] }
+  ]
+}
