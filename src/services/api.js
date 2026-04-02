@@ -1,28 +1,20 @@
-/**
- * Morty API Service Layer
- * Axios instance with JWT interceptors for authenticated requests
- */
-
 import axios from 'axios';
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://morty-backend.onrender.com/api/v1';
 
 /**
- * Create Axios instance with base configuration
+ * Axios instance pre-configured for the Morty backend.
  */
-const api = axios.create({
+const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
 });
 
-/**
- * Request interceptor - attach JWT token to requests
- */
-api.interceptors.request.use(
+// ── Request interceptor: attach Bearer token ──────────────────────────────
+axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('morty_token');
     if (token) {
@@ -33,139 +25,139 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/**
- * Response interceptor - handle token refresh and errors
- */
-api.interceptors.response.use(
+// ── Response interceptor: handle 401 / token refresh ─────────────────────
+axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
-    // Handle 401 - attempt token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('morty_refresh_token');
-        if (!refreshToken) {
-          throw new Error('No refresh token');
+      const refreshToken = localStorage.getItem('morty_refresh_token');
+      if (refreshToken) {
+        try {
+          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+          localStorage.setItem('morty_token', data.token);
+          axiosInstance.defaults.headers.common.Authorization = `Bearer ${data.token}`;
+          originalRequest.headers.Authorization = `Bearer ${data.token}`;
+          return axiosInstance(originalRequest);
+        } catch {
+          // Refresh failed — clear storage and redirect to login
+          localStorage.removeItem('morty_token');
+          localStorage.removeItem('morty_refresh_token');
+          localStorage.removeItem('morty_user');
+          window.location.href = '/morty-app/login';
         }
-
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
-
-        const { token } = response.data;
-        localStorage.setItem('morty_token', token);
-        originalRequest.headers.Authorization = `Bearer ${token}`;
-
-        return api(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed - clear auth and redirect to login
-        localStorage.removeItem('morty_token');
-        localStorage.removeItem('morty_refresh_token');
-        localStorage.removeItem('morty_user');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
       }
     }
-
     return Promise.reject(error);
   }
 );
 
-// ============================================================
-// Auth API
-// ============================================================
-
 /**
- * Register a new user
- * @param {Object} data - { name, email, phone, password }
+ * Central API service object.
+ * All methods return the `data` field from the Axios response.
  */
-export const register = (data) => api.post('/auth/register', data);
+export const apiService = {
+  // ── Auth ──────────────────────────────────────────────────────────────
 
-/**
- * Login user
- * @param {Object} data - { email, password }
- */
-export const login = (data) => api.post('/auth/login', data);
+  /** Set or clear the Authorization header */
+  setAuthToken(token) {
+    if (token) {
+      axiosInstance.defaults.headers.common.Authorization = `Bearer ${token}`;
+    } else {
+      delete axiosInstance.defaults.headers.common.Authorization;
+    }
+  },
 
-/**
- * Logout user
- */
-export const logout = () => api.post('/auth/logout');
+  /**
+   * @param {string} email
+   * @param {string} password
+   * @returns {Promise<{token: string, refreshToken: string, user: object}>}
+   */
+  async login(email, password) {
+    const { data } = await axiosInstance.post('/auth/login', { email, password });
+    return data;
+  },
 
-/**
- * Refresh access token
- * @param {string} refreshToken
- */
-export const refreshToken = (token) =>
-  api.post('/auth/refresh', { refreshToken: token });
+  /**
+   * @param {{name: string, email: string, phone: string, password: string}} userData
+   * @returns {Promise<{token: string, refreshToken: string, user: object}>}
+   */
+  async register(userData) {
+    const { data } = await axiosInstance.post('/auth/register', userData);
+    return data;
+  },
 
-// ============================================================
-// Profile / Financial Data API
-// ============================================================
+  /** Invalidate the refresh token on the server */
+  async logout() {
+    const refreshToken = localStorage.getItem('morty_refresh_token');
+    const { data } = await axiosInstance.post('/auth/logout', { refreshToken });
+    return data;
+  },
 
-/**
- * Get user financial profile
- */
-export const getFinancials = () => api.get('/profile');
+  // ── Financial Profile ─────────────────────────────────────────────────
 
-/**
- * Update user financial profile
- * @param {Object} data - Financial data object
- */
-export const updateFinancials = (data) => api.put('/profile', data);
+  /** @returns {Promise<object>} */
+  async getFinancials() {
+    const { data } = await axiosInstance.get('/profile');
+    return data;
+  },
 
-// ============================================================
-// Offers API
-// ============================================================
+  /**
+   * @param {object} financials
+   * @returns {Promise<object>}
+   */
+  async updateFinancials(financials) {
+    const { data } = await axiosInstance.put('/profile', financials);
+    return data;
+  },
 
-/**
- * Upload a mortgage offer file
- * @param {FormData} formData - File + metadata
- * @param {Function} onUploadProgress - Progress callback
- */
-export const uploadOffer = (formData, onUploadProgress) =>
-  api.post('/offers', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress,
-  });
+  // ── Offers ────────────────────────────────────────────────────────────
 
-/**
- * Get all offers for the current user
- */
-export const getOffers = () => api.get('/offers');
+  /** @returns {Promise<object[]>} */
+  async getOffers() {
+    const { data } = await axiosInstance.get('/offers');
+    return data;
+  },
 
-/**
- * Get a specific offer by ID
- * @param {string} id - Offer ID
- */
-export const getOffer = (id) => api.get(`/offers/${id}`);
+  /**
+   * Upload a mortgage offer file.
+   * @param {File} file
+   * @param {Function} onProgress - (percent: number) => void
+   * @returns {Promise<object>}
+   */
+  async uploadOffer(file, onProgress) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await axiosInstance.post('/offers', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (evt) => {
+        if (onProgress && evt.total) {
+          onProgress(Math.round((evt.loaded * 100) / evt.total));
+        }
+      }
+    });
+    return data;
+  },
 
-/**
- * Delete an offer
- * @param {string} id - Offer ID
- */
-export const deleteOffer = (id) => api.delete(`/offers/${id}`);
+  // ── Analysis ──────────────────────────────────────────────────────────
 
-// ============================================================
-// Analysis API
-// ============================================================
+  /**
+   * @param {string} offerId
+   * @returns {Promise<object>}
+   */
+  async getAnalysis(offerId) {
+    const { data } = await axiosInstance.get(`/analysis/${offerId}`);
+    return data;
+  },
 
-/**
- * Get analysis results for an offer
- * @param {string} id - Offer ID
- */
-export const getAnalysis = (id) => api.get(`/analysis/${id}`);
+  // ── Dashboard ─────────────────────────────────────────────────────────
 
-// ============================================================
-// Dashboard API
-// ============================================================
+  /** @returns {Promise<object>} */
+  async getDashboard() {
+    const { data } = await axiosInstance.get('/dashboard');
+    return data;
+  }
+};
 
-/**
- * Get dashboard summary data
- */
-export const getDashboard = () => api.get('/dashboard');
-
-export default api;
+export default axiosInstance;

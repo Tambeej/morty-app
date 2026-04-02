@@ -1,37 +1,32 @@
-/**
- * Card Component
- * Reusable card container with optional hover effects
- */
-
 import React from 'react';
+import PropTypes from 'prop-types';
 
 /**
- * @param {Object} props
- * @param {boolean} props.interactive - Enable hover effects
- * @param {boolean} props.goldTop - Add gold top border (analysis card style)
- * @param {string} props.className - Additional CSS classes
- * @param {React.ReactNode} props.children
+ * Surface card component.
+ *
+ * @param {boolean} interactive - Adds hover lift effect
+ * @param {boolean} goldTop - Adds gold top border (analysis card style)
  */
-const Card = ({
-  interactive = false,
-  goldTop = false,
-  className = '',
-  children,
-  ...props
-}) => {
+export default function Card({ children, className = '', interactive = false, goldTop = false }) {
   return (
     <div
-      className={`
-        bg-navy-surface border border-border rounded-card p-6 shadow-card
-        ${interactive ? 'transition-all duration-200 hover:-translate-y-0.5 hover:border-gold cursor-pointer' : ''}
-        ${goldTop ? 'border-t-4 border-t-gold' : ''}
-        ${className}
-      `}
-      {...props}
+      className={[
+        'bg-navy-surface border border-border rounded-card p-6 shadow-card',
+        interactive && 'transition-all duration-200 hover:-translate-y-0.5 hover:border-gold cursor-pointer',
+        goldTop && 'border-t-[3px] border-t-gold',
+        className
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {children}
     </div>
   );
-};
+}
 
-export default Card;
+Card.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string,
+  interactive: PropTypes.bool,
+  goldTop: PropTypes.bool
+};

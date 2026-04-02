@@ -1,91 +1,42 @@
-/**
- * Financial Profile Page
- * Form for entering and updating user financial data
- */
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useToast } from '../context/ToastContext';
-import { getFinancials, updateFinancials } from '../services/api';
-import PageLayout from '../components/layout/PageLayout';
-import Card from '../components/common/Card';
-import Input from '../components/common/Input';
-import Button from '../components/common/Button';
-import ProgressBar from '../components/common/ProgressBar';
+import toast from 'react-hot-toast';
+import { apiService } from '../services/api.js';
+import PageLayout from '../components/layout/PageLayout.jsx';
+import Card from '../components/common/Card.jsx';
+import Input from '../components/common/Input.jsx';
+import Button from '../components/common/Button.jsx';
+import ProgressBar from '../components/common/ProgressBar.jsx';
+import Spinner from '../components/common/Spinner.jsx';
 
-// Validation schema
-const financialSchema = z.object({
-  income: z.object({
-    monthly: z.coerce.number().min(0, 'Must be a positive number'),
-    additional: z.coerce.number().min(0, 'Must be a positive number').optional(),
-  }),
-  expenses: z.object({
-    housing: z.coerce.number().min(0, 'Must be a positive number'),
-    loans: z.coerce.number().min(0, 'Must be a positive number'),
-    other: z.coerce.number().min(0, 'Must be a positive number'),
-  }),
-  assets: z.object({
-    savings: z.coerce.number().min(0, 'Must be a positive number'),
-    investments: z.coerce.number().min(0, 'Must be a positive number'),
-  }),
+const schema = z.object({
+  income:           z.coerce.number().min(0, 'Must be 0 or more'),
+  additionalIncome: z.coerce.number().min(0).optional().default(0),
+  housing:          z.coerce.number().min(0).optional().default(0),
+  loans:            z.coerce.number().min(0).optional().default(0),
+  otherExpenses:    z.coerce.number().min(0).optional().default(0),
+  savings:          z.coerce.number().min(0).optional().default(0),
+  investments:      z.coerce.number().min(0).optional().default(0)
 });
 
 /**
- * Section Header with collapse toggle
+ * Calculates profile completion percentage based on filled fields.
  */
-const SectionHeader = ({ title, isOpen, onToggle }) => (
-  <button
-    type="button"
-    onClick={onToggle}
-    className="w-full flex items-center justify-between py-3 text-left"
-    aria-expanded={isOpen}
-  >
-    <span className="text-xs font-semibold uppercase tracking-wider text-[#94a3b8]">
-      {title}
-    </span>
-    <svg
-      className={`w-4 h-4 text-[#64748b] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-  </button>
-);
-
-/**
- * Calculate profile completion percentage
- */
-function calculateCompletion(values) {
-  const fields = [
-    values?.income?.monthly,
-    values?.income?.additional,
-    values?.expenses?.housing,
-    values?.expenses?.loans,
-    values?.expenses?.other,
-    values?.assets?.savings,
-    values?.assets?.investments,
-  ];
-  const filled = fields.filter((v) => v !== undefined && v !== null && v !== '' && v !== 0).length;
+function calcCompletion(values) {
+  const fields = Object.values(values);
+  const filled = fields.filter((v) => v && Number(v) > 0).length;
   return Math.round((filled / fields.length) * 100);
 }
 
 /**
- * Financial Profile Page Component
+ * Financial profile form page.
  */
-const FinancialProfilePage = () => {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+export default function FinancialProfilePage() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedIndicator, setSavedIndicator] = useState(false);
-  const [sections, setSections] = useState({
-    income: true,
-    expenses: true,
-    assets: true,
-  });
   const autoSaveTimer = useRef(null);
 
   const {
@@ -93,83 +44,87 @@ const FinancialProfilePage = () => {
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isDirty },
-  } = useForm({
-    resolver: zodResolver(financialSchema),
-    defaultValues: {
-      income: { monthly: 0, additional: 0 },
-      expenses: { housing: 0, loans: 0, other: 0 },
-      assets: { savings: 0, investments: 0 },
-    },
-  });
+    formState: { errors }
+  } = useForm({ resolver: zodResolver(schema) });
 
   const watchedValues = watch();
-  const completion = calculateCompletion(watchedValues);
+  const completion = calcCompletion(watchedValues);
 
-  // Load existing financial data
+  // Load existing profile
   useEffect(() => {
-    const loadData = async () => {
+    async function load() {
       try {
-        const response = await getFinancials();
-        if (response.data) {
-          reset(response.data);
+        const data = await apiService.getFinancials();
+        if (data) {
+          reset({
+            income:           data.income || 0,
+            additionalIncome: data.additionalIncome || 0,
+            housing:          data.expenses?.housing || 0,
+            loans:            data.expenses?.loans || 0,
+            otherExpenses:    data.expenses?.other || 0,
+            savings:          data.assets?.savings || 0,
+            investments:      data.assets?.investments || 0
+          });
         }
-      } catch (error) {
-        // No existing data - use defaults
+      } catch {
+        // No existing profile — start fresh
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
       }
-    };
-    loadData();
+    }
+    load();
   }, [reset]);
 
   // Auto-save debounce
   useEffect(() => {
-    if (!isDirty || loading) return;
-
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-    }
-
+    if (initialLoading) return;
+    clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       try {
-        await updateFinancials(watchedValues);
+        await apiService.updateFinancials(buildPayload(watchedValues));
         setSavedIndicator(true);
         setTimeout(() => setSavedIndicator(false), 2000);
       } catch {
         // Silent auto-save failure
       }
     }, 2000);
+    return () => clearTimeout(autoSaveTimer.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(watchedValues)]);
 
-    return () => {
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+  function buildPayload(values) {
+    return {
+      income:           Number(values.income),
+      additionalIncome: Number(values.additionalIncome),
+      expenses: {
+        housing: Number(values.housing),
+        loans:   Number(values.loans),
+        other:   Number(values.otherExpenses)
+      },
+      assets: {
+        savings:     Number(values.savings),
+        investments: Number(values.investments)
+      }
     };
-  }, [watchedValues, isDirty, loading]);
+  }
 
-  const onSubmit = async (data) => {
+  async function onSubmit(values) {
     setSaving(true);
     try {
-      await updateFinancials(data);
-      toast.success('Financial profile saved successfully!');
-      reset(data);
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || 'Failed to save profile. Please try again.'
-      );
+      await apiService.updateFinancials(buildPayload(values));
+      toast.success('Financial profile saved!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to save profile.');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const toggleSection = (section) => {
-    setSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  if (loading) {
+  if (initialLoading) {
     return (
       <PageLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-gold border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center py-20">
+          <Spinner size="lg" />
         </div>
       </PageLayout>
     );
@@ -177,140 +132,107 @@ const FinancialProfilePage = () => {
 
   return (
     <PageLayout>
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[#f8fafc] mb-1">Financial Profile</h1>
-        <p className="text-[#94a3b8]">
-          Keep this updated for accurate mortgage analysis
-        </p>
-      </div>
-
-      {/* Profile Completion */}
-      <Card className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-[#f8fafc]">
-            Profile Completion
-          </span>
-          <div className="flex items-center gap-2">
-            {savedIndicator && (
-              <span className="text-xs text-success animate-fade-in">Saved ✓</span>
-            )}
-            <span className="text-sm font-semibold text-gold">{completion}%</span>
-          </div>
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-[#f8fafc]">Financial Profile</h1>
+          <p className="text-[#94a3b8] mt-1">Keep this updated for accurate analysis</p>
         </div>
-        <ProgressBar value={completion} label="Profile completion" />
-      </Card>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        {/* Income Section */}
-        <Card className="mb-4">
-          <SectionHeader
-            title="Income"
-            isOpen={sections.income}
-            onToggle={() => toggleSection('income')}
-          />
-          {sections.income && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        {/* Progress */}
+        <div className="mb-6">
+          <div className="flex justify-between text-sm text-[#94a3b8] mb-2">
+            <span>Profile {completion}% complete</span>
+            {savedIndicator && <span className="text-green-400 text-xs">✓ Saved</span>}
+          </div>
+          <ProgressBar value={completion} label="Profile completion" />
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+          {/* Income */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Income</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Monthly Net Income"
                 type="number"
+                min="0"
                 prefix="₪"
-                placeholder="0"
-                error={errors.income?.monthly?.message}
-                {...register('income.monthly')}
+                error={errors.income?.message}
+                {...register('income')}
               />
               <Input
                 label="Additional Income"
                 type="number"
+                min="0"
                 prefix="₪"
-                placeholder="0"
-                error={errors.income?.additional?.message}
-                {...register('income.additional')}
+                error={errors.additionalIncome?.message}
+                {...register('additionalIncome')}
               />
             </div>
-          )}
-        </Card>
+          </Card>
 
-        {/* Expenses Section */}
-        <Card className="mb-4">
-          <SectionHeader
-            title="Monthly Expenses"
-            isOpen={sections.expenses}
-            onToggle={() => toggleSection('expenses')}
-          />
-          {sections.expenses && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          {/* Expenses */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Monthly Expenses</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Housing (rent/mortgage)"
                 type="number"
+                min="0"
                 prefix="₪"
-                placeholder="0"
-                error={errors.expenses?.housing?.message}
-                {...register('expenses.housing')}
+                error={errors.housing?.message}
+                {...register('housing')}
               />
               <Input
                 label="Existing Loans"
                 type="number"
+                min="0"
                 prefix="₪"
-                placeholder="0"
-                error={errors.expenses?.loans?.message}
-                {...register('expenses.loans')}
+                error={errors.loans?.message}
+                {...register('loans')}
               />
               <Input
                 label="Other Fixed Expenses"
                 type="number"
+                min="0"
                 prefix="₪"
-                placeholder="0"
-                error={errors.expenses?.other?.message}
-                {...register('expenses.other')}
+                error={errors.otherExpenses?.message}
+                {...register('otherExpenses')}
               />
             </div>
-          )}
-        </Card>
+          </Card>
 
-        {/* Assets Section */}
-        <Card className="mb-6">
-          <SectionHeader
-            title="Assets & Savings"
-            isOpen={sections.assets}
-            onToggle={() => toggleSection('assets')}
-          />
-          {sections.assets && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {/* Assets */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Assets & Savings</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Savings / Cash"
                 type="number"
+                min="0"
                 prefix="₪"
-                placeholder="0"
-                error={errors.assets?.savings?.message}
-                {...register('assets.savings')}
+                error={errors.savings?.message}
+                {...register('savings')}
               />
               <Input
                 label="Investments"
                 type="number"
+                min="0"
                 prefix="₪"
-                placeholder="0"
-                error={errors.assets?.investments?.message}
-                {...register('assets.investments')}
+                error={errors.investments?.message}
+                {...register('investments')}
               />
             </div>
-          )}
-        </Card>
+          </Card>
 
-        {/* Submit */}
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            variant="primary"
-            loading={saving}
-            disabled={!isDirty}
-          >
-            Save Profile
-          </Button>
-        </div>
-      </form>
+          <div className="flex justify-end">
+            <Button type="submit" loading={saving}>
+              Save Profile
+            </Button>
+          </div>
+        </form>
+      </div>
     </PageLayout>
   );
-};
-
-export default FinancialProfilePage;
+}

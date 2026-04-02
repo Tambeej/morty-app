@@ -1,309 +1,173 @@
-/**
- * Dashboard Page
- * Main authenticated view with stats, charts, and offers overview
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import { getDashboard, getOffers } from '../services/api';
-import PageLayout from '../components/layout/PageLayout';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
-import { SkeletonCard } from '../components/common/Skeleton';
+import { apiService } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import PageLayout from '../components/layout/PageLayout.jsx';
+import Card from '../components/common/Card.jsx';
+import Skeleton from '../components/common/Skeleton.jsx';
+import Button from '../components/common/Button.jsx';
 
 /**
- * Stat Card Component
+ * Main dashboard page showing mortgage analysis summary.
  */
-const StatCard = ({ title, value, subtitle, icon, loading }) => {
-  if (loading) return <SkeletonCard />;
-
-  return (
-    <Card interactive className="stat-card">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-[#94a3b8] mb-2">
-            {title}
-          </p>
-          <p className="text-3xl font-bold text-[#f8fafc] mb-1">{value}</p>
-          {subtitle && (
-            <p className="text-sm text-[#94a3b8]">{subtitle}</p>
-          )}
-        </div>
-        {icon && (
-          <div className="w-10 h-10 bg-gold/10 rounded-lg flex items-center justify-center text-gold">
-            {icon}
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-};
-
-/**
- * Custom Tooltip for Charts
- */
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-navy-surface border border-border rounded-lg p-3 shadow-card">
-        <p className="text-sm font-medium text-[#f8fafc] mb-1">{label}</p>
-        {payload.map((entry, index) => (
-          <p key={index} className="text-xs" style={{ color: entry.color }}>
-            {entry.name}: ₪{entry.value?.toLocaleString('he-IL')}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
-/**
- * Status Badge Component
- */
-const StatusBadge = ({ status }) => {
-  const styles = {
-    analyzed: 'bg-success/10 text-success',
-    pending: 'bg-warning/10 text-warning',
-    error: 'bg-error/10 text-error',
-  };
-
-  const labels = {
-    analyzed: 'Analyzed',
-    pending: 'Pending',
-    error: 'Error',
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-        styles[status] || styles.pending
-      }`}
-    >
-      {labels[status] || 'Pending'}
-    </span>
-  );
-};
-
-/**
- * Dashboard Page Component
- */
-const DashboardPage = () => {
+export default function DashboardPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [dashRes, offersRes] = await Promise.all([
-        getDashboard(),
-        getOffers(),
-      ]);
-      setDashboardData(dashRes.data);
-      setOffers(offersRes.data?.offers || []);
-    } catch (error) {
-      // Use mock data if API not available
-      setDashboardData({
-        bestRate: 3.2,
-        marketRate: 3.6,
-        potentialSavings: 48000,
-        activeOffers: offers.length || 0,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    async function fetchData() {
+      try {
+        const [dashData, offersData] = await Promise.all([
+          apiService.getDashboard(),
+          apiService.getOffers()
+        ]);
+        setDashboard(dashData);
+        setOffers(offersData);
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Failed to load dashboard data.');
+      } finally {
+        setLoading(false);
+      }
+    }
     fetchData();
-  }, [fetchData]);
+  }, []);
 
-  // Mock chart data
-  const chartData = [
-    { name: 'Bank A', monthly: 6200, recommended: 5800 },
-    { name: 'Bank B', monthly: 6050, recommended: 5800 },
-    { name: 'Recommended', monthly: 5800, recommended: 5800 },
-  ];
-
-  const firstName = user?.name?.split(' ')[0] || 'there';
+  const chartData = offers.slice(0, 3).map((o, i) => ({
+    name: o.extractedData?.bank || `Offer ${i + 1}`,
+    monthly: o.extractedData?.monthlyPayment || 0,
+    recommended: o.analysis?.recommendedRate ? Math.round(o.extractedData?.amount / (o.extractedData?.term * 12)) : 0
+  }));
 
   return (
     <PageLayout>
-      {/* Page Header */}
+      {/* Welcome */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[#f8fafc] mb-1">
-          Welcome back, {firstName}
+        <h1 className="text-2xl font-bold text-[#f8fafc]">
+          Welcome back, {user?.name?.split(' ')[0] || 'there'} 👋
         </h1>
-        <p className="text-[#94a3b8]">
-          Here's your mortgage analysis summary
-        </p>
+        <p className="text-[#94a3b8] mt-1">Here&apos;s your mortgage analysis summary</p>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard
-          title="Best Rate"
-          value={loading ? '...' : `${dashboardData?.bestRate || 3.2}%`}
-          subtitle={`-${((dashboardData?.marketRate || 3.6) - (dashboardData?.bestRate || 3.2)).toFixed(1)}% vs market`}
-          loading={loading}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="Potential Savings"
-          value={loading ? '...' : `₪${(dashboardData?.potentialSavings || 48000).toLocaleString('he-IL')}`}
-          subtitle="Lifetime savings"
-          loading={loading}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="Active Offers"
-          value={loading ? '...' : (offers.length || 0).toString()}
-          subtitle="Uploaded offers"
-          loading={loading}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          }
-        />
-      </div>
+      {/* Stat cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} height="120px" className="rounded-card" />
+          ))}
+        </div>
+      ) : error ? (
+        <p className="text-red-400 mb-8">{error}</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card interactive>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Best Rate</p>
+            <p className="text-3xl font-bold text-gold">{dashboard?.bestRate ?? '—'}%</p>
+            <p className="text-sm text-[#64748b] mt-1">
+              {dashboard?.rateVsMarket ? `${dashboard.rateVsMarket > 0 ? '+' : ''}${dashboard.rateVsMarket}% vs market` : 'No data yet'}
+            </p>
+          </Card>
+
+          <Card interactive>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Potential Savings</p>
+            <p className="text-3xl font-bold text-gold">
+              {dashboard?.potentialSavings ? `₪${dashboard.potentialSavings.toLocaleString('he-IL')}` : '—'}
+            </p>
+            <p className="text-sm text-[#64748b] mt-1">lifetime savings</p>
+          </Card>
+
+          <Card interactive>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Active Offers</p>
+            <p className="text-3xl font-bold text-gold">{offers.length}</p>
+            <p className="text-sm text-[#64748b] mt-1">uploaded offers</p>
+          </Card>
+        </div>
+      )}
 
       {/* Chart */}
-      <Card className="mb-8">
-        <h2 className="text-lg font-semibold text-[#f8fafc] mb-6">
-          Monthly Payment Comparison
-        </h2>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+      {!loading && chartData.length > 0 && (
+        <Card className="mb-8">
+          <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Monthly Payment Comparison</h2>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
-                axisLine={{ stroke: '#334155' }}
+              <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+              <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} tickFormatter={(v) => `₪${v.toLocaleString()}`} />
+              <Tooltip
+                contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                labelStyle={{ color: '#f8fafc' }}
+                formatter={(v) => [`₪${v.toLocaleString()}`, '']}
               />
-              <YAxis
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
-                axisLine={{ stroke: '#334155' }}
-                tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{ color: '#94a3b8', fontSize: '12px' }}
-              />
-              <Bar dataKey="monthly" name="Monthly Payment" fill="#334155" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="recommended" name="Recommended" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
+              <Bar dataKey="monthly" name="Your Offer" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="recommended" name="Recommended" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </Card>
+        </Card>
+      )}
 
-      {/* Offers Table */}
+      {/* Offers table */}
       <Card>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-[#f8fafc]">Your Offers</h2>
           <Link to="/upload">
-            <Button variant="primary" className="text-sm py-2 px-4">
-              + Upload New Offer
-            </Button>
+            <Button variant="ghost" className="text-sm py-2 px-4">+ Upload New Offer</Button>
           </Link>
         </div>
 
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 shimmer rounded" />
-            ))}
+          <div className="flex flex-col gap-3">
+            {[1, 2].map((i) => <Skeleton key={i} height="44px" />)}
           </div>
         ) : offers.length === 0 ? (
-          <div className="text-center py-12">
-            <svg
-              className="w-12 h-12 text-[#334155] mx-auto mb-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p className="text-[#94a3b8] mb-4">No offers uploaded yet</p>
-            <Link to="/upload">
-              <Button variant="ghost">Upload Your First Offer</Button>
-            </Link>
-          </div>
+          <p className="text-[#64748b] text-sm py-4 text-center">
+            No offers yet.{' '}
+            <Link to="/upload" className="text-gold hover:underline">Upload your first offer →</Link>
+          </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full" aria-label="Mortgage offers">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border">
-                  {['Bank', 'Rate', 'Term', 'Monthly Payment', 'Status', 'Actions'].map(
-                    (header) => (
-                      <th
-                        key={header}
-                        className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-[#94a3b8]"
-                      >
-                        {header}
-                      </th>
-                    )
-                  )}
+                <tr className="border-b border-border text-[#64748b] text-left">
+                  <th className="pb-3 font-medium">Bank</th>
+                  <th className="pb-3 font-medium">Rate</th>
+                  <th className="pb-3 font-medium">Term</th>
+                  <th className="pb-3 font-medium">Monthly</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {offers.map((offer) => (
-                  <tr
-                    key={offer._id}
-                    className="hover:bg-navy-elevated transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm text-[#f8fafc]">
-                      {offer.extractedData?.bank || 'Unknown'}
+                  <tr key={offer._id} className="border-b border-border/50 hover:bg-navy-elevated transition-colors">
+                    <td className="py-3 text-[#f8fafc]">{offer.extractedData?.bank || '—'}</td>
+                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.rate ? `${offer.extractedData.rate}%` : '—'}</td>
+                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.term ? `${offer.extractedData.term}yr` : '—'}</td>
+                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.monthlyPayment ? `₪${offer.extractedData.monthlyPayment.toLocaleString('he-IL')}` : '—'}</td>
+                    <td className="py-3">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        offer.status === 'analyzed' ? 'bg-green-900/40 text-green-400' :
+                        offer.status === 'error'    ? 'bg-red-900/40 text-red-400' :
+                        'bg-yellow-900/40 text-yellow-400'
+                      }`}>
+                        {offer.status === 'analyzed' ? '✓ Analyzed' :
+                         offer.status === 'error'    ? '✗ Error' : '⏳ Pending'}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-[#f8fafc]">
-                      {offer.extractedData?.rate
-                        ? `${offer.extractedData.rate}%`
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[#94a3b8]">
-                      {offer.extractedData?.term
-                        ? `${offer.extractedData.term} yr`
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[#f8fafc]">
-                      {offer.extractedData?.monthlyPayment
-                        ? `₪${offer.extractedData.monthlyPayment.toLocaleString('he-IL')}`
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={offer.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        to={`/analysis/${offer._id}`}
-                        className="text-sm text-gold hover:text-gold-light transition-colors"
-                      >
-                        View Results
-                      </Link>
+                    <td className="py-3">
+                      {offer.status === 'analyzed' && (
+                        <Link
+                          to={`/analysis/${offer._id}`}
+                          className="text-gold hover:text-gold-light text-xs font-medium"
+                        >
+                          View Results →
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -314,6 +178,4 @@ const DashboardPage = () => {
       </Card>
     </PageLayout>
   );
-};
-
-export default DashboardPage;
+}

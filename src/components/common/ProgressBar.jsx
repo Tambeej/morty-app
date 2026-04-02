@@ -1,40 +1,22 @@
-/**
- * Progress Bar Component
- */
-
 import React from 'react';
+import PropTypes from 'prop-types';
 
 /**
- * @param {number} value - Progress value (0-100)
+ * Horizontal progress bar with gold gradient fill.
+ * @param {number} value - 0 to 100
  * @param {string} label - Accessible label
- * @param {boolean} showLabel - Show percentage text
  */
-const ProgressBar = ({ value = 0, label = 'Progress', showLabel = false, className = '' }) => {
-  const clampedValue = Math.min(100, Math.max(0, value));
-
+export default function ProgressBar({ value = 0, label = '', className = '' }) {
+  const clamped = Math.min(100, Math.max(0, value));
   return (
-    <div className={`w-full ${className}`}>
-      {showLabel && (
-        <div className="flex justify-between mb-1">
-          <span className="text-xs text-[#94a3b8]">{label}</span>
-          <span className="text-xs text-[#94a3b8]">{clampedValue}%</span>
-        </div>
-      )}
-      <div
-        className="progress-bar"
-        role="progressbar"
-        aria-valuenow={clampedValue}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={label}
-      >
-        <div
-          className="progress-fill"
-          style={{ width: `${clampedValue}%` }}
-        />
-      </div>
+    <div className={`progress-bar ${className}`} role="progressbar" aria-valuenow={clamped} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+      <div className="progress-fill" style={{ width: `${clamped}%` }} />
     </div>
   );
-};
+}
 
-export default ProgressBar;
+ProgressBar.propTypes = {
+  value: PropTypes.number,
+  label: PropTypes.string,
+  className: PropTypes.string
+};

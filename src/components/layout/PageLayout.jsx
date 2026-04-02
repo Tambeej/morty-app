@@ -1,43 +1,32 @@
-/**
- * Page Layout Component
- * Wraps authenticated pages with sidebar and navbar
- */
-
 import React, { useState } from 'react';
-import Sidebar from './Sidebar';
-import Navbar from './Navbar';
+import PropTypes from 'prop-types';
+import Sidebar from './Sidebar.jsx';
+import Navbar from './Navbar.jsx';
 
 /**
- * @param {React.ReactNode} children - Page content
+ * Authenticated page shell: sidebar + top navbar + main content area.
  */
-const PageLayout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export default function PageLayout({ children }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-navy overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+    <div className="flex min-h-screen bg-navy">
+      {/* Sidebar — hidden on mobile, shown on md+ */}
+      <div className="hidden md:block">
+        <Sidebar collapsed={sidebarCollapsed} />
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Navbar */}
-        <Navbar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-
-        {/* Page Content */}
-        <main
-          className="flex-1 overflow-y-auto p-6 lg:p-8"
-          id="main-content"
-        >
-          <div className="max-w-7xl mx-auto page-enter">
-            {children}
-          </div>
+      {/* Main area */}
+      <div className="flex flex-col flex-1 min-w-0">
+        <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />
+        <main className="flex-1 p-6 md:p-8 page-enter">
+          {children}
         </main>
       </div>
     </div>
   );
-};
+}
 
-export default PageLayout;
+PageLayout.propTypes = {
+  children: PropTypes.node.isRequired
+};

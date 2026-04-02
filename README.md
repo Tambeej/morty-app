@@ -1,89 +1,70 @@
-# Morty - AI-Powered Mortgage Analysis
+# Morty — AI-Powered Mortgage Analysis
 
-Morty is a React SPA that helps Israeli users analyze their mortgage offers using AI.
-
-## Features
-
-- 🔐 **Secure Authentication** - JWT-based login and registration
-- 📊 **Financial Profile** - Input and track your financial data
-- 📄 **Document Upload** - Upload mortgage offer PDFs/images
-- 🤖 **AI Analysis** - Get AI-powered mortgage analysis and recommendations
-- 📱 **PWA Support** - Works offline with service worker caching
-- 🇮🇱 **RTL Support** - Hebrew language support
+A React SPA (PWA-enabled) for Israeli users to analyze mortgage offers using AI.
 
 ## Tech Stack
 
-- **React 18** with React Router v6
-- **Tailwind CSS** for styling
-- **React Hook Form** + **Zod** for form validation
-- **Axios** for API communication
-- **Recharts** for data visualization
-- **Workbox** for PWA/service worker
+- **React 18** + **Vite 5** (build tool)
+- **React Router v6** (client-side routing)
+- **React Hook Form** + **Zod** (form validation)
+- **Axios** (API client with JWT interceptors)
+- **Recharts** (data visualization)
+- **Tailwind CSS** (styling)
+- **react-hot-toast** (notifications)
+- **vite-plugin-pwa** (PWA / service worker)
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+
-- npm 10+
-
-### Installation
-
 ```bash
-# Clone the repository
-git clone https://github.com/Tambeej/morty-app.git
-cd morty-app
-
 # Install dependencies
 npm install
 
-# Copy environment variables
-cp .env.example .env.local
-
-# Edit .env.local with your backend URL
-# REACT_APP_API_URL=https://your-backend.onrender.com/api/v1
-
 # Start development server
-npm start
-```
+npm run dev
 
-### Build for Production
-
-```bash
+# Build for production
 npm run build
-```
 
-### Deploy to GitHub Pages
+# Preview production build
+npm run preview
 
-```bash
-npm run deploy
+# Run tests
+npm test
 ```
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|----------|
-| `REACT_APP_API_URL` | Backend API base URL | `http://localhost:5000/api/v1` |
+Copy `.env.example` to `.env` and fill in the values:
+
+```
+VITE_API_URL=https://morty-backend.onrender.com/api/v1
+```
 
 ## Project Structure
 
 ```
 src/
   components/
-    common/          # Reusable UI components
-    layout/          # Layout components (Sidebar, Navbar)
-  context/           # React Context (Auth, Toast)
-  pages/             # Page components
-  services/          # API service layer
-  styles/            # Global CSS
+    common/       # Button, Input, Card, Spinner, ProgressBar, Skeleton
+    layout/       # Sidebar, Navbar, PageLayout
+  context/        # AuthContext (JWT auth state)
+  pages/          # LoginPage, RegisterPage, DashboardPage, FinancialProfilePage, UploadPage, AnalysisPage
+  services/       # api.js (Axios instance + all API calls)
+  styles/         # globals.css (Tailwind + CSS vars)
+  test/           # Unit and component tests (Vitest)
 ```
 
-## API Integration
+## PWA
 
-The frontend connects to the Morty backend API at `REACT_APP_API_URL`.
+The app is PWA-ready with:
+- Service worker (via `vite-plugin-pwa` / Workbox)
+- Cache-First strategy for static assets
+- Network-First strategy for API calls
+- Offline fallback
+- Installable on mobile and desktop
 
-See the [Architecture Design](../morty-backend/README.md) for full API documentation.
+## Deployment
 
-## License
+Deployed to GitHub Pages at `https://tambeej.github.io/morty-app/`.
 
-MIT
+The Vite config sets `base: '/morty-app/'` for correct asset paths.

@@ -1,33 +1,27 @@
-/**
- * Spinner Component
- * Loading indicator with configurable size
- */
-
 import React from 'react';
+import PropTypes from 'prop-types';
 
-/**
- * @param {'sm'|'md'|'lg'} size - Spinner size
- * @param {string} className - Additional CSS classes
- */
-const Spinner = ({ size = 'md', className = '' }) => {
-  const sizes = {
-    sm: 'w-4 h-4 border-2',
-    md: 'w-6 h-6 border-2',
-    lg: 'w-10 h-10 border-4',
-  };
-
-  return (
-    <div
-      className={`
-        ${sizes[size]}
-        border-gold border-t-transparent
-        rounded-full animate-spin
-        ${className}
-      `}
-      role="status"
-      aria-label="Loading"
-    />
-  );
+const sizes = {
+  sm: 'w-4 h-4 border-2',
+  md: 'w-6 h-6 border-2',
+  lg: 'w-10 h-10 border-[3px]'
 };
 
-export default Spinner;
+/**
+ * Gold spinning loader.
+ * @param {'sm'|'md'|'lg'} size
+ */
+export default function Spinner({ size = 'md', className = '' }) {
+  return (
+    <span
+      role="status"
+      aria-label="Loading"
+      className={`inline-block rounded-full border-gold border-t-transparent animate-spin ${sizes[size]} ${className}`}
+    />
+  );
+}
+
+Spinner.propTypes = {
+  size: PropTypes.oneOf(['sm', 'md', 'lg']),
+  className: PropTypes.string
+};
