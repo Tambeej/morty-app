@@ -1,7 +1,5 @@
 /**
- * useAuth hook
- * Convenience re-export from AuthContext.
- * Provides auth state and actions: user, isAuthenticated, isLoading, error,
- * loginUser, registerUser, logoutUser, clearError, updateUser.
+ * useAuth - Convenience re-export of the auth hook.
+ * Import from here or directly from context/AuthContext.
  */
 export { useAuth } from '../context/AuthContext';
