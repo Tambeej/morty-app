@@ -1,17 +1,19 @@
 /**
- * Service Worker Registration for PWA support.
- * This file is based on Create React App's service worker registration.
+ * Service Worker Registration for Morty PWA
+ * This registers the service worker for offline support and caching.
  */
 
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
     window.location.hostname === '[::1]' ||
-    window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
+    window.location.hostname.match(
+      /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/
+    )
 );
 
 /**
- * Register the service worker.
- * @param {Object} config - Optional callbacks: onSuccess, onUpdate
+ * Register the service worker
+ * @param {Object} config - Configuration callbacks
  */
 export function register(config) {
   if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
@@ -37,18 +39,24 @@ export function register(config) {
   }
 }
 
+/**
+ * Register a valid service worker
+ */
 function registerValidSW(swUrl, config) {
   navigator.serviceWorker
     .register(swUrl)
     .then((registration) => {
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
-        if (installingWorker == null) return;
-
+        if (installingWorker == null) {
+          return;
+        }
         installingWorker.onstatechange = () => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
-              console.log('New content is available; please refresh.');
+              console.log(
+                'New content is available and will be used when all tabs for this page are closed.'
+              );
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
               }
@@ -67,8 +75,13 @@ function registerValidSW(swUrl, config) {
     });
 }
 
+/**
+ * Check if service worker is valid
+ */
 function checkValidServiceWorker(swUrl, config) {
-  fetch(swUrl, { headers: { 'Service-Worker': 'script' } })
+  fetch(swUrl, {
+    headers: { 'Service-Worker': 'script' },
+  })
     .then((response) => {
       const contentType = response.headers.get('content-type');
       if (
@@ -89,6 +102,9 @@ function checkValidServiceWorker(swUrl, config) {
     });
 }
 
+/**
+ * Unregister the service worker
+ */
 export function unregister() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready
