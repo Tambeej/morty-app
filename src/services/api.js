@@ -1,27 +1,32 @@
 /**
- * api.js - Axios instance with JWT interceptors.
+ * api.js
+ * Axios instance pre-configured for the Morty backend.
  *
- * - Automatically attaches Authorization header from localStorage.
- * - On 401, attempts token refresh; retries original request once.
- * - Base URL: REACT_APP_API_URL env var (default: http://localhost:5000/api/v1)
+ * - Base URL from REACT_APP_API_URL env var (defaults to Render deployment).
+ * - Attaches Authorization header from localStorage on every request.
+ * - Handles 401 responses by attempting a token refresh, then retrying once.
+ * - On refresh failure, clears session and redirects to /login.
  */
 import axios from 'axios';
 
 const BASE_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+  process.env.REACT_APP_API_URL ||
+  'https://morty-backend.onrender.com/api/v1';
 
 const api = axios.create({
   baseURL: BASE_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
 });
 
-// Request interceptor: attach token
+// ---------------------------------------------------------------------------
+// Request interceptor — attach JWT
+// ---------------------------------------------------------------------------
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('morty_token');
+    const token = localStorage.getItem('morty_access_token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -30,11 +35,13 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Track if we're already refreshing to avoid infinite loops
+// ---------------------------------------------------------------------------
+// Response interceptor — handle 401 with token refresh
+// ---------------------------------------------------------------------------
 let isRefreshing = false;
 let failedQueue = [];
 
-const processQueue = (error, token = null) => {
+function processQueue(error, token = null) {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -43,15 +50,18 @@ const processQueue = (error, token = null) => {
     }
   });
   failedQueue = [];
-};
+}
 
-// Response interceptor: handle 401 with token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/')
+    ) {
       if (isRefreshing) {
         // Queue the request until refresh completes
         return new Promise((resolve, reject) => {
@@ -70,31 +80,27 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('morty_refresh_token');
       if (!refreshToken) {
         isRefreshing = false;
-        // Clear auth and redirect to login
-        localStorage.removeItem('morty_token');
-        localStorage.removeItem('morty_refresh_token');
-        window.location.href = '/login';
+        clearSessionAndRedirect();
         return Promise.reject(error);
       }
 
       try {
-        const res = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
-        const newToken = res.data.token;
-        const newRefreshToken = res.data.refreshToken;
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
+          refreshToken,
+        });
+        const newToken = data.token;
+        const newRefresh = data.refreshToken;
 
-        localStorage.setItem('morty_token', newToken);
-        if (newRefreshToken) localStorage.setItem('morty_refresh_token', newRefreshToken);
-
+        localStorage.setItem('morty_access_token', newToken);
+        localStorage.setItem('morty_refresh_token', newRefresh);
         api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
 
         processQueue(null, newToken);
+        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem('morty_token');
-        localStorage.removeItem('morty_refresh_token');
-        window.location.href = '/login';
+        clearSessionAndRedirect();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -104,5 +110,15 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+function clearSessionAndRedirect() {
+  localStorage.removeItem('morty_access_token');
+  localStorage.removeItem('morty_refresh_token');
+  localStorage.removeItem('morty_user');
+  // Avoid redirect loop on auth pages
+  if (!window.location.pathname.startsWith('/login')) {
+    window.location.href = '/login';
+  }
+}
 
 export default api;

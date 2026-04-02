@@ -1,9 +1,10 @@
 /**
- * App.js - Root component.
- * Sets up routing, AuthProvider, and ToastProvider.
+ * App.js
+ * Root application component.
+ * Sets up routing, auth guard, and context providers.
  */
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Spinner from './components/common/Spinner';
@@ -16,109 +17,127 @@ const FinancialProfilePage = lazy(() => import('./pages/FinancialProfilePage'));
 const UploadPage = lazy(() => import('./pages/UploadPage'));
 const AnalysisPage = lazy(() => import('./pages/AnalysisPage'));
 
-/** Full-page loading fallback */
+// ---------------------------------------------------------------------------
+// Auth guard
+// ---------------------------------------------------------------------------
+function RequireAuth({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#0f172a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: '16px',
+        }}
+      >
+        <span style={{ fontSize: '2rem' }}>🏡</span>
+        <Spinner size={32} />
+      </div>
+    );
+  }
+
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+// ---------------------------------------------------------------------------
+// Page loading fallback
+// ---------------------------------------------------------------------------
 function PageLoader() {
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
-      style={{ background: '#0f172a' }}
+      style={{
+        minHeight: '100vh',
+        background: '#0f172a',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
-      <div className="flex flex-col items-center gap-4">
-        <svg
-          className="w-10 h-10"
-          style={{ color: '#f59e0b' }}
-          fill="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-        </svg>
-        <Spinner size={32} />
-      </div>
+      <Spinner size={32} />
     </div>
   );
 }
 
-/** Guard: redirect to /login if not authenticated */
-function PrivateRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <PageLoader />;
-  return user ? children : <Navigate to="/login" replace />;
+// ---------------------------------------------------------------------------
+// Router
+// ---------------------------------------------------------------------------
+function AppRoutes() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* Protected routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <DashboardPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <FinancialProfilePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <RequireAuth>
+              <UploadPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/analysis"
+          element={
+            <RequireAuth>
+              <AnalysisPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/analysis/:id"
+          element={
+            <RequireAuth>
+              <AnalysisPage />
+            </RequireAuth>
+          }
+        />
+
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Suspense>
+  );
 }
 
-/** Guard: redirect to /dashboard if already authenticated */
-function PublicRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <PageLoader />;
-  return !user ? children : <Navigate to="/dashboard" replace />;
-}
-
-export default function App() {
+// ---------------------------------------------------------------------------
+// Root
+// ---------------------------------------------------------------------------
+function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public routes */}
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginPage />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/register"
-                element={
-                  <PublicRoute>
-                    <RegisterPage />
-                  </PublicRoute>
-                }
-              />
-
-              {/* Protected routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <PrivateRoute>
-                    <DashboardPage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <PrivateRoute>
-                    <FinancialProfilePage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/upload"
-                element={
-                  <PrivateRoute>
-                    <UploadPage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/analysis/:id"
-                element={
-                  <PrivateRoute>
-                    <AnalysisPage />
-                  </PrivateRoute>
-                }
-              />
-
-              {/* Default redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Suspense>
-        </ToastProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }
+
+export default App;

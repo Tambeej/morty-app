@@ -1,263 +1,248 @@
 /**
- * LoginPage - Handles user authentication.
- * Uses useAuth().login({ email, password }) and useToast().addToast().
+ * LoginPage.jsx
+ * Login form page. Uses AuthContext.login() and ToastContext.addToast().
  */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { validateEmail, validatePassword } from '../utils/validators';
 import Spinner from '../components/common/Spinner';
 
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
-
-export default function LoginPage() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
+const LoginPage = () => {
+  const { login, loading } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(loginSchema),
-  });
+    formState: { errors },
+  } = useForm({ mode: 'onBlur' });
 
-  const onSubmit = async (data) => {
-    try {
-      // login expects a single credentials object { email, password }
-      await login({ email: data.email, password: data.password });
+  const onSubmit = async ({ email, password }) => {
+    const result = await login(email, password);
+    if (result.success) {
       addToast('Welcome back!', 'success');
       navigate('/dashboard');
-    } catch (err) {
-      const message =
-        err?.response?.data?.error || 'Login failed. Please check your credentials.';
-      addToast(message, 'error');
+    } else {
+      addToast(result.error || 'Login failed. Please try again.', 'error');
     }
   };
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: '#0f172a' }}
+      style={{
+        minHeight: '100vh',
+        background: '#0f172a',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+      }}
     >
-      {/* Background decoration */}
       <div
-        className="absolute inset-0 overflow-hidden pointer-events-none"
-        aria-hidden="true"
+        style={{
+          background: '#1e293b',
+          border: '1px solid #334155',
+          borderRadius: '12px',
+          padding: '40px',
+          width: '100%',
+          maxWidth: '420px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+          animation: 'fadeInUp 200ms ease-out',
+        }}
       >
-        <div
-          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, #f59e0b, transparent)' }}
-        />
-      </div>
+        <style>{`
+          @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
 
-      <div className="w-full max-w-md relative">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <svg
-              className="w-8 h-8"
-              style={{ color: '#f59e0b' }}
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-            </svg>
-            <span className="text-2xl font-bold" style={{ color: '#f8fafc' }}>
-              Morty
-            </span>
-          </div>
-          <p className="text-sm" style={{ color: '#94a3b8' }}>
-            AI-Powered Mortgage Analysis
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <span style={{ fontSize: '2rem' }}>🏡</span>
+          <h1
+            style={{
+              color: '#f59e0b',
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              margin: '8px 0 4px',
+            }}
+          >
+            Morty
+          </h1>
+          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+            AI-powered mortgage analysis
           </p>
         </div>
 
-        {/* Card */}
-        <div
-          className="rounded-card p-8 page-enter"
+        <h2
           style={{
-            background: '#1e293b',
-            border: '1px solid #334155',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+            color: '#f8fafc',
+            fontSize: '1.25rem',
+            fontWeight: 600,
+            marginBottom: '24px',
           }}
         >
-          <h1 className="text-2xl font-bold mb-6" style={{ color: '#f8fafc' }}>
-            Sign In to Morty
-          </h1>
+          Sign In
+        </h2>
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate>
-            {/* Email */}
-            <div className="mb-4">
-              <label
-                htmlFor="email"
-                className="block text-xs font-medium uppercase tracking-wider mb-2"
-                style={{ color: '#94a3b8' }}
-              >
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-                style={{
-                  background: '#1e293b',
-                  border: `1px solid ${errors.email ? '#ef4444' : '#334155'}`,
-                  borderRadius: '8px',
-                  color: '#f8fafc',
-                  height: '44px',
-                  padding: '0 16px',
-                  width: '100%',
-                  transition: 'border-color 150ms ease, box-shadow 150ms ease',
-                }}
-                onFocus={(e) => {
-                  if (!errors.email) {
-                    e.target.style.borderColor = '#f59e0b';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.2)';
-                  }
-                }}
-                onBlur={(e) => {
-                  if (!errors.email) {
-                    e.target.style.borderColor = '#334155';
-                    e.target.style.boxShadow = 'none';
-                  }
-                }}
-                {...register('email')}
-              />
-              {errors.email && (
-                <p id="email-error" className="mt-1 text-xs" style={{ color: '#ef4444' }}>
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="mb-6">
-              <label
-                htmlFor="password"
-                className="block text-xs font-medium uppercase tracking-wider mb-2"
-                style={{ color: '#94a3b8' }}
-              >
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  aria-invalid={!!errors.password}
-                  aria-describedby={errors.password ? 'password-error' : undefined}
-                  style={{
-                    background: '#1e293b',
-                    border: `1px solid ${errors.password ? '#ef4444' : '#334155'}`,
-                    borderRadius: '8px',
-                    color: '#f8fafc',
-                    height: '44px',
-                    padding: '0 48px 0 16px',
-                    width: '100%',
-                    transition: 'border-color 150ms ease, box-shadow 150ms ease',
-                  }}
-                  onFocus={(e) => {
-                    if (!errors.password) {
-                      e.target.style.borderColor = '#f59e0b';
-                      e.target.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.2)';
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (!errors.password) {
-                      e.target.style.borderColor = '#334155';
-                      e.target.style.boxShadow = 'none';
-                    }
-                  }}
-                  {...register('password')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ color: '#64748b' }}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p id="password-error" className="mt-1 text-xs" style={{ color: '#ef4444' }}>
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 font-semibold transition-all"
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          {/* Email */}
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              htmlFor="email"
               style={{
-                background: isSubmitting ? 'rgba(245,158,11,0.6)' : '#f59e0b',
-                color: '#0f172a',
-                height: '44px',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                fontSize: '1rem',
-                opacity: isSubmitting ? 0.7 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!isSubmitting) e.currentTarget.style.background = '#fbbf24';
-              }}
-              onMouseLeave={(e) => {
-                if (!isSubmitting) e.currentTarget.style.background = '#f59e0b';
+                display: 'block',
+                color: '#94a3b8',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: '6px',
               }}
             >
-              {isSubmitting ? (
-                <>
-                  <Spinner size={18} />
-                  <span>Signing in...</span>
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center space-y-2">
-            <p className="text-sm" style={{ color: '#94a3b8' }}>
-              Don&apos;t have an account?{' '}
-              <Link
-                to="/register"
-                className="font-medium transition-colors"
-                style={{ color: '#f59e0b' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#fbbf24')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#f59e0b')}
-              >
-                Register
-              </Link>
-            </p>
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              {...register('email', { validate: validateEmail })}
+              style={{
+                width: '100%',
+                height: '44px',
+                background: '#1e293b',
+                border: `1px solid ${errors.email ? '#ef4444' : '#334155'}`,
+                borderRadius: '8px',
+                padding: '0 16px',
+                color: '#f8fafc',
+                fontSize: '1rem',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {errors.email && (
+              <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '4px' }}>
+                {errors.email.message}
+              </p>
+            )}
           </div>
+
+          {/* Password */}
+          <div style={{ marginBottom: '24px' }}>
+            <label
+              htmlFor="password"
+              style={{
+                display: 'block',
+                color: '#94a3b8',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: '6px',
+              }}
+            >
+              Password
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                {...register('password', { validate: validatePassword })}
+                style={{
+                  width: '100%',
+                  height: '44px',
+                  background: '#1e293b',
+                  border: `1px solid ${errors.password ? '#ef4444' : '#334155'}`,
+                  borderRadius: '8px',
+                  padding: '0 44px 0 16px',
+                  color: '#f8fafc',
+                  fontSize: '1rem',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  fontSize: '1rem',
+                  padding: 0,
+                }}
+              >
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
+            {errors.password && (
+              <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '4px' }}>
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              height: '44px',
+              background: loading ? '#f59e0b66' : '#f59e0b',
+              color: '#0f172a',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '1rem',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'background 150ms ease',
+            }}
+          >
+            {loading ? (
+              <>
+                <Spinner size={18} color="#0f172a" />
+                Signing in...
+              </>
+            ) : (
+              'Sign In'
+            )}
+          </button>
+        </form>
+
+        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+            Don't have an account?{' '}
+            <Link
+              to="/register"
+              style={{ color: '#f59e0b', textDecoration: 'none', fontWeight: 600 }}
+            >
+              Register
+            </Link>
+          </p>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default LoginPage;

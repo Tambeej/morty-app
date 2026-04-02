@@ -1,176 +1,199 @@
 /**
- * Authentication Context
- * Provides auth state and actions throughout the application.
- * Handles login, register, logout, and session restoration.
+ * AuthContext.js
+ * Provides authentication state and actions to the entire app.
+ *
+ * Exposes via useAuth():
+ *   user          — current user object or null
+ *   token         — JWT access token or null
+ *   loading       — true while an auth request is in-flight
+ *   isAuthenticated — boolean shorthand
+ *   login(email, password)         — POST /auth/login
+ *   register(fullName, email, phone, password) — POST /auth/register
+ *   logout()                       — POST /auth/logout + clear state
+ *   refreshAccessToken()           — POST /auth/refresh
  */
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { login, register, logout, getMe } from '../services/authService';
-import { getStoredToken, getStoredUser, setStoredUser, clearStoredTokens, isAuthenticated } from '../utils/storage';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import api from '../services/api';
 import { extractApiError } from '../utils/validators';
 
-// ─── State Shape ────────────────────────────────────────────────────────────
-const initialState = {
-  user: null,
-  isAuthenticated: false,
-  isLoading: true, // true on initial load while restoring session
-  error: null,
-};
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
+const AuthContext = createContext(null);
 
-// ─── Action Types ────────────────────────────────────────────────────────────
-const AUTH_ACTIONS = {
-  SET_LOADING: 'SET_LOADING',
-  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
-  LOGOUT: 'LOGOUT',
-  SET_ERROR: 'SET_ERROR',
-  CLEAR_ERROR: 'CLEAR_ERROR',
-  UPDATE_USER: 'UPDATE_USER',
-};
-
-// ─── Reducer ─────────────────────────────────────────────────────────────────
-const authReducer = (state, action) => {
-  switch (action.type) {
-    case AUTH_ACTIONS.SET_LOADING:
-      return { ...state, isLoading: action.payload };
-    case AUTH_ACTIONS.LOGIN_SUCCESS:
-      return {
-        ...state,
-        user: action.payload,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      };
-    case AUTH_ACTIONS.LOGOUT:
-      return {
-        ...initialState,
-        isLoading: false,
-      };
-    case AUTH_ACTIONS.SET_ERROR:
-      return { ...state, error: action.payload, isLoading: false };
-    case AUTH_ACTIONS.CLEAR_ERROR:
-      return { ...state, error: null };
-    case AUTH_ACTIONS.UPDATE_USER:
-      return { ...state, user: { ...state.user, ...action.payload } };
-    default:
-      return state;
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used inside <AuthProvider>');
   }
-};
+  return ctx;
+}
 
-// ─── Context ─────────────────────────────────────────────────────────────────
-export const AuthContext = createContext(null);
+// ---------------------------------------------------------------------------
+// Storage helpers
+// ---------------------------------------------------------------------------
+const TOKEN_KEY = 'morty_access_token';
+const REFRESH_KEY = 'morty_refresh_token';
+const USER_KEY = 'morty_user';
 
-/**
- * AuthProvider component
- * Wraps the app and provides auth state + actions via context.
- */
-export const AuthProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState);
+function persistSession(token, refreshToken, user) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(REFRESH_KEY, refreshToken);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
 
-  // Restore session on mount
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+function loadSession() {
+  try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const refreshToken = localStorage.getItem(REFRESH_KEY);
+    const user = JSON.parse(localStorage.getItem(USER_KEY));
+    return { token, refreshToken, user };
+  } catch {
+    return { token: null, refreshToken: null, user: null };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
+export function AuthProvider({ children }) {
+  const saved = loadSession();
+  const [user, setUser] = useState(saved.user || null);
+  const [token, setToken] = useState(saved.token || null);
+  const [refreshToken, setRefreshToken] = useState(saved.refreshToken || null);
+  const [loading, setLoading] = useState(false);
+
+  // Inject / remove Authorization header whenever token changes
   useEffect(() => {
-    const restoreSession = async () => {
-      if (!isAuthenticated()) {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-        return;
-      }
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete api.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
 
-      // Try to restore from localStorage first for instant UI
-      const storedUser = getStoredUser();
-      if (storedUser) {
-        dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: storedUser });
-      }
-
-      // Then verify with server
-      try {
-        const user = await getMe();
-        setStoredUser(user);
-        dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
-      } catch (err) {
-        // Token invalid or expired — clear and show login
-        clearStoredTokens();
-        dispatch({ type: AUTH_ACTIONS.LOGOUT });
-      }
-    };
-
-    restoreSession();
-  }, []);
-
-  // Listen for forced logout events (from API interceptor)
-  useEffect(() => {
-    const handleForcedLogout = () => {
-      dispatch({ type: AUTH_ACTIONS.LOGOUT });
-    };
-    window.addEventListener('auth:logout', handleForcedLogout);
-    return () => window.removeEventListener('auth:logout', handleForcedLogout);
-  }, []);
-
-  // ─── Actions ───────────────────────────────────────────────────────────────
-
-  const loginUser = useCallback(async (credentials) => {
-    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+  // ------------------------------------------------------------------
+  // login
+  // ------------------------------------------------------------------
+  const login = useCallback(async (email, password) => {
+    setLoading(true);
     try {
-      const { user } = await login(credentials);
-      setStoredUser(user);
-      dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
+      const { data } = await api.post('/auth/login', { email, password });
+      const { token: accessToken, refreshToken: rt, user: u } = data;
+      persistSession(accessToken, rt, u);
+      setToken(accessToken);
+      setRefreshToken(rt);
+      setUser(u);
       return { success: true };
     } catch (err) {
-      const message = extractApiError(err, 'Login failed. Please check your credentials.');
-      dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-      return { success: false, error: message };
-    }
-  }, []);
-
-  const registerUser = useCallback(async (userData) => {
-    dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
-    try {
-      const { user } = await register(userData);
-      setStoredUser(user);
-      dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
-      return { success: true };
-    } catch (err) {
-      const message = extractApiError(err, 'Registration failed. Please try again.');
-      dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-      return { success: false, error: message };
-    }
-  }, []);
-
-  const logoutUser = useCallback(async () => {
-    try {
-      await logout();
+      return { success: false, error: extractApiError(err) };
     } finally {
-      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      setLoading(false);
     }
   }, []);
 
-  const clearError = useCallback(() => {
-    dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+  // ------------------------------------------------------------------
+  // register
+  // ------------------------------------------------------------------
+  const register = useCallback(async (fullName, email, phone, password) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/auth/register', {
+        fullName,
+        email,
+        phone,
+        password,
+      });
+      const { token: accessToken, refreshToken: rt, user: u } = data;
+      persistSession(accessToken, rt, u);
+      setToken(accessToken);
+      setRefreshToken(rt);
+      setUser(u);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: extractApiError(err) };
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const updateUser = useCallback((updates) => {
-    dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: updates });
-  }, []);
+  // ------------------------------------------------------------------
+  // logout
+  // ------------------------------------------------------------------
+  const logout = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (token) {
+        await api.post('/auth/logout').catch(() => {
+          // Ignore server errors on logout — clear client state regardless
+        });
+      }
+    } finally {
+      clearSession();
+      setToken(null);
+      setRefreshToken(null);
+      setUser(null);
+      setLoading(false);
+    }
+  }, [token]);
 
-  const value = {
-    ...state,
-    loginUser,
-    registerUser,
-    logoutUser,
-    clearError,
-    updateUser,
-  };
+  // ------------------------------------------------------------------
+  // refreshAccessToken
+  // ------------------------------------------------------------------
+  const refreshAccessToken = useCallback(async () => {
+    if (!refreshToken) return null;
+    try {
+      const { data } = await api.post('/auth/refresh', { refreshToken });
+      const { token: newToken, refreshToken: newRt } = data;
+      localStorage.setItem(TOKEN_KEY, newToken);
+      localStorage.setItem(REFRESH_KEY, newRt);
+      setToken(newToken);
+      setRefreshToken(newRt);
+      return newToken;
+    } catch {
+      // Refresh failed — force logout
+      clearSession();
+      setToken(null);
+      setRefreshToken(null);
+      setUser(null);
+      return null;
+    }
+  }, [refreshToken]);
+
+  // ------------------------------------------------------------------
+  // Context value — stable reference via useMemo
+  // ------------------------------------------------------------------
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      loading,
+      isAuthenticated: Boolean(token && user),
+      login,
+      register,
+      logout,
+      refreshAccessToken,
+    }),
+    [user, token, loading, login, register, logout, refreshAccessToken]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+}
 
-/**
- * useAuth hook — access auth context
- * @returns {Object} Auth state and actions
- */
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export default AuthContext;
