@@ -1,64 +1,124 @@
-# Morty - AI-Powered Mortgage Analysis
+# Morty 🏠
 
-> SaaS platform for Israeli users to analyze and optimize their mortgage offers using AI.
-
-## Features
-
-- Secure Authentication (JWT)
-- Financial Dashboard
-- File Upload (PDF/image)
-- AI Analysis (OpenAI)
-- PWA Support
-- RTL/Hebrew Support
-- Accessible (WCAG 2.1 AA)
+AI-powered mortgage analysis SaaS for Israeli users.
 
 ## Tech Stack
 
-- React 18 + Vite 5
-- React Router v6
-- Tailwind CSS 3
-- Axios (JWT interceptors)
-- React Hook Form + Zod
-- Recharts
-- vite-plugin-pwa
-- Vitest + React Testing Library
+- **Framework**: React 18 (Create React App)
+- **Routing**: React Router v6
+- **Styling**: Tailwind CSS v3
+- **Forms**: React Hook Form + Zod validation
+- **HTTP**: Axios with JWT interceptors
+- **Charts**: Recharts
+- **PWA**: Workbox service worker (Cache-First assets, Network-First API)
 
 ## Getting Started
 
+### Prerequisites
+
+- Node.js 18+
+- npm 9+
+
+### Installation
+
 ```bash
 npm install
-cp .env.example .env.local
-npm run dev
 ```
 
-## Scripts
+### Environment Variables
+
+Copy `.env.example` to `.env.local` and set your backend URL:
 
 ```bash
-npm run dev          # Development server (port 3000)
-npm run build        # Production build
-npm run preview      # Preview production build
-npm test             # Run tests
-npm run test:coverage # Tests with coverage
+cp .env.example .env.local
 ```
 
-## Routes
+```env
+REACT_APP_API_URL=http://localhost:5000/api/v1
+```
 
-| Route | Page | Auth |
-|---|---|---|
-| `/` | Redirect to dashboard | Yes |
-| `/login` | Login | No |
-| `/register` | Register | No |
-| `/dashboard` | Dashboard | Yes |
-| `/profile` | Financial Profile | Yes |
-| `/upload` | Upload Offer | Yes |
-| `/analysis/:id` | Analysis Results | Yes |
+### Development
 
-## Environment Variables
+```bash
+npm start
+```
 
-| Variable | Description | Default |
-|---|---|---|
-| `VITE_API_URL` | Backend API URL | `http://localhost:5000/api/v1` |
+Opens [http://localhost:3000](http://localhost:3000).
+
+### Production Build
+
+```bash
+npm run build
+```
+
+Outputs to `./build`.
+
+### Tests
+
+```bash
+npm test
+```
+
+## Project Structure
+
+```
+src/
+  App.js                    # Root component with routing
+  index.js                  # Entry point + service worker registration
+  service-worker.js         # Workbox PWA service worker
+  serviceWorkerRegistration.js
+  context/
+    AuthContext.jsx          # Auth state: login, register, logout
+    ToastContext.jsx         # Unified toast notifications: addToast
+  components/
+    common/
+      Button.jsx
+      Card.jsx
+      Input.jsx
+      Spinner.jsx
+      Skeleton.jsx
+      ProgressBar.jsx
+    layout/
+      Sidebar.jsx
+      Navbar.jsx
+      PageLayout.jsx
+  pages/
+    LoginPage.jsx
+    RegisterPage.jsx
+    DashboardPage.jsx
+    FinancialProfilePage.jsx
+    UploadPage.jsx
+    AnalysisPage.jsx
+  services/
+    api.js                   # Axios instance with token refresh
+  styles/
+    globals.css              # Tailwind directives + global styles
+```
+
+## API Integration
+
+All API calls go through `src/services/api.js` which:
+- Attaches `Authorization: Bearer <token>` header automatically
+- Handles 401 responses by refreshing the token
+- Redirects to `/login` if refresh fails
+
+Base URL is configured via `REACT_APP_API_URL` environment variable.
+
+## Authentication
+
+- JWT access tokens (24h) stored in `localStorage`
+- Refresh tokens (7d) stored in `localStorage`
+- Auto-refresh on 401 responses
+- `useAuth()` hook exposes: `{ user, token, loading, login, register, logout }`
+
+## PWA Features
+
+- Offline support via Workbox service worker
+- Cache-First strategy for static assets
+- Network-First strategy for API calls
+- Installable on mobile and desktop
 
 ## Deployment
 
-Deployed to GitHub Pages: **https://tambeej.github.io/morty-app**
+Deployed to GitHub Pages. The `homepage` field in `package.json` is set to
+`https://Tambeej.github.io/morty-app`.
