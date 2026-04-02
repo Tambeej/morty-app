@@ -1,40 +1,32 @@
-import axios from 'axios';
-
 /**
- * Axios instance configured for the Morty backend API.
- * Base URL is read from REACT_APP_API_URL env var,
- * defaulting to http://localhost:5000/api/v1.
+ * Core Axios API client with JWT interceptors and token refresh logic.
+ * All API calls go through this instance.
  */
+import axios from 'axios';
+import { getStoredToken, getStoredRefreshToken, setStoredToken, setStoredRefreshToken, clearStoredTokens } from '../utils/storage';
+
+// Base URL from environment variable, fallback to localhost
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+
+// Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1',
-  timeout: 30000,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: false,
+  timeout: 30000,
 });
 
-/**
- * Request interceptor — attaches JWT token from localStorage if present.
- */
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('morty_token');
-    if (token && !config.headers['Authorization']) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-/**
- * Response interceptor — handles 401 by attempting token refresh.
- * On refresh failure, clears auth and redirects to login.
- */
+// Track if we're currently refreshing the token
 let isRefreshing = false;
+// Queue of requests waiting for token refresh
 let failedQueue = [];
 
+/**
+ * Process the queue of failed requests after token refresh
+ * @param {Error|null} error - Error if refresh failed
+ * @param {string|null} token - New token if refresh succeeded
+ */
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
@@ -46,22 +38,37 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+/**
+ * Request interceptor: attach JWT token to every request
+ */
+api.interceptors.request.use(
+  (config) => {
+    const token = getStoredToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+/**
+ * Response interceptor: handle 401 errors with token refresh
+ */
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/')
-    ) {
+    // If 401 and not already retrying
+    if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
+        // Queue this request until refresh completes
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            originalRequest.headers.Authorization = `Bearer ${token}`;
             return api(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -70,35 +77,35 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('morty_refresh_token');
+      const refreshToken = getStoredRefreshToken();
+
       if (!refreshToken) {
+        // No refresh token, clear auth and redirect
+        clearStoredTokens();
+        processQueue(new Error('No refresh token'), null);
         isRefreshing = false;
-        localStorage.removeItem('morty_token');
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(error);
       }
 
       try {
-        const res = await axios.post(
-          `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh`,
-          { refreshToken }
-        );
-        const newToken = res.data?.token;
-        const newRefresh = res.data?.refreshToken;
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          refreshToken,
+        });
 
-        localStorage.setItem('morty_token', newToken);
-        if (newRefresh) localStorage.setItem('morty_refresh_token', newRefresh);
+        const { token, refreshToken: newRefreshToken } = response.data;
+        setStoredToken(token);
+        setStoredRefreshToken(newRefreshToken);
 
-        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+        api.defaults.headers.common.Authorization = `Bearer ${token}`;
+        originalRequest.headers.Authorization = `Bearer ${token}`;
 
-        processQueue(null, newToken);
+        processQueue(null, token);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem('morty_token');
-        localStorage.removeItem('morty_refresh_token');
-        window.location.href = '/login';
+        clearStoredTokens();
+        window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
