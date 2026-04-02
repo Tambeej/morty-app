@@ -1,17 +1,26 @@
-# Morty — AI-Powered Mortgage Analysis
+# Morty - AI-Powered Mortgage Analysis
 
-A React SPA (PWA-enabled) for Israeli users to analyze mortgage offers using AI.
+Morty is a SaaS platform for Israeli users to analyze mortgage offers using AI.
+
+## Features
+
+- 🔐 Secure JWT authentication
+- 📊 Financial profile management
+- 📄 Mortgage offer upload (PDF/PNG/JPG)
+- 🤖 AI-powered analysis with recommendations
+- 📈 Interactive comparison charts
+- 🌐 Hebrew/English RTL support
+- 📱 PWA-ready (offline support)
 
 ## Tech Stack
 
-- **React 18** + **Vite 5** (build tool)
-- **React Router v6** (client-side routing)
-- **React Hook Form** + **Zod** (form validation)
-- **Axios** (API client with JWT interceptors)
-- **Recharts** (data visualization)
-- **Tailwind CSS** (styling)
-- **react-hot-toast** (notifications)
-- **vite-plugin-pwa** (PWA / service worker)
+- **React 18** with React Router v6
+- **Tailwind CSS** for styling
+- **React Hook Form** + Zod for validation
+- **Recharts** for data visualization
+- **Axios** with JWT interceptors
+- **react-i18next** for internationalization
+- **Workbox** for PWA/service worker
 
 ## Getting Started
 
@@ -20,24 +29,18 @@ A React SPA (PWA-enabled) for Israeli users to analyze mortgage offers using AI.
 npm install
 
 # Start development server
-npm run dev
+npm start
 
 # Build for production
 npm run build
-
-# Preview production build
-npm run preview
-
-# Run tests
-npm test
 ```
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in the values:
+Create a `.env` file based on `.env.example`:
 
 ```
-VITE_API_URL=https://morty-backend.onrender.com/api/v1
+REACT_APP_API_URL=https://your-backend.onrender.com/api/v1
 ```
 
 ## Project Structure
@@ -45,26 +48,24 @@ VITE_API_URL=https://morty-backend.onrender.com/api/v1
 ```
 src/
   components/
-    common/       # Button, Input, Card, Spinner, ProgressBar, Skeleton
+    common/       # Reusable UI components
     layout/       # Sidebar, Navbar, PageLayout
-  context/        # AuthContext (JWT auth state)
-  pages/          # LoginPage, RegisterPage, DashboardPage, FinancialProfilePage, UploadPage, AnalysisPage
-  services/       # api.js (Axios instance + all API calls)
-  styles/         # globals.css (Tailwind + CSS vars)
-  test/           # Unit and component tests (Vitest)
+  context/        # AuthContext, ToastContext
+  hooks/          # useAuth
+  i18n/           # Translations (EN/HE)
+  pages/          # Route-level page components
+  services/       # API service layer
+  styles/         # Global CSS
 ```
-
-## PWA
-
-The app is PWA-ready with:
-- Service worker (via `vite-plugin-pwa` / Workbox)
-- Cache-First strategy for static assets
-- Network-First strategy for API calls
-- Offline fallback
-- Installable on mobile and desktop
 
 ## Deployment
 
-Deployed to GitHub Pages at `https://tambeej.github.io/morty-app/`.
+This app is configured for GitHub Pages deployment.
 
-The Vite config sets `base: '/morty-app/'` for correct asset paths.
+```bash
+npm run deploy
+```
+
+## License
+
+MIT
