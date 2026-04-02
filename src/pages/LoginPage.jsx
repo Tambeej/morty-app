@@ -1,248 +1,104 @@
-/**
- * LoginPage.jsx
- * Login form page. Uses AuthContext.login() and ToastContext.addToast().
- */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import { validateEmail, validatePassword } from '../utils/validators';
-import Spinner from '../components/common/Spinner';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext.jsx';
+import Button from '../components/common/Button.jsx';
+import Input from '../components/common/Input.jsx';
 
-const LoginPage = () => {
-  const { login, loading } = useAuth();
-  const { addToast } = useToast();
+const schema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters')
+});
+
+/**
+ * Login page with email/password form.
+ */
+export default function LoginPage() {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm({ mode: 'onBlur' });
+    formState: { errors, isSubmitting }
+  } = useForm({ resolver: zodResolver(schema) });
 
-  const onSubmit = async ({ email, password }) => {
-    const result = await login(email, password);
-    if (result.success) {
-      addToast('Welcome back!', 'success');
+  async function onSubmit({ email, password }) {
+    try {
+      await login(email, password);
+      toast.success('Welcome back!');
       navigate('/dashboard');
-    } else {
-      addToast(result.error || 'Login failed. Please try again.', 'error');
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Login failed. Please check your credentials.';
+      toast.error(msg);
     }
-  };
+  }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#0f172a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-      }}
-    >
+    <div className="min-h-screen bg-navy flex flex-col items-center justify-center px-4">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <span className="text-4xl" aria-hidden="true">🏡</span>
+        <h1 className="text-3xl font-bold text-gold">Morty</h1>
+      </div>
+
+      {/* Card */}
       <div
-        style={{
-          background: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: '12px',
-          padding: '40px',
-          width: '100%',
-          maxWidth: '420px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-          animation: 'fadeInUp 200ms ease-out',
-        }}
+        className="w-full max-w-md bg-navy-surface border border-border rounded-card p-8 shadow-card"
+        style={{ animation: 'pageEnter 200ms ease-out forwards' }}
       >
-        <style>{`
-          @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
+        <h2 className="text-xl font-semibold text-[#f8fafc] mb-6">Sign In to Morty</h2>
 
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <span style={{ fontSize: '2rem' }}>🏡</span>
-          <h1
-            style={{
-              color: '#f59e0b',
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              margin: '8px 0 4px',
-            }}
-          >
-            Morty
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-            AI-powered mortgage analysis
-          </p>
-        </div>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+          <Input
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            error={errors.email?.message}
+            autoComplete="email"
+            {...register('email')}
+          />
 
-        <h2
-          style={{
-            color: '#f8fafc',
-            fontSize: '1.25rem',
-            fontWeight: 600,
-            marginBottom: '24px',
-          }}
-        >
-          Sign In
-        </h2>
-
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          {/* Email */}
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              htmlFor="email"
-              style={{
-                display: 'block',
-                color: '#94a3b8',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '6px',
-              }}
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              {...register('email', { validate: validateEmail })}
-              style={{
-                width: '100%',
-                height: '44px',
-                background: '#1e293b',
-                border: `1px solid ${errors.email ? '#ef4444' : '#334155'}`,
-                borderRadius: '8px',
-                padding: '0 16px',
-                color: '#f8fafc',
-                fontSize: '1rem',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
+          <div className="relative">
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              error={errors.password?.message}
+              autoComplete="current-password"
+              {...register('password')}
             />
-            {errors.email && (
-              <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '4px' }}>
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div style={{ marginBottom: '24px' }}>
-            <label
-              htmlFor="password"
-              style={{
-                display: 'block',
-                color: '#94a3b8',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '6px',
-              }}
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-8 text-[#64748b] hover:text-[#94a3b8] text-sm"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              Password
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                placeholder="••••••••"
-                {...register('password', { validate: validatePassword })}
-                style={{
-                  width: '100%',
-                  height: '44px',
-                  background: '#1e293b',
-                  border: `1px solid ${errors.password ? '#ef4444' : '#334155'}`,
-                  borderRadius: '8px',
-                  padding: '0 44px 0 16px',
-                  color: '#f8fafc',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#64748b',
-                  fontSize: '1rem',
-                  padding: 0,
-                }}
-              >
-                {showPassword ? '🙈' : '👁'}
-              </button>
-            </div>
-            {errors.password && (
-              <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '4px' }}>
-                {errors.password.message}
-              </p>
-            )}
+              {showPassword ? '🙈' : '👁️'}
+            </button>
           </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              height: '44px',
-              background: loading ? '#f59e0b66' : '#f59e0b',
-              color: '#0f172a',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '1rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'background 150ms ease',
-            }}
-          >
-            {loading ? (
-              <>
-                <Spinner size={18} color="#0f172a" />
-                Signing in...
-              </>
-            ) : (
-              'Sign In'
-            )}
-          </button>
+          <Button type="submit" loading={isSubmitting} className="w-full mt-2">
+            Sign In
+          </Button>
         </form>
 
-        <div style={{ marginTop: '24px', textAlign: 'center' }}>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-            Don't have an account?{' '}
-            <Link
-              to="/register"
-              style={{ color: '#f59e0b', textDecoration: 'none', fontWeight: 600 }}
-            >
+        <div className="mt-6 flex flex-col gap-2 text-sm text-center text-[#94a3b8]">
+          <p>
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-gold hover:text-gold-light font-medium">
               Register
             </Link>
           </p>
+          <button className="text-[#64748b] hover:text-[#94a3b8] transition-colors">
+            Forgot password?
+          </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default LoginPage;
+}

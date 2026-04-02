@@ -1,78 +1,56 @@
-/**
- * Input - Form input with error state and RTL support.
- */
 import React, { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 
+/**
+ * Styled input field with error state and optional prefix/suffix.
+ */
 const Input = forwardRef(function Input(
-  { label, id, error, prefix, suffix, className = '', style: extraStyle = {}, ...rest },
+  { label, error, prefix, suffix, className = '', id, ...rest },
   ref
 ) {
+  const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
   return (
-    <div className={className}>
+    <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
         <label
-          htmlFor={id}
-          className="block text-xs font-medium uppercase tracking-wider mb-2"
-          style={{ color: '#94a3b8' }}
+          htmlFor={inputId}
+          className="text-xs font-medium uppercase tracking-widest text-[#94a3b8]"
         >
           {label}
         </label>
       )}
-      <div className="relative">
+      <div className="relative flex items-center">
         {prefix && (
-          <span
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-sm"
-            style={{ color: '#64748b' }}
-            aria-hidden="true"
-          >
+          <span className="absolute left-4 text-[#64748b] select-none pointer-events-none">
             {prefix}
           </span>
         )}
         <input
           ref={ref}
-          id={id}
+          id={inputId}
+          className={[
+            'w-full h-11 rounded-input bg-navy-surface border px-4 text-[#f8fafc] placeholder-[#64748b]',
+            'transition-all duration-150',
+            'focus:outline-none focus:ring-[3px] focus:ring-gold/20 focus:border-gold',
+            error ? 'border-red-500' : 'border-border',
+            prefix ? 'pl-8' : '',
+            suffix ? 'pr-8' : ''
+          ]
+            .filter(Boolean)
+            .join(' ')}
           aria-invalid={!!error}
-          aria-describedby={error ? `${id}-error` : undefined}
-          style={{
-            background: '#1e293b',
-            border: `1px solid ${error ? '#ef4444' : '#334155'}`,
-            borderRadius: '8px',
-            color: '#f8fafc',
-            height: '44px',
-            padding: `0 ${suffix ? '40px' : '16px'} 0 ${prefix ? '40px' : '16px'}`,
-            width: '100%',
-            transition: 'border-color 150ms ease, box-shadow 150ms ease',
-            ...extraStyle,
-          }}
-          onFocus={(e) => {
-            if (!error) {
-              e.target.style.borderColor = '#f59e0b';
-              e.target.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.2)';
-            }
-            rest.onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            if (!error) {
-              e.target.style.borderColor = '#334155';
-              e.target.style.boxShadow = 'none';
-            }
-            rest.onBlur?.(e);
-          }}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           {...rest}
         />
         {suffix && (
-          <span
-            className="absolute right-3 top-1/2 -translate-y-1/2"
-            style={{ color: '#64748b' }}
-            aria-hidden="true"
-          >
+          <span className="absolute right-4 text-[#64748b] select-none pointer-events-none">
             {suffix}
           </span>
         )}
       </div>
       {error && (
-        <p id={`${id}-error`} className="mt-1 text-xs" style={{ color: '#ef4444' }}>
+        <p id={`${inputId}-error`} role="alert" className="text-xs text-red-500">
           {error}
         </p>
       )}
@@ -80,14 +58,15 @@ const Input = forwardRef(function Input(
   );
 });
 
+Input.displayName = 'Input';
+
 Input.propTypes = {
   label: PropTypes.string,
-  id: PropTypes.string,
   error: PropTypes.string,
   prefix: PropTypes.node,
   suffix: PropTypes.node,
   className: PropTypes.string,
-  style: PropTypes.object,
+  id: PropTypes.string
 };
 
 export default Input;

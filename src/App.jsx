@@ -1,71 +1,76 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
-import { useAuth } from './hooks/useAuth';
-import FullPageSpinner from './components/common/FullPageSpinner';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { ProtectedRoute } from './components/common/ProtectedRoute.jsx';
+import Spinner from './components/common/Spinner.jsx';
 
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const FinancialProfilePage = lazy(() => import('./pages/FinancialProfilePage'));
-const UploadPage = lazy(() => import('./pages/UploadPage'));
-const AnalysisPage = lazy(() => import('./pages/AnalysisPage'));
-const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+// Lazy-loaded pages
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
+const FinancialProfilePage = lazy(() => import('./pages/FinancialProfilePage.jsx'));
+const UploadPage = lazy(() => import('./pages/UploadPage.jsx'));
+const AnalysisPage = lazy(() => import('./pages/AnalysisPage.jsx'));
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return <FullPageSpinner />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return children;
-}
-
-function PublicRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return <FullPageSpinner />;
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-  return children;
-}
-
-function AppRoutes() {
+/**
+ * Full-page loading fallback shown during lazy-load
+ */
+function PageLoader() {
   return (
-    <Suspense fallback={<FullPageSpinner />}>
-      <Routes>
-        <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-        <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><FinancialProfilePage /></ProtectedRoute>} />
-        <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-        <Route path="/analysis/:id" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Suspense>
+    <div className="min-h-screen bg-navy flex items-center justify-center">
+      <Spinner size="lg" />
+    </div>
   );
 }
 
+/**
+ * Root application component.
+ * Provides auth context, routing, and global toast notifications.
+ */
 export default function App() {
   return (
-    <BrowserRouter basename="/morty-app">
-      <AuthProvider>
-        <AppRoutes />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#1e293b',
-              color: '#f8fafc',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              fontSize: '0.875rem',
-              maxWidth: '320px'
-            },
-            success: { iconTheme: { primary: '#10b981', secondary: '#1e293b' } },
-            error: { iconTheme: { primary: '#ef4444', secondary: '#1e293b' } }
-          }}
-        />
-      </AuthProvider>
-    </BrowserRouter>
+    <AuthProvider>
+      {/* Global toast notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#1e293b',
+            color: '#f8fafc',
+            border: '1px solid #334155',
+            borderRadius: '8px',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.3)'
+          },
+          success: {
+            iconTheme: { primary: '#10b981', secondary: '#1e293b' }
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#1e293b' }
+          }
+        }}
+      />
+
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Protected routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<FinancialProfilePage />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route path="/analysis/:id" element={<AnalysisPage />} />
+          </Route>
+
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Suspense>
+    </AuthProvider>
   );
 }

@@ -1,320 +1,238 @@
-/**
- * FinancialProfilePage.jsx
- * Financial data input form with auto-save and progress indicator.
- */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import api from '../services/api';
-import { useToast } from '../context/ToastContext';
-import { extractApiError } from '../utils/validators';
-import Spinner from '../components/common/Spinner';
-import Skeleton from '../components/common/Skeleton';
-import PageLayout from '../components/layout/PageLayout';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import toast from 'react-hot-toast';
+import { apiService } from '../services/api.js';
+import PageLayout from '../components/layout/PageLayout.jsx';
+import Card from '../components/common/Card.jsx';
+import Input from '../components/common/Input.jsx';
+import Button from '../components/common/Button.jsx';
+import ProgressBar from '../components/common/ProgressBar.jsx';
+import Spinner from '../components/common/Spinner.jsx';
 
-const FIELD_GROUPS = [
-  {
-    id: 'income',
-    title: 'INCOME',
-    fields: [
-      { name: 'income', label: 'Monthly Net Income', path: 'income' },
-      { name: 'additionalIncome', label: 'Additional Income', path: 'additionalIncome' },
-    ],
-  },
-  {
-    id: 'expenses',
-    title: 'MONTHLY EXPENSES',
-    fields: [
-      { name: 'expenses.housing', label: 'Housing (rent/mortgage)', path: 'expenses.housing' },
-      { name: 'expenses.loans', label: 'Existing Loans', path: 'expenses.loans' },
-      { name: 'expenses.other', label: 'Other Fixed Expenses', path: 'expenses.other' },
-    ],
-  },
-  {
-    id: 'assets',
-    title: 'ASSETS & SAVINGS',
-    fields: [
-      { name: 'assets.savings', label: 'Savings / Cash', path: 'assets.savings' },
-      { name: 'assets.investments', label: 'Investments', path: 'assets.investments' },
-    ],
-  },
-];
+const schema = z.object({
+  income:           z.coerce.number().min(0, 'Must be 0 or more'),
+  additionalIncome: z.coerce.number().min(0).optional().default(0),
+  housing:          z.coerce.number().min(0).optional().default(0),
+  loans:            z.coerce.number().min(0).optional().default(0),
+  otherExpenses:    z.coerce.number().min(0).optional().default(0),
+  savings:          z.coerce.number().min(0).optional().default(0),
+  investments:      z.coerce.number().min(0).optional().default(0)
+});
 
-const ALL_FIELDS = FIELD_GROUPS.flatMap((g) => g.fields.map((f) => f.name));
-
-function computeProgress(values) {
-  const filled = ALL_FIELDS.filter((name) => {
-    const parts = name.split('.');
-    let v = values;
-    for (const p of parts) v = v?.[p];
-    return v !== '' && v !== undefined && v !== null && !isNaN(Number(v));
-  });
-  return Math.round((filled.length / ALL_FIELDS.length) * 100);
+/**
+ * Calculates profile completion percentage based on filled fields.
+ */
+function calcCompletion(values) {
+  const fields = Object.values(values);
+  const filled = fields.filter((v) => v && Number(v) > 0).length;
+  return Math.round((filled / fields.length) * 100);
 }
 
-const FinancialProfilePage = () => {
-  const { addToast } = useToast();
-  const [fetchLoading, setFetchLoading] = useState(true);
+/**
+ * Financial profile form page.
+ */
+export default function FinancialProfilePage() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedIndicator, setSavedIndicator] = useState(false);
-  const [openSections, setOpenSections] = useState({ income: true, expenses: true, assets: true });
   const autoSaveTimer = useRef(null);
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
-    mode: 'onBlur',
-    defaultValues: {
-      income: '',
-      additionalIncome: '',
-      expenses: { housing: '', loans: '', other: '' },
-      assets: { savings: '', investments: '' },
-    },
-  });
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors }
+  } = useForm({ resolver: zodResolver(schema) });
 
   const watchedValues = watch();
-  const progress = computeProgress(watchedValues);
+  const completion = calcCompletion(watchedValues);
 
-  // Fetch existing profile
+  // Load existing profile
   useEffect(() => {
-    (async () => {
+    async function load() {
       try {
-        const res = await api.get('/profile/financials');
-        const d = res.data.data;
-        if (d) {
+        const data = await apiService.getFinancials();
+        if (data) {
           reset({
-            income: d.income ?? '',
-            additionalIncome: d.additionalIncome ?? '',
-            expenses: {
-              housing: d.expenses?.housing ?? '',
-              loans: d.expenses?.loans ?? '',
-              other: d.expenses?.other ?? '',
-            },
-            assets: {
-              savings: d.assets?.savings ?? '',
-              investments: d.assets?.investments ?? '',
-            },
+            income:           data.income || 0,
+            additionalIncome: data.additionalIncome || 0,
+            housing:          data.expenses?.housing || 0,
+            loans:            data.expenses?.loans || 0,
+            otherExpenses:    data.expenses?.other || 0,
+            savings:          data.assets?.savings || 0,
+            investments:      data.assets?.investments || 0
           });
         }
-      } catch (err) {
-        // 404 means no profile yet — that's fine
-        if (err.response?.status !== 404) {
-          addToast(extractApiError(err, 'Failed to load profile'), 'error');
-        }
+      } catch {
+        // No existing profile — start fresh
       } finally {
-        setFetchLoading(false);
+        setInitialLoading(false);
       }
-    })();
-  }, [reset, addToast]);
-
-  const saveProfile = useCallback(
-    async (values) => {
-      setSaving(true);
-      try {
-        await api.put('/profile/financials', {
-          income: Number(values.income) || 0,
-          additionalIncome: Number(values.additionalIncome) || 0,
-          expenses: {
-            housing: Number(values.expenses?.housing) || 0,
-            loans: Number(values.expenses?.loans) || 0,
-            other: Number(values.expenses?.other) || 0,
-          },
-          assets: {
-            savings: Number(values.assets?.savings) || 0,
-            investments: Number(values.assets?.investments) || 0,
-          },
-        });
-        setSavedIndicator(true);
-        setTimeout(() => setSavedIndicator(false), 2000);
-      } catch (err) {
-        addToast(extractApiError(err, 'Failed to save profile'), 'error');
-      } finally {
-        setSaving(false);
-      }
-    },
-    [addToast]
-  );
+    }
+    load();
+  }, [reset]);
 
   // Auto-save debounce
   useEffect(() => {
-    if (fetchLoading) return;
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      handleSubmit(saveProfile)();
+    if (initialLoading) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      try {
+        await apiService.updateFinancials(buildPayload(watchedValues));
+        setSavedIndicator(true);
+        setTimeout(() => setSavedIndicator(false), 2000);
+      } catch {
+        // Silent auto-save failure
+      }
     }, 2000);
     return () => clearTimeout(autoSaveTimer.current);
-  }, [JSON.stringify(watchedValues), fetchLoading]); // eslint-disable-line
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(watchedValues)]);
 
-  const toggleSection = (id) =>
-    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  function buildPayload(values) {
+    return {
+      income:           Number(values.income),
+      additionalIncome: Number(values.additionalIncome),
+      expenses: {
+        housing: Number(values.housing),
+        loans:   Number(values.loans),
+        other:   Number(values.otherExpenses)
+      },
+      assets: {
+        savings:     Number(values.savings),
+        investments: Number(values.investments)
+      }
+    };
+  }
 
-  const inputStyle = (hasError) => ({
-    width: '100%',
-    height: '44px',
-    background: '#273549',
-    border: `1px solid ${hasError ? '#ef4444' : '#334155'}`,
-    borderRadius: '8px',
-    padding: '0 16px 0 40px',
-    color: '#f8fafc',
-    fontSize: '1rem',
-    outline: 'none',
-    boxSizing: 'border-box',
-  });
+  async function onSubmit(values) {
+    setSaving(true);
+    try {
+      await apiService.updateFinancials(buildPayload(values));
+      toast.success('Financial profile saved!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to save profile.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (initialLoading) {
+    return (
+      <PageLayout>
+        <div className="flex justify-center py-20">
+          <Spinner size="lg" />
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
-      <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ color: '#f8fafc', fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
-            Financial Profile
-          </h1>
-          <p style={{ color: '#94a3b8', marginTop: '6px' }}>
-            Keep this updated for accurate analysis
-          </p>
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-[#f8fafc]">Financial Profile</h1>
+          <p className="text-[#94a3b8] mt-1">Keep this updated for accurate analysis</p>
         </div>
 
-        {/* Progress bar */}
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Profile completeness</span>
-            <span style={{ color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>{progress}%</span>
+        {/* Progress */}
+        <div className="mb-6">
+          <div className="flex justify-between text-sm text-[#94a3b8] mb-2">
+            <span>Profile {completion}% complete</span>
+            {savedIndicator && <span className="text-green-400 text-xs">✓ Saved</span>}
           </div>
-          <div style={{ height: '4px', background: '#334155', borderRadius: '2px' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${progress}%`,
-                background: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
-                borderRadius: '2px',
-                transition: 'width 300ms ease',
-              }}
-            />
-          </div>
+          <ProgressBar value={completion} label="Profile completion" />
         </div>
 
-        {fetchLoading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {[1, 2, 3].map((i) => <Skeleton key={i} height="120px" borderRadius="12px" />)}
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit(saveProfile)}>
-            {FIELD_GROUPS.map((group) => (
-              <div
-                key={group.id}
-                style={{
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '12px',
-                  marginBottom: '16px',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Section header */}
-                <button
-                  type="button"
-                  onClick={() => toggleSection(group.id)}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '16px 20px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#94a3b8',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                  aria-expanded={openSections[group.id]}
-                >
-                  {group.title}
-                  <span style={{ fontSize: '0.875rem' }}>
-                    {openSections[group.id] ? '▲' : '▼'}
-                  </span>
-                </button>
-
-                {openSections[group.id] && (
-                  <div style={{ padding: '0 20px 20px' }}>
-                    {group.fields.map((field) => (
-                      <div key={field.name} style={{ marginBottom: '12px' }}>
-                        <label
-                          htmlFor={field.name}
-                          style={{
-                            display: 'block',
-                            color: '#94a3b8',
-                            fontSize: '0.8125rem',
-                            marginBottom: '6px',
-                          }}
-                        >
-                          {field.label}
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                          <span
-                            style={{
-                              position: 'absolute',
-                              left: '14px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              color: '#64748b',
-                              fontSize: '0.875rem',
-                              pointerEvents: 'none',
-                            }}
-                          >
-                            ₪
-                          </span>
-                          <input
-                            id={field.name}
-                            type="number"
-                            min="0"
-                            step="1"
-                            {...register(field.name, {
-                              min: { value: 0, message: 'Must be 0 or more' },
-                            })}
-                            style={inputStyle(!!errors[field.name])}
-                          />
-                        </div>
-                        {errors[field.name] && (
-                          <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '4px' }}>
-                            {errors[field.name].message}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Save button */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
-              {savedIndicator && (
-                <span style={{ color: '#10b981', fontSize: '0.875rem' }}>✓ Saved</span>
-              )}
-              <button
-                type="submit"
-                disabled={saving}
-                style={{
-                  background: saving ? '#f59e0b66' : '#f59e0b',
-                  color: '#0f172a',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '10px 24px',
-                  fontWeight: 600,
-                  fontSize: '0.9375rem',
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                {saving ? <><Spinner size={16} color="#0f172a" /> Saving...</> : 'Save Profile'}
-              </button>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+          {/* Income */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Income</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Monthly Net Income"
+                type="number"
+                min="0"
+                prefix="₪"
+                error={errors.income?.message}
+                {...register('income')}
+              />
+              <Input
+                label="Additional Income"
+                type="number"
+                min="0"
+                prefix="₪"
+                error={errors.additionalIncome?.message}
+                {...register('additionalIncome')}
+              />
             </div>
-          </form>
-        )}
+          </Card>
+
+          {/* Expenses */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Monthly Expenses</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Housing (rent/mortgage)"
+                type="number"
+                min="0"
+                prefix="₪"
+                error={errors.housing?.message}
+                {...register('housing')}
+              />
+              <Input
+                label="Existing Loans"
+                type="number"
+                min="0"
+                prefix="₪"
+                error={errors.loans?.message}
+                {...register('loans')}
+              />
+              <Input
+                label="Other Fixed Expenses"
+                type="number"
+                min="0"
+                prefix="₪"
+                error={errors.otherExpenses?.message}
+                {...register('otherExpenses')}
+              />
+            </div>
+          </Card>
+
+          {/* Assets */}
+          <Card>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Assets & Savings</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Savings / Cash"
+                type="number"
+                min="0"
+                prefix="₪"
+                error={errors.savings?.message}
+                {...register('savings')}
+              />
+              <Input
+                label="Investments"
+                type="number"
+                min="0"
+                prefix="₪"
+                error={errors.investments?.message}
+                {...register('investments')}
+              />
+            </div>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button type="submit" loading={saving}>
+              Save Profile
+            </Button>
+          </div>
+        </form>
       </div>
     </PageLayout>
   );
-};
-
-export default FinancialProfilePage;
+}

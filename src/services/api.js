@@ -1,124 +1,163 @@
-/**
- * api.js
- * Axios instance pre-configured for the Morty backend.
- *
- * - Base URL from REACT_APP_API_URL env var (defaults to Render deployment).
- * - Attaches Authorization header from localStorage on every request.
- * - Handles 401 responses by attempting a token refresh, then retrying once.
- * - On refresh failure, clears session and redirects to /login.
- */
 import axios from 'axios';
 
-const BASE_URL =
-  process.env.REACT_APP_API_URL ||
-  'https://morty-backend.onrender.com/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://morty-backend.onrender.com/api/v1';
 
-const api = axios.create({
-  baseURL: BASE_URL,
+/**
+ * Axios instance pre-configured for the Morty backend.
+ */
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
-// ---------------------------------------------------------------------------
-// Request interceptor — attach JWT
-// ---------------------------------------------------------------------------
-api.interceptors.request.use(
+// ── Request interceptor: attach Bearer token ──────────────────────────────
+axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('morty_access_token');
+    const token = localStorage.getItem('morty_token');
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ---------------------------------------------------------------------------
-// Response interceptor — handle 401 with token refresh
-// ---------------------------------------------------------------------------
-let isRefreshing = false;
-let failedQueue = [];
-
-function processQueue(error, token = null) {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-}
-
-api.interceptors.response.use(
+// ── Response interceptor: handle 401 / token refresh ─────────────────────
+axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/')
-    ) {
-      if (isRefreshing) {
-        // Queue the request until refresh completes
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers['Authorization'] = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      isRefreshing = true;
-
       const refreshToken = localStorage.getItem('morty_refresh_token');
-      if (!refreshToken) {
-        isRefreshing = false;
-        clearSessionAndRedirect();
-        return Promise.reject(error);
-      }
-
-      try {
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
-        const newToken = data.token;
-        const newRefresh = data.refreshToken;
-
-        localStorage.setItem('morty_access_token', newToken);
-        localStorage.setItem('morty_refresh_token', newRefresh);
-        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-
-        processQueue(null, newToken);
-        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        clearSessionAndRedirect();
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
+      if (refreshToken) {
+        try {
+          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+          localStorage.setItem('morty_token', data.token);
+          axiosInstance.defaults.headers.common.Authorization = `Bearer ${data.token}`;
+          originalRequest.headers.Authorization = `Bearer ${data.token}`;
+          return axiosInstance(originalRequest);
+        } catch {
+          // Refresh failed — clear storage and redirect to login
+          localStorage.removeItem('morty_token');
+          localStorage.removeItem('morty_refresh_token');
+          localStorage.removeItem('morty_user');
+          window.location.href = '/morty-app/login';
+        }
       }
     }
-
     return Promise.reject(error);
   }
 );
 
-function clearSessionAndRedirect() {
-  localStorage.removeItem('morty_access_token');
-  localStorage.removeItem('morty_refresh_token');
-  localStorage.removeItem('morty_user');
-  // Avoid redirect loop on auth pages
-  if (!window.location.pathname.startsWith('/login')) {
-    window.location.href = '/login';
-  }
-}
+/**
+ * Central API service object.
+ * All methods return the `data` field from the Axios response.
+ */
+export const apiService = {
+  // ── Auth ──────────────────────────────────────────────────────────────
 
-export default api;
+  /** Set or clear the Authorization header */
+  setAuthToken(token) {
+    if (token) {
+      axiosInstance.defaults.headers.common.Authorization = `Bearer ${token}`;
+    } else {
+      delete axiosInstance.defaults.headers.common.Authorization;
+    }
+  },
+
+  /**
+   * @param {string} email
+   * @param {string} password
+   * @returns {Promise<{token: string, refreshToken: string, user: object}>}
+   */
+  async login(email, password) {
+    const { data } = await axiosInstance.post('/auth/login', { email, password });
+    return data;
+  },
+
+  /**
+   * @param {{name: string, email: string, phone: string, password: string}} userData
+   * @returns {Promise<{token: string, refreshToken: string, user: object}>}
+   */
+  async register(userData) {
+    const { data } = await axiosInstance.post('/auth/register', userData);
+    return data;
+  },
+
+  /** Invalidate the refresh token on the server */
+  async logout() {
+    const refreshToken = localStorage.getItem('morty_refresh_token');
+    const { data } = await axiosInstance.post('/auth/logout', { refreshToken });
+    return data;
+  },
+
+  // ── Financial Profile ─────────────────────────────────────────────────
+
+  /** @returns {Promise<object>} */
+  async getFinancials() {
+    const { data } = await axiosInstance.get('/profile');
+    return data;
+  },
+
+  /**
+   * @param {object} financials
+   * @returns {Promise<object>}
+   */
+  async updateFinancials(financials) {
+    const { data } = await axiosInstance.put('/profile', financials);
+    return data;
+  },
+
+  // ── Offers ────────────────────────────────────────────────────────────
+
+  /** @returns {Promise<object[]>} */
+  async getOffers() {
+    const { data } = await axiosInstance.get('/offers');
+    return data;
+  },
+
+  /**
+   * Upload a mortgage offer file.
+   * @param {File} file
+   * @param {Function} onProgress - (percent: number) => void
+   * @returns {Promise<object>}
+   */
+  async uploadOffer(file, onProgress) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await axiosInstance.post('/offers', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (evt) => {
+        if (onProgress && evt.total) {
+          onProgress(Math.round((evt.loaded * 100) / evt.total));
+        }
+      }
+    });
+    return data;
+  },
+
+  // ── Analysis ──────────────────────────────────────────────────────────
+
+  /**
+   * @param {string} offerId
+   * @returns {Promise<object>}
+   */
+  async getAnalysis(offerId) {
+    const { data } = await axiosInstance.get(`/analysis/${offerId}`);
+    return data;
+  },
+
+  // ── Dashboard ─────────────────────────────────────────────────────────
+
+  /** @returns {Promise<object>} */
+  async getDashboard() {
+    const { data } = await axiosInstance.get('/dashboard');
+    return data;
+  }
+};
+
+export default axiosInstance;

@@ -1,74 +1,32 @@
-/**
- * PageLayout.jsx
- * Root layout wrapper for authenticated pages.
- * Renders Sidebar (left) + main content area (right).
- */
 import React, { useState } from 'react';
-import Sidebar from './Sidebar';
-import Navbar from './Navbar';
+import PropTypes from 'prop-types';
+import Sidebar from './Sidebar.jsx';
+import Navbar from './Navbar.jsx';
 
-const PageLayout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+/**
+ * Authenticated page shell: sidebar + top navbar + main content area.
+ */
+export default function PageLayout({ children }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100vh',
-        background: '#0f172a',
-      }}
-    >
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 30,
-          }}
-          aria-hidden="true"
-        />
-      )}
+    <div className="flex min-h-screen bg-navy">
+      {/* Sidebar — hidden on mobile, shown on md+ */}
+      <div className="hidden md:block">
+        <Sidebar collapsed={sidebarCollapsed} />
+      </div>
 
       {/* Main area */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-          // On desktop, offset for the fixed sidebar
-          marginLeft: 'var(--sidebar-width, 240px)',
-        }}
-        className="page-main"
-      >
-        <Navbar onMenuClick={() => setSidebarOpen(true)} />
-        <main
-          style={{
-            flex: 1,
-            padding: '32px',
-            overflowY: 'auto',
-          }}
-        >
+      <div className="flex flex-col flex-1 min-w-0">
+        <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />
+        <main className="flex-1 p-6 md:p-8 page-enter">
           {children}
         </main>
       </div>
-
-      {/* Responsive: collapse sidebar margin on mobile */}
-      <style>{`
-        @media (max-width: 768px) {
-          .page-main {
-            margin-left: 0 !important;
-          }
-        }
-      `}</style>
     </div>
   );
-};
+}
 
-export default PageLayout;
+PageLayout.propTypes = {
+  children: PropTypes.node.isRequired
+};

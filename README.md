@@ -1,124 +1,70 @@
-# Morty 🏠
+# Morty — AI-Powered Mortgage Analysis
 
-AI-powered mortgage analysis SaaS for Israeli users.
+A React SPA (PWA-enabled) for Israeli users to analyze mortgage offers using AI.
 
 ## Tech Stack
 
-- **Framework**: React 18 (Create React App)
-- **Routing**: React Router v6
-- **Styling**: Tailwind CSS v3
-- **Forms**: React Hook Form + Zod validation
-- **HTTP**: Axios with JWT interceptors
-- **Charts**: Recharts
-- **PWA**: Workbox service worker (Cache-First assets, Network-First API)
+- **React 18** + **Vite 5** (build tool)
+- **React Router v6** (client-side routing)
+- **React Hook Form** + **Zod** (form validation)
+- **Axios** (API client with JWT interceptors)
+- **Recharts** (data visualization)
+- **Tailwind CSS** (styling)
+- **react-hot-toast** (notifications)
+- **vite-plugin-pwa** (PWA / service worker)
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+
-- npm 9+
-
-### Installation
-
 ```bash
+# Install dependencies
 npm install
-```
 
-### Environment Variables
+# Start development server
+npm run dev
 
-Copy `.env.example` to `.env.local` and set your backend URL:
-
-```bash
-cp .env.example .env.local
-```
-
-```env
-REACT_APP_API_URL=http://localhost:5000/api/v1
-```
-
-### Development
-
-```bash
-npm start
-```
-
-Opens [http://localhost:3000](http://localhost:3000).
-
-### Production Build
-
-```bash
+# Build for production
 npm run build
+
+# Preview production build
+npm run preview
+
+# Run tests
+npm test
 ```
 
-Outputs to `./build`.
+## Environment Variables
 
-### Tests
+Copy `.env.example` to `.env` and fill in the values:
 
-```bash
-npm test
+```
+VITE_API_URL=https://morty-backend.onrender.com/api/v1
 ```
 
 ## Project Structure
 
 ```
 src/
-  App.js                    # Root component with routing
-  index.js                  # Entry point + service worker registration
-  service-worker.js         # Workbox PWA service worker
-  serviceWorkerRegistration.js
-  context/
-    AuthContext.jsx          # Auth state: login, register, logout
-    ToastContext.jsx         # Unified toast notifications: addToast
   components/
-    common/
-      Button.jsx
-      Card.jsx
-      Input.jsx
-      Spinner.jsx
-      Skeleton.jsx
-      ProgressBar.jsx
-    layout/
-      Sidebar.jsx
-      Navbar.jsx
-      PageLayout.jsx
-  pages/
-    LoginPage.jsx
-    RegisterPage.jsx
-    DashboardPage.jsx
-    FinancialProfilePage.jsx
-    UploadPage.jsx
-    AnalysisPage.jsx
-  services/
-    api.js                   # Axios instance with token refresh
-  styles/
-    globals.css              # Tailwind directives + global styles
+    common/       # Button, Input, Card, Spinner, ProgressBar, Skeleton
+    layout/       # Sidebar, Navbar, PageLayout
+  context/        # AuthContext (JWT auth state)
+  pages/          # LoginPage, RegisterPage, DashboardPage, FinancialProfilePage, UploadPage, AnalysisPage
+  services/       # api.js (Axios instance + all API calls)
+  styles/         # globals.css (Tailwind + CSS vars)
+  test/           # Unit and component tests (Vitest)
 ```
 
-## API Integration
+## PWA
 
-All API calls go through `src/services/api.js` which:
-- Attaches `Authorization: Bearer <token>` header automatically
-- Handles 401 responses by refreshing the token
-- Redirects to `/login` if refresh fails
-
-Base URL is configured via `REACT_APP_API_URL` environment variable.
-
-## Authentication
-
-- JWT access tokens (24h) stored in `localStorage`
-- Refresh tokens (7d) stored in `localStorage`
-- Auto-refresh on 401 responses
-- `useAuth()` hook exposes: `{ user, token, loading, login, register, logout }`
-
-## PWA Features
-
-- Offline support via Workbox service worker
+The app is PWA-ready with:
+- Service worker (via `vite-plugin-pwa` / Workbox)
 - Cache-First strategy for static assets
 - Network-First strategy for API calls
+- Offline fallback
 - Installable on mobile and desktop
 
 ## Deployment
 
-Deployed to GitHub Pages. The `homepage` field in `package.json` is set to
-`https://Tambeej.github.io/morty-app`.
+Deployed to GitHub Pages at `https://tambeej.github.io/morty-app/`.
+
+The Vite config sets `base: '/morty-app/'` for correct asset paths.

@@ -1,19 +1,14 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import PropTypes from 'prop-types';
-import { useAuth } from '../../hooks/useAuth';
-import Spinner from './Spinner';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext.jsx';
+import Spinner from './Spinner.jsx';
 
 /**
- * ProtectedRoute — redirects unauthenticated users to /login.
- * Shows a loading spinner while auth state is being determined.
- *
- * @param {object} props
- * @param {React.ReactNode} props.children
+ * Renders child routes only when the user is authenticated.
+ * Shows a spinner while the auth state is being restored.
  */
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  const location = useLocation();
+export function ProtectedRoute() {
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
@@ -23,15 +18,7 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
-};
-
-ProtectedRoute.propTypes = {
-  children: PropTypes.node.isRequired,
-};
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+}
 
 export default ProtectedRoute;

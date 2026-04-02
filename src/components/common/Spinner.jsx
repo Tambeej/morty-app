@@ -1,41 +1,27 @@
-/**
- * Spinner.jsx
- * Animated loading spinner using the Morty gold accent color.
- *
- * Props:
- *   size   {number}  — diameter in px (default 24)
- *   color  {string}  — border color (default gold #f59e0b)
- *   className {string}
- */
 import React from 'react';
+import PropTypes from 'prop-types';
 
-const Spinner = ({ size = 24, color = '#f59e0b', className = '' }) => {
-  const style = {
-    width: size,
-    height: size,
-    borderRadius: '50%',
-    border: `3px solid ${color}33`,
-    borderTopColor: color,
-    animation: 'morty-spin 600ms linear infinite',
-    display: 'inline-block',
-    flexShrink: 0,
-  };
-
-  return (
-    <>
-      <style>{`
-        @keyframes morty-spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-      <span
-        role="status"
-        aria-label="Loading"
-        className={className}
-        style={style}
-      />
-    </>
-  );
+const sizes = {
+  sm: 'w-4 h-4 border-2',
+  md: 'w-6 h-6 border-2',
+  lg: 'w-10 h-10 border-[3px]'
 };
 
-export default Spinner;
+/**
+ * Gold spinning loader.
+ * @param {'sm'|'md'|'lg'} size
+ */
+export default function Spinner({ size = 'md', className = '' }) {
+  return (
+    <span
+      role="status"
+      aria-label="Loading"
+      className={`inline-block rounded-full border-gold border-t-transparent animate-spin ${sizes[size]} ${className}`}
+    />
+  );
+}
+
+Spinner.propTypes = {
+  size: PropTypes.oneOf(['sm', 'md', 'lg']),
+  className: PropTypes.string
+};

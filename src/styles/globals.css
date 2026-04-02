@@ -1,12 +1,10 @@
-/* Tailwind CSS directives - REQUIRED for Tailwind to inject styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rubik:wght@300;400;500;600;700&display=swap');
-
-/* CSS Custom Properties */
+/* ===== CSS Custom Properties ===== */
 :root {
   --color-bg-primary:    #0f172a;
   --color-bg-surface:    #1e293b;
@@ -22,10 +20,8 @@
   --color-border:        #334155;
 }
 
-/* Global Reset & Base */
-*,
-*::before,
-*::after {
+/* ===== Base Reset ===== */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -36,125 +32,113 @@ html {
 }
 
 body {
-  background-color: #0f172a;
-  color: #f8fafc;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
   font-family: 'Inter', 'Rubik', system-ui, sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* RTL Support */
+/* ===== RTL Support ===== */
 html[dir='rtl'] {
   font-family: 'Rubik', 'Inter', system-ui, sans-serif;
 }
 
-/* Scrollbar Styling */
+html[dir='rtl'] .sidebar {
+  right: 0;
+  left: auto;
+}
+
+html[dir='rtl'] .toast-container {
+  left: 16px;
+  right: auto;
+}
+
+/* ===== Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: var(--color-bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--color-border);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #f59e0b;
+  background: var(--color-text-muted);
 }
 
-/* Stat Card */
-.stat-card {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 12px;
-  padding: 24px;
-  transition: transform 200ms ease, border-color 200ms ease;
+/* ===== Utility Classes ===== */
+@layer components {
+  .stat-card {
+    @apply bg-navy-surface border border-border rounded-card p-6 transition-all duration-200;
+  }
+
+  .stat-card:hover {
+    @apply -translate-y-0.5;
+    border-color: var(--color-accent-gold);
+  }
+
+  .analysis-card {
+    border-top: 3px solid var(--color-accent-gold);
+  }
+
+  .dropzone {
+    border: 2px dashed var(--color-border);
+    border-radius: 12px;
+    padding: 48px;
+    text-align: center;
+    transition: all 200ms;
+  }
+
+  .dropzone.active {
+    border-color: var(--color-accent-gold);
+    background: var(--color-bg-elevated);
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--color-border);
+    border-radius: 2px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    border-radius: 2px;
+    transition: width 300ms ease;
+  }
+
+  /* Shimmer skeleton animation */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-bg-elevated) 25%,
+      #2d3f55 50%,
+      var(--color-bg-elevated) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Page enter animation */
+  .page-enter {
+    animation: pageEnter 250ms ease-out forwards;
+  }
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  border-color: #f59e0b;
-}
-
-/* Analysis Card */
-.analysis-card {
-  border-top: 3px solid #f59e0b;
-}
-
-/* Upload Dropzone */
-.dropzone {
-  border: 2px dashed #334155;
-  border-radius: 12px;
-  padding: 48px;
-  text-align: center;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.dropzone.active {
-  border-color: #f59e0b;
-  background: #273549;
-}
-
-.dropzone:hover {
-  border-color: #f59e0b;
-  background: #273549;
-}
-
-/* Progress Bar */
-.progress-bar {
-  height: 4px;
-  background: #334155;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
-  border-radius: 2px;
-  transition: width 300ms ease;
-}
-
-/* Skeleton shimmer animation */
+/* ===== Keyframes ===== */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    #273549 25%,
-    #334155 50%,
-    #273549 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
-}
-
-/* Spinner */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid #334155;
-  border-top-color: #f59e0b;
-  border-radius: 50%;
-  animation: spin 600ms linear infinite;
-}
-
-/* Page enter animation */
 @keyframes pageEnter {
   from {
     opacity: 0;
@@ -166,47 +150,11 @@ html[dir='rtl'] {
   }
 }
 
-.page-enter {
-  animation: pageEnter 250ms ease-out;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-/* Focus ring for accessibility */
-:focus-visible {
-  outline: 2px solid #f59e0b;
-  outline-offset: 2px;
-}
-
-/* Input base styles */
-input[type='text'],
-input[type='email'],
-input[type='password'],
-input[type='number'],
-input[type='tel'],
-textarea,
-select {
-  background-color: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  color: #f8fafc;
-  height: 44px;
-  padding: 0 16px;
-  width: 100%;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-
-input[type='text']:focus,
-input[type='email']:focus,
-input[type='password']:focus,
-input[type='number']:focus,
-input[type='tel']:focus,
-textarea:focus,
-select:focus {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
-  outline: none;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: #64748b;
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--color-border); }
+  50%       { border-color: var(--color-accent-gold); }
 }

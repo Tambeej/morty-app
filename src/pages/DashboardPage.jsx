@@ -1,262 +1,181 @@
-/**
- * DashboardPage.jsx
- * Main dashboard showing mortgage analysis summary, stats, charts, and recent offers.
- */
-import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import { extractApiError } from '../utils/validators';
-import Skeleton from '../components/common/Skeleton';
-import PageLayout from '../components/layout/PageLayout';
+import { apiService } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import PageLayout from '../components/layout/PageLayout.jsx';
+import Card from '../components/common/Card.jsx';
+import Skeleton from '../components/common/Skeleton.jsx';
+import Button from '../components/common/Button.jsx';
 
-const StatCard = ({ label, value, sub, icon }) => (
-  <div
-    style={{
-      background: '#1e293b',
-      border: '1px solid #334155',
-      borderRadius: '12px',
-      padding: '24px',
-      flex: '1 1 200px',
-      transition: 'transform 200ms, border-color 200ms',
-      cursor: 'default',
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-2px)';
-      e.currentTarget.style.borderColor = '#f59e0b';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.borderColor = '#334155';
-    }}
-  >
-    <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{icon}</div>
-    <div style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{label}</div>
-    <div style={{ color: '#f8fafc', fontSize: '1.5rem', fontWeight: 700 }}>{value}</div>
-    {sub && <div style={{ color: '#64748b', fontSize: '0.8125rem', marginTop: '4px' }}>{sub}</div>}
-  </div>
-);
-
-const DashboardPage = () => {
+/**
+ * Main dashboard page showing mortgage analysis summary.
+ */
+export default function DashboardPage() {
   const { user } = useAuth();
-  const { addToast } = useToast();
-  const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/dashboard');
-      setData(res.data.data);
-    } catch (err) {
-      addToast(extractApiError(err, 'Failed to load dashboard'), 'error');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [dashData, offersData] = await Promise.all([
+          apiService.getDashboard(),
+          apiService.getOffers()
+        ]);
+        setDashboard(dashData);
+        setOffers(offersData);
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Failed to load dashboard data.');
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [addToast]);
+    fetchData();
+  }, []);
 
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-
-  const summary = data?.summary || {};
-  const comparisonData = data?.comparisonData || [];
-  const recentOffers = data?.recentOffers || [];
-
-  const firstName = user?.fullName?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
+  const chartData = offers.slice(0, 3).map((o, i) => ({
+    name: o.extractedData?.bank || `Offer ${i + 1}`,
+    monthly: o.extractedData?.monthlyPayment || 0,
+    recommended: o.analysis?.recommendedRate ? Math.round(o.extractedData?.amount / (o.extractedData?.term * 12)) : 0
+  }));
 
   return (
     <PageLayout>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ color: '#f8fafc', fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
-            Welcome back, {firstName} 👋
-          </h1>
-          <p style={{ color: '#94a3b8', marginTop: '6px' }}>Here's your mortgage analysis summary</p>
+      {/* Welcome */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-[#f8fafc]">
+          Welcome back, {user?.name?.split(' ')[0] || 'there'} 👋
+        </h1>
+        <p className="text-[#94a3b8] mt-1">Here&apos;s your mortgage analysis summary</p>
+      </div>
+
+      {/* Stat cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} height="120px" className="rounded-card" />
+          ))}
+        </div>
+      ) : error ? (
+        <p className="text-red-400 mb-8">{error}</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card interactive>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Best Rate</p>
+            <p className="text-3xl font-bold text-gold">{dashboard?.bestRate ?? '—'}%</p>
+            <p className="text-sm text-[#64748b] mt-1">
+              {dashboard?.rateVsMarket ? `${dashboard.rateVsMarket > 0 ? '+' : ''}${dashboard.rateVsMarket}% vs market` : 'No data yet'}
+            </p>
+          </Card>
+
+          <Card interactive>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Potential Savings</p>
+            <p className="text-3xl font-bold text-gold">
+              {dashboard?.potentialSavings ? `₪${dashboard.potentialSavings.toLocaleString('he-IL')}` : '—'}
+            </p>
+            <p className="text-sm text-[#64748b] mt-1">lifetime savings</p>
+          </Card>
+
+          <Card interactive>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Active Offers</p>
+            <p className="text-3xl font-bold text-gold">{offers.length}</p>
+            <p className="text-sm text-[#64748b] mt-1">uploaded offers</p>
+          </Card>
+        </div>
+      )}
+
+      {/* Chart */}
+      {!loading && chartData.length > 0 && (
+        <Card className="mb-8">
+          <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Monthly Payment Comparison</h2>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 12 }} />
+              <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} tickFormatter={(v) => `₪${v.toLocaleString()}`} />
+              <Tooltip
+                contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                labelStyle={{ color: '#f8fafc' }}
+                formatter={(v) => [`₪${v.toLocaleString()}`, '']}
+              />
+              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
+              <Bar dataKey="monthly" name="Your Offer" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="recommended" name="Recommended" fill="#10b981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+
+      {/* Offers table */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-[#f8fafc]">Your Offers</h2>
+          <Link to="/upload">
+            <Button variant="ghost" className="text-sm py-2 px-4">+ Upload New Offer</Button>
+          </Link>
         </div>
 
-        {/* Stat cards */}
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '32px' }}>
-          {loading ? (
-            [1, 2, 3].map((i) => (
-              <div key={i} style={{ flex: '1 1 200px', background: '#1e293b', borderRadius: '12px', padding: '24px' }}>
-                <Skeleton height="1rem" width="60%" style={{ marginBottom: '8px' }} />
-                <Skeleton height="2rem" width="80%" />
-              </div>
-            ))
-          ) : (
-            <>
-              <StatCard
-                icon="📉"
-                label="Best Rate"
-                value={summary.bestRate != null ? `${summary.bestRate}%` : '—'}
-                sub={summary.rateVsMarket != null ? `${summary.rateVsMarket > 0 ? '+' : ''}${summary.rateVsMarket}% vs market` : undefined}
-              />
-              <StatCard
-                icon="💰"
-                label="Potential Savings"
-                value={summary.totalPotentialSavings != null ? `₪${summary.totalPotentialSavings.toLocaleString('he-IL')}` : '—'}
-                sub="lifetime savings"
-              />
-              <StatCard
-                icon="📄"
-                label="Active Offers"
-                value={summary.totalOffers ?? '—'}
-                sub={`${summary.analyzedOffers ?? 0} analyzed`}
-              />
-            </>
-          )}
-        </div>
-
-        {/* Bar chart */}
-        {!loading && comparisonData.length > 0 && (
-          <div
-            style={{
-              background: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: '12px',
-              padding: '24px',
-              marginBottom: '32px',
-            }}
-          >
-            <h2 style={{ color: '#f8fafc', fontSize: '1.125rem', fontWeight: 600, marginBottom: '20px' }}>
-              Monthly Payment Comparison
-            </h2>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={comparisonData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="bank" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f8fafc' }}
-                  itemStyle={{ color: '#94a3b8' }}
-                />
-                <Legend wrapperStyle={{ color: '#94a3b8', fontSize: '0.8125rem' }} />
-                <Bar dataKey="monthlyPayment" name="Monthly Payment (₪)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        {loading ? (
+          <div className="flex flex-col gap-3">
+            {[1, 2].map((i) => <Skeleton key={i} height="44px" />)}
+          </div>
+        ) : offers.length === 0 ? (
+          <p className="text-[#64748b] text-sm py-4 text-center">
+            No offers yet.{' '}
+            <Link to="/upload" className="text-gold hover:underline">Upload your first offer →</Link>
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-[#64748b] text-left">
+                  <th className="pb-3 font-medium">Bank</th>
+                  <th className="pb-3 font-medium">Rate</th>
+                  <th className="pb-3 font-medium">Term</th>
+                  <th className="pb-3 font-medium">Monthly</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {offers.map((offer) => (
+                  <tr key={offer._id} className="border-b border-border/50 hover:bg-navy-elevated transition-colors">
+                    <td className="py-3 text-[#f8fafc]">{offer.extractedData?.bank || '—'}</td>
+                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.rate ? `${offer.extractedData.rate}%` : '—'}</td>
+                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.term ? `${offer.extractedData.term}yr` : '—'}</td>
+                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.monthlyPayment ? `₪${offer.extractedData.monthlyPayment.toLocaleString('he-IL')}` : '—'}</td>
+                    <td className="py-3">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        offer.status === 'analyzed' ? 'bg-green-900/40 text-green-400' :
+                        offer.status === 'error'    ? 'bg-red-900/40 text-red-400' :
+                        'bg-yellow-900/40 text-yellow-400'
+                      }`}>
+                        {offer.status === 'analyzed' ? '✓ Analyzed' :
+                         offer.status === 'error'    ? '✗ Error' : '⏳ Pending'}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      {offer.status === 'analyzed' && (
+                        <Link
+                          to={`/analysis/${offer._id}`}
+                          className="text-gold hover:text-gold-light text-xs font-medium"
+                        >
+                          View Results →
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-
-        {/* Recent offers table */}
-        <div
-          style={{
-            background: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '12px',
-            padding: '24px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ color: '#f8fafc', fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>Recent Offers</h2>
-            <button
-              onClick={() => navigate('/upload')}
-              style={{
-                background: '#f59e0b',
-                color: '#0f172a',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '8px 16px',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-              }}
-            >
-              + Upload New Offer
-            </button>
-          </div>
-
-          {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {[1, 2, 3].map((i) => <Skeleton key={i} height="40px" />)}
-            </div>
-          ) : recentOffers.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-              <p style={{ fontSize: '1rem' }}>No offers yet.</p>
-              <p style={{ fontSize: '0.875rem' }}>Upload your first mortgage offer to get started.</p>
-            </div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    {['Bank', 'Rate', 'Term', 'Monthly Payment', 'Status'].map((h) => (
-                      <th
-                        key={h}
-                        style={{
-                          textAlign: 'left',
-                          padding: '8px 12px',
-                          color: '#64748b',
-                          fontSize: '0.75rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          borderBottom: '1px solid #334155',
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOffers.map((offer) => (
-                    <tr
-                      key={offer._id}
-                      onClick={() => navigate(`/analysis/${offer._id}`)}
-                      style={{ cursor: 'pointer' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#273549')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <td style={{ padding: '12px', color: '#f8fafc', fontSize: '0.875rem', borderBottom: '1px solid #1e293b' }}>
-                        {offer.extractedData?.bank || '—'}
-                      </td>
-                      <td style={{ padding: '12px', color: '#f8fafc', fontSize: '0.875rem', borderBottom: '1px solid #1e293b' }}>
-                        {offer.extractedData?.rate != null ? `${offer.extractedData.rate}%` : '—'}
-                      </td>
-                      <td style={{ padding: '12px', color: '#f8fafc', fontSize: '0.875rem', borderBottom: '1px solid #1e293b' }}>
-                        {offer.extractedData?.term != null ? `${offer.extractedData.term} yr` : '—'}
-                      </td>
-                      <td style={{ padding: '12px', color: '#f8fafc', fontSize: '0.875rem', borderBottom: '1px solid #1e293b' }}>
-                        {offer.analysis?.monthlyPayment != null
-                          ? `₪${offer.analysis.monthlyPayment.toLocaleString('he-IL')}`
-                          : '—'}
-                      </td>
-                      <td style={{ padding: '12px', borderBottom: '1px solid #1e293b' }}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '2px 10px',
-                            borderRadius: '999px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            background:
-                              offer.status === 'analyzed' ? 'rgba(16,185,129,0.15)'
-                              : offer.status === 'error' ? 'rgba(239,68,68,0.15)'
-                              : 'rgba(245,158,11,0.15)',
-                            color:
-                              offer.status === 'analyzed' ? '#10b981'
-                              : offer.status === 'error' ? '#ef4444'
-                              : '#f59e0b',
-                          }}
-                        >
-                          {offer.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+      </Card>
     </PageLayout>
   );
-};
-
-export default DashboardPage;
+}

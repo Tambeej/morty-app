@@ -1,263 +1,137 @@
-/**
- * RegisterPage.jsx
- * Registration form. Uses AuthContext.register() and ToastContext.addToast().
- */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import {
-  validateEmail,
-  validatePassword,
-  validatePasswordMatch,
-  validateFullName,
-  validateIsraeliPhone,
-} from '../utils/validators';
-import Spinner from '../components/common/Spinner';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext.jsx';
+import Button from '../components/common/Button.jsx';
+import Input from '../components/common/Input.jsx';
 
-const RegisterPage = () => {
-  const { register: registerUser, loading } = useAuth();
-  const { addToast } = useToast();
+const schema = z
+  .object({
+    name: z.string().min(2, 'Full name must be at least 2 characters'),
+    email: z.string().email('Please enter a valid email address'),
+    phone: z
+      .string()
+      .regex(/^(\+972|0)[0-9]{8,9}$/, 'Enter a valid Israeli phone number (e.g. +972501234567)'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string()
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword']
+  });
+
+/**
+ * Registration page.
+ */
+export default function RegisterPage() {
+  const { register: registerUser } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const {
     register,
     handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm({ mode: 'onBlur' });
+    formState: { errors, isSubmitting }
+  } = useForm({ resolver: zodResolver(schema) });
 
-  const passwordValue = watch('password', '');
-
-  const onSubmit = async ({ fullName, email, phone, password }) => {
-    const result = await registerUser(fullName, email, phone, password);
-    if (result.success) {
-      addToast('Account created! Welcome to Morty.', 'success');
+  async function onSubmit({ name, email, phone, password }) {
+    try {
+      await registerUser({ name, email, phone, password });
+      toast.success('Account created! Welcome to Morty.');
       navigate('/dashboard');
-    } else {
-      addToast(result.error || 'Registration failed. Please try again.', 'error');
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Registration failed. Please try again.';
+      toast.error(msg);
     }
-  };
-
-  const inputStyle = (hasError) => ({
-    width: '100%',
-    height: '44px',
-    background: '#1e293b',
-    border: `1px solid ${hasError ? '#ef4444' : '#334155'}`,
-    borderRadius: '8px',
-    padding: '0 16px',
-    color: '#f8fafc',
-    fontSize: '1rem',
-    outline: 'none',
-    boxSizing: 'border-box',
-  });
-
-  const labelStyle = {
-    display: 'block',
-    color: '#94a3b8',
-    fontSize: '0.75rem',
-    fontWeight: 500,
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    marginBottom: '6px',
-  };
-
-  const errorStyle = { color: '#ef4444', fontSize: '0.75rem', marginTop: '4px' };
+  }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#0f172a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-      }}
-    >
+    <div className="min-h-screen bg-navy flex flex-col items-center justify-center px-4 py-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <span className="text-4xl" aria-hidden="true">🏡</span>
+        <h1 className="text-3xl font-bold text-gold">Morty</h1>
+      </div>
+
+      {/* Card */}
       <div
-        style={{
-          background: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: '12px',
-          padding: '40px',
-          width: '100%',
-          maxWidth: '460px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-          animation: 'fadeInUp 200ms ease-out',
-        }}
+        className="w-full max-w-md bg-navy-surface border border-border rounded-card p-8 shadow-card"
+        style={{ animation: 'pageEnter 200ms ease-out forwards' }}
       >
-        <style>{`
-          @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
+        <h2 className="text-xl font-semibold text-[#f8fafc] mb-6">Create your account</h2>
 
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <span style={{ fontSize: '2rem' }}>🏡</span>
-          <h1 style={{ color: '#f59e0b', fontSize: '1.75rem', fontWeight: 700, margin: '8px 0 4px' }}>
-            Morty
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Create your account</p>
-        </div>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+          <Input
+            label="Full Name"
+            type="text"
+            placeholder="Yoav Cohen"
+            error={errors.name?.message}
+            autoComplete="name"
+            {...register('name')}
+          />
 
-        <h2 style={{ color: '#f8fafc', fontSize: '1.25rem', fontWeight: 600, marginBottom: '24px' }}>
-          Register
-        </h2>
+          <Input
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            error={errors.email?.message}
+            autoComplete="email"
+            {...register('email')}
+          />
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          {/* Full Name */}
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="fullName" style={labelStyle}>Full Name</label>
-            <input
-              id="fullName"
-              type="text"
-              autoComplete="name"
-              placeholder="Yoav Cohen"
-              {...register('fullName', { validate: validateFullName })}
-              style={inputStyle(!!errors.fullName)}
+          <Input
+            label="Phone"
+            type="tel"
+            placeholder="+972501234567"
+            error={errors.phone?.message}
+            autoComplete="tel"
+            prefix="+972"
+            {...register('phone')}
+          />
+
+          <div className="relative">
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Min. 8 characters"
+              error={errors.password?.message}
+              autoComplete="new-password"
+              {...register('password')}
             />
-            {errors.fullName && <p style={errorStyle}>{errors.fullName.message}</p>}
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-8 text-[#64748b] hover:text-[#94a3b8] text-sm"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
           </div>
 
-          {/* Email */}
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="email" style={labelStyle}>Email</label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              {...register('email', { validate: validateEmail })}
-              style={inputStyle(!!errors.email)}
-            />
-            {errors.email && <p style={errorStyle}>{errors.email.message}</p>}
-          </div>
+          <Input
+            label="Confirm Password"
+            type="password"
+            placeholder="Repeat password"
+            error={errors.confirmPassword?.message}
+            autoComplete="new-password"
+            {...register('confirmPassword')}
+          />
 
-          {/* Phone */}
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="phone" style={labelStyle}>Phone (Israeli)</label>
-            <input
-              id="phone"
-              type="tel"
-              autoComplete="tel"
-              placeholder="050-1234567"
-              {...register('phone', { validate: validateIsraeliPhone })}
-              style={inputStyle(!!errors.phone)}
-            />
-            {errors.phone && <p style={errorStyle}>{errors.phone.message}</p>}
-          </div>
-
-          {/* Password */}
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="password" style={labelStyle}>Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="••••••••"
-                {...register('password', { validate: validatePassword })}
-                style={{ ...inputStyle(!!errors.password), paddingRight: '44px' }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute', right: '12px', top: '50%',
-                  transform: 'translateY(-50%)', background: 'none',
-                  border: 'none', cursor: 'pointer', color: '#64748b',
-                  fontSize: '1rem', padding: 0,
-                }}
-              >
-                {showPassword ? '🙈' : '👁'}
-              </button>
-            </div>
-            {errors.password && <p style={errorStyle}>{errors.password.message}</p>}
-          </div>
-
-          {/* Confirm Password */}
-          <div style={{ marginBottom: '24px' }}>
-            <label htmlFor="confirmPassword" style={labelStyle}>Confirm Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="confirmPassword"
-                type={showConfirm ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="••••••••"
-                {...register('confirmPassword', {
-                  validate: validatePasswordMatch(passwordValue),
-                })}
-                style={{ ...inputStyle(!!errors.confirmPassword), paddingRight: '44px' }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm((v) => !v)}
-                aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute', right: '12px', top: '50%',
-                  transform: 'translateY(-50%)', background: 'none',
-                  border: 'none', cursor: 'pointer', color: '#64748b',
-                  fontSize: '1rem', padding: 0,
-                }}
-              >
-                {showConfirm ? '🙈' : '👁'}
-              </button>
-            </div>
-            {errors.confirmPassword && (
-              <p style={errorStyle}>{errors.confirmPassword.message}</p>
-            )}
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              height: '44px',
-              background: loading ? '#f59e0b66' : '#f59e0b',
-              color: '#0f172a',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '1rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'background 150ms ease',
-            }}
-          >
-            {loading ? (
-              <>
-                <Spinner size={18} color="#0f172a" />
-                Creating account...
-              </>
-            ) : (
-              'Create Account'
-            )}
-          </button>
+          <Button type="submit" loading={isSubmitting} className="w-full mt-2">
+            Create Account
+          </Button>
         </form>
 
-        <div style={{ marginTop: '24px', textAlign: 'center' }}>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-            Already have an account?{' '}
-            <Link to="/login" style={{ color: '#f59e0b', textDecoration: 'none', fontWeight: 600 }}>
-              Sign In
-            </Link>
-          </p>
-        </div>
+        <p className="mt-6 text-sm text-center text-[#94a3b8]">
+          Already have an account?{' '}
+          <Link to="/login" className="text-gold hover:text-gold-light font-medium">
+            Sign In
+          </Link>
+        </p>
       </div>
     </div>
   );
-};
-
-export default RegisterPage;
+}

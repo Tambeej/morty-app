@@ -1,21 +1,23 @@
-/**
- * Card - Surface container component.
- */
 import React from 'react';
 import PropTypes from 'prop-types';
 
-export default function Card({ children, className = '', style = {}, interactive = false }) {
+/**
+ * Surface card component.
+ *
+ * @param {boolean} interactive - Adds hover lift effect
+ * @param {boolean} goldTop - Adds gold top border (analysis card style)
+ */
+export default function Card({ children, className = '', interactive = false, goldTop = false }) {
   return (
     <div
-      className={`rounded-card ${interactive ? 'stat-card' : ''} ${className}`}
-      style={{
-        background: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: '12px',
-        padding: '24px',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-        ...style,
-      }}
+      className={[
+        'bg-navy-surface border border-border rounded-card p-6 shadow-card',
+        interactive && 'transition-all duration-200 hover:-translate-y-0.5 hover:border-gold cursor-pointer',
+        goldTop && 'border-t-[3px] border-t-gold',
+        className
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {children}
     </div>
@@ -25,6 +27,6 @@ export default function Card({ children, className = '', style = {}, interactive
 Card.propTypes = {
   children: PropTypes.node.isRequired,
   className: PropTypes.string,
-  style: PropTypes.object,
   interactive: PropTypes.bool,
+  goldTop: PropTypes.bool
 };

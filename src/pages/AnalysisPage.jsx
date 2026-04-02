@@ -1,303 +1,218 @@
-/**
- * AnalysisPage.jsx
- * Displays AI analysis results for a single mortgage offer.
- * Polls for status if the offer is still pending/processing.
- */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import api from '../services/api';
-import { useToast } from '../context/ToastContext';
-import { extractApiError } from '../utils/validators';
-import Skeleton from '../components/common/Skeleton';
-import Spinner from '../components/common/Spinner';
-import PageLayout from '../components/layout/PageLayout';
+import { apiService } from '../services/api.js';
+import PageLayout from '../components/layout/PageLayout.jsx';
+import Card from '../components/common/Card.jsx';
+import Skeleton from '../components/common/Skeleton.jsx';
+import Button from '../components/common/Button.jsx';
 
-const POLL_INTERVAL = 5000;
+/**
+ * Generates monthly payment data for a line chart.
+ * @param {number} principal - Loan amount
+ * @param {number} annualRate - Annual interest rate (%)
+ * @param {number} termYears - Loan term in years
+ * @returns {Array<{month: number, payment: number}>}
+ */
+function generatePaymentData(principal, annualRate, termYears) {
+  const months = termYears * 12;
+  const r = annualRate / 100 / 12;
+  if (r === 0) return [];
+  const payment = (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
+  // Sample every 12 months for readability
+  return Array.from({ length: Math.ceil(months / 12) }, (_, i) => ({
+    month: (i + 1) * 12,
+    payment: Math.round(payment)
+  }));
+}
 
-const AnalysisPage = () => {
+/**
+ * Analysis results page for a specific mortgage offer.
+ */
+export default function AnalysisPage() {
   const { id } = useParams();
-  const { addToast } = useToast();
-  const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
-  const pollRef = useRef(null);
-
-  const fetchAnalysis = useCallback(async () => {
-    try {
-      const res = await api.get(`/analysis/${id}`);
-      const result = res.data.data;
-      setData(result);
-      // Stop polling once analyzed or errored
-      if (result.status === 'analyzed' || result.status === 'error') {
-        if (pollRef.current) clearInterval(pollRef.current);
-      }
-    } catch (err) {
-      addToast(extractApiError(err, 'Failed to load analysis'), 'error');
-      if (pollRef.current) clearInterval(pollRef.current);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, addToast]);
+  const [error, setError] = useState(null);
+  const [polling, setPolling] = useState(false);
 
   useEffect(() => {
-    fetchAnalysis();
-    pollRef.current = setInterval(fetchAnalysis, POLL_INTERVAL);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [fetchAnalysis]);
+    let interval;
 
-  // Build comparison chart data (monthly payments over time)
-  const buildChartData = (analysis) => {
-    if (!analysis) return [];
-    const months = analysis.term ? analysis.term * 12 : 300;
-    const step = Math.max(1, Math.floor(months / 30));
-    const data = [];
-    for (let m = step; m <= months; m += step) {
-      data.push({
-        month: m,
-        yourOffer: analysis.monthlyPayment || 0,
-        recommended: analysis.recommendedRate
-          ? Math.round(
-              ((analysis.extractedData?.amount || 1000000) *
-                (analysis.recommendedRate / 100 / 12)) /
-                (1 - Math.pow(1 + analysis.recommendedRate / 100 / 12, -months))
-            )
-          : 0,
-        market: analysis.marketAverageRate
-          ? Math.round(
-              ((analysis.extractedData?.amount || 1000000) *
-                (analysis.marketAverageRate / 100 / 12)) /
-                (1 - Math.pow(1 + analysis.marketAverageRate / 100 / 12, -months))
-            )
-          : 0,
-      });
+    async function fetchAnalysis() {
+      try {
+        const data = await apiService.getAnalysis(id);
+        setAnalysis(data);
+        if (data.status === 'pending') {
+          setPolling(true);
+          interval = setInterval(async () => {
+            try {
+              const updated = await apiService.getAnalysis(id);
+              setAnalysis(updated);
+              if (updated.status !== 'pending') {
+                clearInterval(interval);
+                setPolling(false);
+              }
+            } catch {
+              clearInterval(interval);
+              setPolling(false);
+            }
+          }, 5000);
+        }
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Failed to load analysis.');
+      } finally {
+        setLoading(false);
+      }
     }
-    return data;
-  };
 
-  const analysis = data?.analysis;
-  const extracted = data?.extractedData;
-  const chartData = buildChartData(analysis ? { ...analysis, extractedData: extracted } : null);
+    fetchAnalysis();
+    return () => clearInterval(interval);
+  }, [id]);
+
+  const extracted = analysis?.extractedData || {};
+  const result = analysis?.analysis || {};
+
+  const chartData = extracted.amount && extracted.rate && extracted.term
+    ? [
+        ...generatePaymentData(extracted.amount, extracted.rate, extracted.term).map((d) => ({
+          ...d,
+          yourOffer: d.payment,
+          recommended: result.recommendedRate
+            ? Math.round(
+                (extracted.amount * (result.recommendedRate / 100 / 12) *
+                  Math.pow(1 + result.recommendedRate / 100 / 12, extracted.term * 12)) /
+                  (Math.pow(1 + result.recommendedRate / 100 / 12, extracted.term * 12) - 1)
+              )
+            : undefined
+        }))
+      ]
+    : [];
 
   return (
     <PageLayout>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ color: '#f8fafc', fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
-            Analysis Results
-            {extracted?.bank ? ` — ${extracted.bank}` : ''}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-[#f8fafc]">
+            Analysis Results{extracted.bank ? ` — ${extracted.bank}` : ''}
           </h1>
-          {data?.createdAt && (
-            <p style={{ color: '#94a3b8', marginTop: '6px', fontSize: '0.875rem' }}>
-              Analyzed {new Date(data.createdAt).toLocaleString('he-IL')}
+          {analysis?.updatedAt && (
+            <p className="text-[#94a3b8] mt-1 text-sm">
+              Analyzed {new Date(analysis.updatedAt).toLocaleString()}
+            </p>
+          )}
+          {polling && (
+            <p className="text-yellow-400 text-sm mt-1 flex items-center gap-2">
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
+              Analysis in progress — refreshing automatically...
             </p>
           )}
         </div>
 
         {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {[1, 2, 3].map((i) => <Skeleton key={i} height="120px" borderRadius="12px" />)}
+          <div className="flex flex-col gap-4">
+            <Skeleton height="120px" className="rounded-card" />
+            <Skeleton height="200px" className="rounded-card" />
           </div>
-        ) : !data ? (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>
-            <p>Analysis not found.</p>
-          </div>
-        ) : data.status === 'pending' || data.status === 'processing' ? (
-          <div
-            style={{
-              background: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: '12px',
-              padding: '48px',
-              textAlign: 'center',
-            }}
-          >
-            <Spinner size={40} />
-            <p style={{ color: '#94a3b8', marginTop: '16px', fontSize: '1rem' }}>
-              AI is analyzing your offer...
-            </p>
-            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>This usually takes 30–60 seconds.</p>
-          </div>
-        ) : data.status === 'error' ? (
-          <div
-            style={{
-              background: '#1e293b',
-              border: '1px solid #ef4444',
-              borderRadius: '12px',
-              padding: '32px',
-              textAlign: 'center',
-            }}
-          >
-            <p style={{ color: '#ef4444', fontSize: '1rem', fontWeight: 600 }}>Analysis failed</p>
-            <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '8px' }}>
-              We couldn't analyze this offer. Please try uploading again.
-            </p>
-            <button
-              onClick={() => navigate('/upload')}
-              style={{
-                marginTop: '16px',
-                background: '#f59e0b',
-                color: '#0f172a',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '10px 24px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Upload Another
-            </button>
-          </div>
+        ) : error ? (
+          <Card>
+            <p className="text-red-400">{error}</p>
+          </Card>
         ) : (
           <>
-            {/* AI Summary card */}
-            {analysis?.aiReasoning && (
-              <div
-                style={{
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  borderTop: '3px solid #f59e0b',
-                  borderRadius: '12px',
-                  padding: '24px',
-                  marginBottom: '24px',
-                }}
-              >
-                <h2 style={{ color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
-                  AI Summary
-                </h2>
-                <p style={{ color: '#f8fafc', fontSize: '1rem', lineHeight: 1.6 }}>
-                  {analysis.aiReasoning}
-                </p>
-              </div>
+            {/* AI Summary */}
+            {result.aiReasoning && (
+              <Card goldTop className="mb-6">
+                <p className="text-xs font-medium uppercase tracking-widest text-gold mb-3">AI Summary</p>
+                <p className="text-[#f8fafc] leading-relaxed">{result.aiReasoning}</p>
+              </Card>
             )}
 
             {/* Extracted terms */}
-            <div
-              style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
-                borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '24px',
-              }}
-            >
-              <h2 style={{ color: '#f8fafc', fontSize: '1.125rem', fontWeight: 600, marginBottom: '16px' }}>
-                Extracted Terms
-              </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
+            <Card className="mb-6">
+              <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Extracted Terms</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[
-                  { label: 'Bank', value: extracted?.bank || '—' },
-                  { label: 'Loan Amount', value: extracted?.amount != null ? `₪${extracted.amount.toLocaleString('he-IL')}` : '—' },
-                  { label: 'Interest Rate', value: extracted?.rate != null ? `${extracted.rate}%` : '—' },
-                  { label: 'Term', value: extracted?.term != null ? `${extracted.term} years` : '—' },
-                  { label: 'Monthly Payment', value: analysis?.monthlyPayment != null ? `₪${analysis.monthlyPayment.toLocaleString('he-IL')}` : '—' },
-                  { label: 'Total Cost', value: analysis?.totalCost != null ? `₪${analysis.totalCost.toLocaleString('he-IL')}` : '—' },
+                  { label: 'Bank',         value: extracted.bank },
+                  { label: 'Amount',       value: extracted.amount ? `₪${extracted.amount.toLocaleString('he-IL')}` : undefined },
+                  { label: 'Interest Rate',value: extracted.rate ? `${extracted.rate}%` : undefined },
+                  { label: 'Term',         value: extracted.term ? `${extracted.term} years` : undefined },
+                  { label: 'Monthly Pmt', value: extracted.monthlyPayment ? `₪${extracted.monthlyPayment.toLocaleString('he-IL')}` : undefined },
+                  { label: 'Recommended', value: result.recommendedRate ? `${result.recommendedRate}%` : undefined }
                 ].map(({ label, value }) => (
                   <div key={label}>
-                    <div style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{label}</div>
-                    <div style={{ color: '#f8fafc', fontSize: '1rem', fontWeight: 600 }}>{value}</div>
+                    <p className="text-xs text-[#64748b] mb-1">{label}</p>
+                    <p className="text-[#f8fafc] font-medium">{value || '—'}</p>
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
+
+            {/* Savings highlight */}
+            {result.savings && (
+              <Card className="mb-6 border-green-800">
+                <p className="text-xs font-medium uppercase tracking-widest text-green-400 mb-1">Potential Savings</p>
+                <p className="text-3xl font-bold text-green-400">₪{result.savings.toLocaleString('he-IL')}</p>
+                <p className="text-[#94a3b8] text-sm mt-1">over the life of the loan</p>
+              </Card>
+            )}
 
             {/* Comparison chart */}
             {chartData.length > 0 && (
-              <div
-                style={{
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '12px',
-                  padding: '24px',
-                  marginBottom: '24px',
-                }}
-              >
-                <h2 style={{ color: '#f8fafc', fontSize: '1.125rem', fontWeight: 600, marginBottom: '20px' }}>
-                  Payment Comparison Over Time
-                </h2>
+              <Card className="mb-6">
+                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Payment Comparison</h2>
                 <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: 'Month', position: 'insideBottom', fill: '#64748b', fontSize: 11 }} />
-                    <YAxis stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <XAxis dataKey="month" stroke="#94a3b8" tick={{ fontSize: 11 }} label={{ value: 'Month', position: 'insideBottom', offset: -2, fill: '#94a3b8', fontSize: 11 }} />
+                    <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={(v) => `₪${v.toLocaleString()}`} />
                     <Tooltip
-                      contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                      contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
                       labelStyle={{ color: '#f8fafc' }}
-                      itemStyle={{ color: '#94a3b8' }}
+                      formatter={(v) => [`₪${v.toLocaleString()}`, '']}
                     />
-                    <Legend wrapperStyle={{ color: '#94a3b8', fontSize: '0.8125rem' }} />
-                    <Line type="monotone" dataKey="yourOffer" name="Your Offer" stroke="#ef4444" dot={false} strokeWidth={2} />
-                    <Line type="monotone" dataKey="market" name="Market Average" stroke="#64748b" dot={false} strokeWidth={2} strokeDasharray="4 4" />
-                    <Line type="monotone" dataKey="recommended" name="Morty Recommended" stroke="#f59e0b" dot={false} strokeWidth={2} />
+                    <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
+                    <Line type="monotone" dataKey="yourOffer" name="Your Offer" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                    {result.recommendedRate && (
+                      <Line type="monotone" dataKey="recommended" name="Recommended" stroke="#10b981" strokeWidth={2} dot={false} />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </Card>
             )}
 
             {/* Recommendations */}
-            {analysis?.recommendations?.length > 0 && (
-              <div
-                style={{
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '12px',
-                  padding: '24px',
-                  marginBottom: '24px',
-                }}
-              >
-                <h2 style={{ color: '#f8fafc', fontSize: '1.125rem', fontWeight: 600, marginBottom: '16px' }}>
-                  Recommendations
-                </h2>
-                <ol style={{ margin: 0, padding: '0 0 0 20px' }}>
-                  {analysis.recommendations.map((rec, i) => (
-                    <li key={i} style={{ color: '#f8fafc', fontSize: '0.9375rem', lineHeight: 1.6, marginBottom: '8px' }}>
-                      {rec}
+            {result.recommendations && result.recommendations.length > 0 && (
+              <Card className="mb-6">
+                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Recommendations</h2>
+                <ol className="flex flex-col gap-3">
+                  {result.recommendations.map((rec, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gold/20 text-gold text-xs font-bold flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <p className="text-[#94a3b8] text-sm">{rec}</p>
                     </li>
                   ))}
                 </ol>
-              </div>
+              </Card>
             )}
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => navigate('/upload')}
-                style={{
-                  background: '#f59e0b',
-                  color: '#0f172a',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '10px 24px',
-                  fontWeight: 600,
-                  fontSize: '0.9375rem',
-                  cursor: 'pointer',
-                }}
-              >
-                Upload Another
-              </button>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  background: 'none',
-                  border: '1px solid #334155',
-                  borderRadius: '8px',
-                  padding: '10px 24px',
-                  color: '#94a3b8',
-                  fontSize: '0.9375rem',
-                  cursor: 'pointer',
-                }}
-              >
-                Back to Dashboard
-              </button>
+            <div className="flex gap-4">
+              <Button variant="ghost" onClick={() => window.print()}>
+                Download Report PDF
+              </Button>
+              <Link to="/upload">
+                <Button>Upload Another</Button>
+              </Link>
             </div>
           </>
         )}
       </div>
     </PageLayout>
   );
-};
-
-export default AnalysisPage;
+}
