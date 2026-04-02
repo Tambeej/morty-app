@@ -1,137 +1,175 @@
+/**
+ * Register Page
+ * New user registration with full validation
+ */
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import toast from 'react-hot-toast';
-import { useAuth } from '../context/AuthContext.jsx';
-import Button from '../components/common/Button.jsx';
-import Input from '../components/common/Input.jsx';
+import { useTranslation } from 'react-i18next';
+import useAuth from '../hooks/useAuth';
+import { useToast } from '../context/ToastContext';
+import Button from '../components/common/Button';
+import Input from '../components/common/Input';
 
-const schema = z
+const registerSchema = z
   .object({
-    name: z.string().min(2, 'Full name must be at least 2 characters'),
+    fullName: z.string().min(2, 'Full name must be at least 2 characters'),
     email: z.string().email('Please enter a valid email address'),
     phone: z
       .string()
-      .regex(/^(\+972|0)[0-9]{8,9}$/, 'Enter a valid Israeli phone number (e.g. +972501234567)'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
-    confirmPassword: z.string()
+      .regex(/^(\+972|0)[0-9]{8,9}$/, 'Please enter a valid Israeli phone number'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[0-9]/, 'Password must contain at least one number'),
+    confirmPassword: z.string(),
   })
-  .refine((d) => d.password === d.confirmPassword, {
+  .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
-    path: ['confirmPassword']
+    path: ['confirmPassword'],
   });
 
-/**
- * Registration page.
- */
-export default function RegisterPage() {
+function RegisterPage() {
+  const { t } = useTranslation();
   const { register: registerUser } = useAuth();
+  const { error: showError, success } = useToast();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting }
-  } = useForm({ resolver: zodResolver(schema) });
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+  });
 
-  async function onSubmit({ name, email, phone, password }) {
+  const onSubmit = async (data) => {
     try {
-      await registerUser({ name, email, phone, password });
-      toast.success('Account created! Welcome to Morty.');
+      await registerUser({
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        password: data.password,
+      });
+      success('Account created successfully! Welcome to Morty.');
       navigate('/dashboard');
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Registration failed. Please try again.';
-      toast.error(msg);
+      const message =
+        err.response?.data?.message || 'Registration failed. Please try again.';
+      showError(message);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-navy flex flex-col items-center justify-center px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <span className="text-4xl" aria-hidden="true">🏡</span>
-        <h1 className="text-3xl font-bold text-gold">Morty</h1>
+    <div className="min-h-screen bg-navy flex items-center justify-center p-4">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gold/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gold/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Card */}
-      <div
-        className="w-full max-w-md bg-navy-surface border border-border rounded-card p-8 shadow-card"
-        style={{ animation: 'pageEnter 200ms ease-out forwards' }}
-      >
-        <h2 className="text-xl font-semibold text-[#f8fafc] mb-6">Create your account</h2>
+      <div className="w-full max-w-md relative">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-gold rounded-xl flex items-center justify-center">
+            <svg className="w-6 h-6 text-navy" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+            </svg>
+          </div>
+          <span className="text-2xl font-bold text-text-primary">Morty</span>
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-          <Input
-            label="Full Name"
-            type="text"
-            placeholder="Yoav Cohen"
-            error={errors.name?.message}
-            autoComplete="name"
-            {...register('name')}
-          />
+        {/* Card */}
+        <div className="bg-navy-surface border border-border rounded-card p-8 shadow-card page-enter">
+          <h1 className="text-xl font-semibold text-text-primary mb-6">
+            {t('auth.signUp')}
+          </h1>
 
-          <Input
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-            error={errors.email?.message}
-            autoComplete="email"
-            {...register('email')}
-          />
-
-          <Input
-            label="Phone"
-            type="tel"
-            placeholder="+972501234567"
-            error={errors.phone?.message}
-            autoComplete="tel"
-            prefix="+972"
-            {...register('phone')}
-          />
-
-          <div className="relative">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
             <Input
-              label="Password"
+              label={t('auth.fullName')}
+              type="text"
+              placeholder="Yoav Cohen"
+              error={errors.fullName?.message}
+              autoComplete="name"
+              {...register('fullName')}
+            />
+
+            <Input
+              label={t('auth.email')}
+              type="email"
+              placeholder="you@example.com"
+              error={errors.email?.message}
+              autoComplete="email"
+              {...register('email')}
+            />
+
+            <Input
+              label={t('auth.phone')}
+              type="tel"
+              placeholder="+972501234567"
+              error={errors.phone?.message}
+              autoComplete="tel"
+              {...register('phone')}
+            />
+
+            <Input
+              label={t('auth.password')}
               type={showPassword ? 'text' : 'password'}
-              placeholder="Min. 8 characters"
+              placeholder="••••••••"
               error={errors.password?.message}
               autoComplete="new-password"
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-text-muted hover:text-text-primary transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+              }
               {...register('password')}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-8 text-[#64748b] hover:text-[#94a3b8] text-sm"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+
+            <Input
+              label={t('auth.confirmPassword')}
+              type="password"
+              placeholder="••••••••"
+              error={errors.confirmPassword?.message}
+              autoComplete="new-password"
+              {...register('confirmPassword')}
+            />
+
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isSubmitting}
+              className="w-full mt-2"
             >
-              {showPassword ? '🙈' : '👁️'}
-            </button>
+              {isSubmitting ? t('auth.loading') : t('auth.registerBtn')}
+            </Button>
+          </form>
+
+          <div className="mt-4 text-center">
+            <p className="text-sm text-text-secondary">
+              {t('auth.hasAccount')}{' '}
+              <Link to="/login" className="text-gold hover:text-gold-light font-medium">
+                {t('auth.login')}
+              </Link>
+            </p>
           </div>
-
-          <Input
-            label="Confirm Password"
-            type="password"
-            placeholder="Repeat password"
-            error={errors.confirmPassword?.message}
-            autoComplete="new-password"
-            {...register('confirmPassword')}
-          />
-
-          <Button type="submit" loading={isSubmitting} className="w-full mt-2">
-            Create Account
-          </Button>
-        </form>
-
-        <p className="mt-6 text-sm text-center text-[#94a3b8]">
-          Already have an account?{' '}
-          <Link to="/login" className="text-gold hover:text-gold-light font-medium">
-            Sign In
-          </Link>
-        </p>
+        </div>
       </div>
     </div>
   );
 }
+
+export default RegisterPage;
