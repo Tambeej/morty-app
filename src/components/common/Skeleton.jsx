@@ -1,21 +1,22 @@
+/**
+ * Skeleton Component
+ * Loading placeholder with shimmer animation
+ */
 import React from 'react';
-import PropTypes from 'prop-types';
 
 /**
- * Shimmer skeleton placeholder.
+ * @param {string} className
+ * @param {string} width
+ * @param {string} height
  */
-export default function Skeleton({ className = '', height = '1rem', width = '100%' }) {
+function Skeleton({ className = '', width, height }) {
   return (
     <div
-      className={`skeleton rounded ${className}`}
-      style={{ height, width }}
+      className={`skeleton ${className}`}
+      style={{ width, height }}
       aria-hidden="true"
     />
   );
 }
 
-Skeleton.propTypes = {
-  className: PropTypes.string,
-  height: PropTypes.string,
-  width: PropTypes.string
-};
+export default Skeleton;
