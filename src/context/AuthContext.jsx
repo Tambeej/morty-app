@@ -8,10 +8,17 @@
  *
  * Exposes:
  *   user, token, isAuthenticated, isLoading, error,
- *   loginUser, registerUser, logoutUser, clearError
+ *   loginUser, registerUser, logoutUser, googleLoginUser, clearError
  *
- * Also exposes legacy aliases: login, register, logout, loading
+ * Also exposes legacy aliases: login, register, logout, googleLogin, loading
  * for backward compatibility with existing components.
+ *
+ * Logout flow:
+ *   logoutUser() → authService.logout() which:
+ *     1. Calls firebase.auth().signOut() to clear Google OAuth session
+ *     2. POSTs refresh token to /auth/logout to invalidate server-side
+ *     3. Clears all tokens from localStorage
+ *   Then dispatches LOGOUT action to reset AuthContext state.
  */
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
@@ -19,6 +26,7 @@ import {
   login as authLogin,
   register as authRegister,
   logout as authLogout,
+  googleLogin as authGoogleLogin,
   normalizeUser,
 } from '../services/authService';
 import {
@@ -182,16 +190,78 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // ── Google Login ──────────────────────────────────────────────────────────
+  /**
+   * Sign in / sign up with Google via Firebase popup.
+   *
+   * Delegates to authService.googleLogin() which:
+   *   1. Opens the Firebase Google sign-in popup.
+   *   2. Exchanges the Firebase ID token for Morty custom JWTs.
+   *   3. Stores tokens and user in localStorage.
+   *
+   * Return values:
+   *   - `null`  — user dismissed the popup (silent no-op; caller should not
+   *               show an error or navigate).
+   *   - `{ success: true, user }` — authenticated successfully; AuthContext
+   *               state is updated (isAuthenticated = true).
+   *   - `{ success: false, error }` — Firebase or backend error; AuthContext
+   *               error state is set.
+   *
+   * @returns {Promise<null | { success: boolean, user?: object, error?: string }>}
+   */
+  const googleLoginUser = useCallback(async () => {
+    dispatch({ type: AUTH_ACTIONS.AUTH_START });
+    try {
+      const result = await authGoogleLogin();
+
+      // User dismissed the popup — treat as a silent no-op.
+      // Reset loading state without marking as failure (no error shown).
+      if (result === null) {
+        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+        return null;
+      }
+
+      const { token, user } = result;
+      dispatch({
+        type: AUTH_ACTIONS.AUTH_SUCCESS,
+        payload: { user, token },
+      });
+      return { success: true, user };
+    } catch (err) {
+      const message =
+        err?.code === 'auth/popup-blocked'
+          ? 'Enable popups for this site to use Google sign-in'
+          : err.response?.data?.message ||
+            err.response?.data?.error ||
+            err.message ||
+            'Google sign-in failed. Please try again.';
+      dispatch({ type: AUTH_ACTIONS.AUTH_FAILURE, payload: message });
+      return { success: false, error: message };
+    }
+  }, []);
+
   // ── Logout ────────────────────────────────────────────────────────────────
   /**
    * Log out and clear all stored credentials.
+   *
+   * Delegates to authService.logout() which performs a full sign-out:
+   *   1. Firebase signOut() — clears Google OAuth session (safe no-op for
+   *      email/password users with no Firebase session).
+   *   2. Backend POST /auth/logout — invalidates the refresh token server-side.
+   *   3. localStorage cleanup — clears all tokens regardless of API result.
+   *
+   * After authService.logout() completes (or fails), the LOGOUT action is
+   * dispatched to reset AuthContext state to the initial unauthenticated state.
+   *
    * @returns {Promise<void>}
    */
   const logoutUser = useCallback(async () => {
     try {
       await authLogout();
-    } catch {
-      // authLogout already handles errors internally and clears tokens
+    } catch (err) {
+      // authLogout handles errors internally and always clears tokens.
+      // This catch is a safety net for unexpected throws.
+      console.warn('[AuthContext] logoutUser caught unexpected error:', err?.message || err);
       clearStoredTokens();
     } finally {
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -229,6 +299,12 @@ export function AuthProvider({ children }) {
   /** Legacy logout alias */
   const logout = useCallback(() => logoutUser(), [logoutUser]);
 
+  /**
+   * Legacy googleLogin alias — same as googleLoginUser.
+   * Exposed so components can destructure `googleLogin` from useAuth().
+   */
+  const googleLogin = useCallback(() => googleLoginUser(), [googleLoginUser]);
+
   const value = {
     // State
     user: state.user,
@@ -240,12 +316,14 @@ export function AuthProvider({ children }) {
     // Actions (new names)
     loginUser,
     registerUser,
+    googleLoginUser,
     logoutUser,
     clearError,
     // Actions (legacy aliases)
     login,
     register,
     logout,
+    googleLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -268,11 +346,13 @@ AuthProvider.propTypes = {
  *   error: string|null,
  *   loginUser: function,
  *   registerUser: function,
+ *   googleLoginUser: function,
  *   logoutUser: function,
  *   clearError: function,
  *   login: function,
  *   register: function,
  *   logout: function,
+ *   googleLogin: function,
  * }}
  */
 export function useAuth() {

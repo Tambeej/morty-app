@@ -31,12 +31,19 @@ vi.mock('../../../services/authService', () => ({
   register: vi.fn(),
   logout: vi.fn(),
   getMe: vi.fn(),
+  googleLogin: vi.fn(),
   normalizeUser: vi.fn((user) => ({
     id: user.id || user._id || '',
     email: user.email || '',
     phone: user.phone || '',
     verified: user.verified || false,
   })),
+}));
+
+// Mock Firebase module to prevent initialization errors in tests
+vi.mock('../../../firebase', () => ({
+  auth: {},
+  googleProvider: {},
 }));
 
 // Mock storage utilities
@@ -80,6 +87,33 @@ describe('RegisterForm', () => {
   it('renders create account button', () => {
     renderRegisterForm();
     expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument();
+  });
+
+  it('renders Google sign-up button', () => {
+    renderRegisterForm();
+    expect(
+      screen.getByRole('button', { name: /sign in with google/i })
+    ).toBeInTheDocument();
+  });
+
+  it('Google button has correct label "Sign up with Google"', () => {
+    renderRegisterForm();
+    expect(screen.getByText('Sign up with Google')).toBeInTheDocument();
+  });
+
+  it('renders "or" divider between Google button and form fields', () => {
+    renderRegisterForm();
+    expect(screen.getByText('or')).toBeInTheDocument();
+  });
+
+  it('Google button appears before form fields (reduces friction)', () => {
+    renderRegisterForm();
+    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
+    const fullNameInput = screen.getByPlaceholderText('Yoav Cohen');
+    // Google button should appear before the full name input in the DOM
+    expect(
+      googleButton.compareDocumentPosition(fullNameInput) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('shows validation error for empty full name', async () => {
@@ -141,6 +175,34 @@ describe('RegisterForm', () => {
       expect(
         screen.queryByText(/valid Israeli phone number/i)
       ).not.toBeInTheDocument();
+    });
+  });
+
+  it('calls googleLogin when Google button is clicked', async () => {
+    const authService = await import('../../../services/authService');
+    // Simulate user closing the popup (null return = silent no-op)
+    authService.googleLogin.mockResolvedValueOnce(null);
+
+    renderRegisterForm();
+    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
+    await userEvent.click(googleButton);
+
+    await waitFor(() => {
+      expect(authService.googleLogin).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('Google button shows loading state while signing up', async () => {
+    const authService = await import('../../../services/authService');
+    // Never resolves during this test — keeps button in loading state
+    authService.googleLogin.mockImplementationOnce(() => new Promise(() => {}));
+
+    renderRegisterForm();
+    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
+    await userEvent.click(googleButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Connecting...')).toBeInTheDocument();
     });
   });
 });

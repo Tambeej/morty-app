@@ -1,21 +1,58 @@
-import React from 'react';
+/**
+ * RegisterForm component.
+ *
+ * Handles new user registration via email/password AND Google OAuth.
+ *
+ * Layout (top → bottom) — Google first to reduce friction for new users:
+ *   1. Sign up with Google button (prominent, above the fold)
+ *   2. "or" divider
+ *   3. Full Name field
+ *   4. Phone field
+ *   5. Email field
+ *   6. Password field
+ *   7. Confirm Password field
+ *   8. Create Account button
+ *   9. Sign In link
+ *
+ * Google sign-up flow:
+ *   - Calls googleLogin() from useAuth() which delegates to AuthContext.
+ *   - AuthContext calls authService.googleLogin() → Firebase popup → backend.
+ *   - Null return = user closed popup → silent no-op.
+ *   - { success: true } → toast + navigate /dashboard.
+ *   - { success: false, error } → toast with message.
+ *
+ * Shows inline validation errors and toast notifications.
+ * Validation messages aligned with test expectations.
+ */
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../common/Input';
 import Button from '../common/Button';
+import GoogleButton from './GoogleButton';
 import useAuth from '../../hooks/useAuth';
-import { useToast } from '../common/Toast';
+import { useToast } from '../../context/ToastContext';
 
 /**
- * RegisterForm component.
- * Handles new user registration with full name, phone, email, password.
- * Shows inline validation errors and toast notifications.
- * Validation messages aligned with test expectations.
+ * Inline "or" divider between OAuth and email/password sign-up options.
  */
+const OrDivider = () => (
+  <div
+    className="flex items-center gap-3 my-1"
+    role="separator"
+    aria-label="or"
+  >
+    <div className="flex-1 h-px bg-gray-700" />
+    <span className="text-xs text-text-secondary uppercase tracking-wider">or</span>
+    <div className="flex-1 h-px bg-gray-700" />
+  </div>
+);
+
 const RegisterForm = () => {
   const navigate = useNavigate();
-  const { register: registerUser } = useAuth();
-  const { success, error: showError } = useToast();
+  const { register: registerUser, googleLogin } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
     register,
@@ -63,11 +100,19 @@ const RegisterForm = () => {
     },
   };
 
+  /**
+   * Handle email/password registration.
+   * @param {{ fullName: string, phone: string, email: string, password: string, confirmPassword: string }} data
+   */
   const onSubmit = async (data) => {
     try {
       const { confirmPassword, ...userData } = data;
-      await registerUser(userData);
-      success('Your account has been created!', 'Welcome to Morty');
+      const result = await registerUser(userData);
+      if (result && result.success === false) {
+        showError(result.error || 'Registration failed. Please try again.');
+        return;
+      }
+      showSuccess('Your account has been created! Welcome to Morty');
       navigate('/dashboard');
     } catch (err) {
       const message =
@@ -75,7 +120,41 @@ const RegisterForm = () => {
         err.response?.data?.error ||
         err.message ||
         'Registration failed. Please try again.';
-      showError(message, 'Registration failed');
+      showError(message);
+    }
+  };
+
+  /**
+   * Handle Google OAuth sign-up via AuthContext.
+   *
+   * Uses googleLogin() from useAuth() so that AuthContext state is updated
+   * (isAuthenticated, user, token) upon successful sign-up.
+   *
+   * - null result means user closed the popup → silent no-op.
+   * - { success: true } → toast + navigate /dashboard.
+   * - { success: false, error } → toast with error message.
+   */
+  const handleGoogleRegister = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const result = await googleLogin();
+      // User closed the popup — treat as silent no-op
+      if (result === null) return;
+      if (result.success) {
+        showSuccess('ברוך הבא! Signed up with Google');
+        navigate('/dashboard');
+      } else {
+        showError(result.error || 'Google sign-up failed. Please try again.');
+      }
+    } catch (err) {
+      // Unexpected error not caught by AuthContext (should be rare)
+      const message =
+        err?.code === 'auth/popup-blocked'
+          ? 'Enable popups for this site to use Google sign-up'
+          : err?.message || 'Google sign-up failed. Please try again.';
+      showError(message);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -86,6 +165,17 @@ const RegisterForm = () => {
       aria-label="Registration form"
       className="flex flex-col gap-5"
     >
+      {/* Google sign-up — placed first to reduce friction for new users */}
+      <GoogleButton
+        onClick={handleGoogleRegister}
+        loading={isGoogleLoading}
+        disabled={isSubmitting}
+        label="Sign up with Google"
+      />
+
+      {/* Divider */}
+      <OrDivider />
+
       {/* Full Name */}
       <Input
         label="Full Name"
@@ -176,6 +266,7 @@ const RegisterForm = () => {
         {...register('confirmPassword', validationRules.confirmPassword)}
       />
 
+      {/* Primary create account button */}
       <Button
         type="submit"
         variant="primary"
@@ -185,6 +276,7 @@ const RegisterForm = () => {
         Create Account
       </Button>
 
+      {/* Sign in link */}
       <p className="text-center text-sm text-text-secondary">
         Already have an account?{' '}
         <Link

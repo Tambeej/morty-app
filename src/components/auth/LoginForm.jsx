@@ -1,23 +1,58 @@
+/**
+ * LoginForm component.
+ *
+ * Handles user authentication with email/password AND Google OAuth.
+ *
+ * Layout (top → bottom):
+ *   1. Email field
+ *   2. Password field (with visibility toggle)
+ *   3. Forgot password link
+ *   4. Sign In button (primary)
+ *   5. "or" divider
+ *   6. Continue with Google button
+ *   7. Register link
+ *
+ * Google sign-in flow:
+ *   - Calls googleLogin() from useAuth() which delegates to AuthContext.
+ *   - AuthContext calls authService.googleLogin() → Firebase popup → backend.
+ *   - Null return = user closed popup → silent no-op.
+ *   - { success: true } → toast + navigate /dashboard.
+ *   - { success: false, error } → toast with message.
+ *
+ * Shows inline validation errors and toast notifications.
+ * Supports password visibility toggle.
+ */
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../common/Input';
 import Button from '../common/Button';
+import GoogleButton from './GoogleButton';
 import { loginValidationRules } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
-import { useToast } from '../common/Toast';
+import { useToast } from '../../context/ToastContext';
 
 /**
- * LoginForm component.
- * Handles user authentication with email and password.
- * Shows inline validation errors and toast notifications.
- * Supports password visibility toggle.
+ * Inline "or" divider between primary and OAuth sign-in options.
  */
+const OrDivider = () => (
+  <div
+    className="flex items-center gap-3 my-1"
+    role="separator"
+    aria-label="or"
+  >
+    <div className="flex-1 h-px bg-gray-700" />
+    <span className="text-xs text-text-secondary uppercase tracking-wider">or</span>
+    <div className="flex-1 h-px bg-gray-700" />
+  </div>
+);
+
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const { success, error: showError } = useToast();
+  const { login, googleLogin } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
     register,
@@ -31,19 +66,60 @@ const LoginForm = () => {
     },
   });
 
+  /**
+   * Handle email/password sign-in.
+   * @param {{ email: string, password: string }} data
+   */
   const onSubmit = async (data) => {
     try {
-      await login(data.email, data.password);
-      success('Welcome back to Morty!', 'Signed in successfully');
+      const result = await login(data.email, data.password);
+      if (result && result.success === false) {
+        showError(result.error || 'Invalid email or password. Please try again.');
+        return;
+      }
+      showSuccess('ברוך הבא! Welcome back to Morty!');
       navigate('/dashboard');
     } catch (err) {
-      // Handle both response.data.message and response.data.error
       const message =
         err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
         'Invalid email or password. Please try again.';
-      showError(message, 'Sign in failed');
+      showError(message);
+    }
+  };
+
+  /**
+   * Handle Google OAuth sign-in via AuthContext.
+   *
+   * Uses googleLogin() from useAuth() so that AuthContext state is updated
+   * (isAuthenticated, user, token) upon successful sign-in.
+   *
+   * - null result means user closed the popup → silent no-op.
+   * - { success: true } → toast + navigate /dashboard.
+   * - { success: false, error } → toast with error message.
+   */
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const result = await googleLogin();
+      // User closed the popup — treat as silent no-op
+      if (result === null) return;
+      if (result.success) {
+        showSuccess('ברוך הבא! Signed in with Google');
+        navigate('/dashboard');
+      } else {
+        showError(result.error || 'Google sign-in failed. Please try again.');
+      }
+    } catch (err) {
+      // Unexpected error not caught by AuthContext (should be rare)
+      const message =
+        err?.code === 'auth/popup-blocked'
+          ? 'Enable popups for this site to use Google sign-in'
+          : err?.message || 'Google sign-in failed. Please try again.';
+      showError(message);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -54,6 +130,7 @@ const LoginForm = () => {
       aria-label="Sign in form"
       className="flex flex-col gap-5"
     >
+      {/* Email */}
       <Input
         label="Email Address"
         type="email"
@@ -69,6 +146,7 @@ const LoginForm = () => {
         {...register('email', loginValidationRules.email)}
       />
 
+      {/* Password with visibility toggle */}
       <div className="relative">
         <Input
           label="Password"
@@ -97,6 +175,7 @@ const LoginForm = () => {
         </button>
       </div>
 
+      {/* Forgot password */}
       <div className="flex items-center justify-end">
         <Link
           to="/forgot-password"
@@ -106,6 +185,7 @@ const LoginForm = () => {
         </Link>
       </div>
 
+      {/* Primary sign-in button */}
       <Button
         type="submit"
         variant="primary"
@@ -115,6 +195,17 @@ const LoginForm = () => {
         Sign In
       </Button>
 
+      {/* Divider */}
+      <OrDivider />
+
+      {/* Google sign-in */}
+      <GoogleButton
+        onClick={handleGoogleLogin}
+        loading={isGoogleLoading}
+        disabled={isSubmitting}
+      />
+
+      {/* Register link */}
       <p className="text-center text-sm text-text-secondary">
         Don't have an account?{' '}
         <Link

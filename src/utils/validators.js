@@ -130,3 +130,65 @@ export function validateFullName(value) {
   if (value.trim().split(/\s+/).length < 2) return 'Please enter your first and last name';
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// React Hook Form validation rule objects
+// ---------------------------------------------------------------------------
+
+/**
+ * Validation rules for the login form (email + password).
+ * Compatible with React Hook Form's `register()` second argument.
+ *
+ * @example
+ *   const { register } = useForm();
+ *   <input {...register('email', loginValidationRules.email)} />
+ */
+export const loginValidationRules = {
+  email: {
+    required: 'Email is required',
+    pattern: {
+      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: 'Please enter a valid email address',
+    },
+  },
+  password: {
+    required: 'Password is required',
+    minLength: {
+      value: 8,
+      message: 'Password must be at least 8 characters',
+    },
+  },
+};
+
+/**
+ * Validation rules for the registration form.
+ * Compatible with React Hook Form's `register()` second argument.
+ *
+ * @example
+ *   const { register } = useForm();
+ *   <input {...register('email', registerValidationRules.email)} />
+ */
+export const registerValidationRules = {
+  fullName: {
+    required: 'Full name is required',
+    minLength: { value: 2, message: 'Full name must be at least 2 characters' },
+  },
+  phone: {
+    required: 'Phone number is required',
+    pattern: {
+      value: /^(\+972|0)[0-9]{8,9}$/,
+      message: 'Enter a valid Israeli phone number (e.g. 050-1234567 or +972501234567)',
+    },
+  },
+  email: {
+    required: 'Email is required',
+    pattern: {
+      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: 'Please enter a valid email address',
+    },
+  },
+  password: {
+    required: 'Password is required',
+    minLength: { value: 8, message: 'Password must be at least 8 characters' },
+  },
+};

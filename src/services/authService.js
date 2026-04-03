@@ -1,7 +1,9 @@
 /**
  * Authentication service module.
  *
- * Handles all auth-related API calls: register, login, logout, refresh, getMe.
+ * Handles all auth-related API calls: register, login, logout, refresh, getMe,
+ * and Google OAuth via Firebase signInWithPopup.
+ *
  * Normalizes the user shape from Firestore backend (string `id`, no `_id`).
  * Stores tokens and user in localStorage via storage utilities.
  *
@@ -19,6 +21,8 @@ import {
   clearStoredTokens,
   getStoredRefreshToken,
 } from '../utils/storage';
+import { auth, googleProvider } from '../firebase';
+import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 
 /**
  * Normalize user object from backend response.
@@ -75,20 +79,98 @@ export const login = async (data) => {
 };
 
 /**
+ * Sign in with Google via Firebase popup, then exchange the Firebase ID token
+ * for custom Morty JWTs from the backend.
+ *
+ * Flow:
+ *   1. Open Google sign-in popup via Firebase Auth (signInWithPopup).
+ *   2. Obtain the Firebase ID token from the resulting credential.
+ *   3. POST the ID token to /auth/google — backend verifies it with Admin SDK,
+ *      finds-or-creates the Firestore user, and returns standard JWT payload.
+ *   4. Store access token, refresh token, and user in localStorage.
+ *
+ * Error handling:
+ *   - If the user closes the popup (`auth/popup-closed-by-user` or
+ *     `auth/cancelled-popup-request`), the function returns `null` silently
+ *     so callers can treat it as a no-op.
+ *   - All other errors are re-thrown for the caller to handle (e.g. show toast).
+ *
+ * @returns {Promise<{ token: string, refreshToken: string, user: object } | null>}
+ *   Resolved auth payload on success, or `null` if the user dismissed the popup.
+ * @throws {Error} On Firebase auth failure or backend verification error.
+ */
+export const googleLogin = async () => {
+  let firebaseUser;
+
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    firebaseUser = result.user;
+  } catch (err) {
+    // User closed the popup or cancelled — treat as a silent no-op.
+    const silentCodes = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+    if (silentCodes.includes(err?.code)) {
+      return null;
+    }
+    // Re-throw all other Firebase errors (network, config, etc.).
+    throw err;
+  }
+
+  // Obtain a fresh Firebase ID token (valid for ~1 hour).
+  const idToken = await firebaseUser.getIdToken();
+
+  // Exchange the Firebase ID token for Morty custom JWTs.
+  // Backend: POST /auth/google { idToken } → { data: { token, refreshToken, user } }
+  const response = await api.post('/auth/google', { idToken });
+  const payload = response.data?.data || response.data;
+  const { token, refreshToken, user } = payload;
+
+  const normalizedUser = normalizeUser(user);
+  setStoredToken(token);
+  setStoredRefreshToken(refreshToken);
+  setStoredUser(normalizedUser);
+
+  return { token, refreshToken, user: normalizedUser };
+};
+
+/**
  * Logout the current user.
  *
- * Calls the server to invalidate the refresh token server-side,
- * then clears all locally stored tokens regardless of API result.
+ * Performs a full sign-out in two steps:
+ *   1. Firebase sign-out — clears the Firebase Auth session (Google OAuth
+ *      session cookie, cached credentials). This is a no-op for email/password
+ *      users who never signed in via Firebase, so it is always safe to call.
+ *   2. Backend invalidation — POSTs the refresh token to /auth/logout so the
+ *      server can revoke it in Firestore.
+ *   3. Local token cleanup — clears all tokens from localStorage regardless of
+ *      whether steps 1 or 2 succeed, ensuring the user is always logged out
+ *      on the client side.
+ *
+ * Error handling:
+ *   - Firebase signOut errors are caught and logged as warnings (non-fatal).
+ *     The Firebase session may already be expired or the user may have been
+ *     an email/password user with no Firebase session.
+ *   - Backend logout errors are caught and logged as warnings (non-fatal).
+ *     Token cleanup always runs in the `finally` block.
  *
  * @returns {Promise<void>}
  */
 export const logout = async () => {
+  // Step 1: Sign out from Firebase Auth to clear Google OAuth session.
+  // This is safe to call even for email/password users (no-op if no Firebase session).
+  try {
+    await firebaseSignOut(auth);
+  } catch (err) {
+    // Non-fatal: Firebase session may already be expired or absent.
+    console.warn('[authService] Firebase signOut failed (non-fatal):', err?.message || err);
+  }
+
+  // Step 2: Invalidate the refresh token on the backend + Step 3: clear local storage.
   try {
     const refreshToken = getStoredRefreshToken();
     await api.post('/auth/logout', { refreshToken });
   } catch (err) {
     // Ignore errors on logout — clear tokens regardless
-    console.warn('Logout API call failed:', err?.message || err);
+    console.warn('[authService] Logout API call failed (non-fatal):', err?.message || err);
   } finally {
     clearStoredTokens();
   }
