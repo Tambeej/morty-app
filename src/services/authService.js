@@ -4,6 +4,12 @@
  * Handles all auth-related API calls: register, login, logout, refresh, getMe.
  * Normalizes the user shape from Firestore backend (string `id`, no `_id`).
  * Stores tokens and user in localStorage via storage utilities.
+ *
+ * Firestore user shape:
+ *   { id: string, email: string, phone: string, verified: boolean }
+ *
+ * Backend response envelope:
+ *   { data: { token, refreshToken, user }, message?: string }
  */
 import api from './api';
 import {
@@ -16,9 +22,12 @@ import {
 
 /**
  * Normalize user object from backend response.
- * Provides backward-compat shim: prefers `id` (Firestore string), falls back to `_id`.
- * @param {object} user - Raw user from API
- * @returns {object} Normalized user
+ *
+ * Provides backward-compat shim: prefers `id` (Firestore string), falls back
+ * to `_id` (legacy Mongoose ObjectId). Ensures all fields have safe defaults.
+ *
+ * @param {object} user - Raw user from API response
+ * @returns {{ id: string, email: string, phone: string, verified: boolean }}
  */
 export const normalizeUser = (user) => ({
   id: user.id || user._id || '',
@@ -29,8 +38,10 @@ export const normalizeUser = (user) => ({
 
 /**
  * Register a new user.
+ *
  * @param {{ email: string, password: string, phone?: string }} data
  * @returns {Promise<{ token: string, refreshToken: string, user: object }>}
+ * @throws {Error} On network or server error
  */
 export const register = async (data) => {
   const response = await api.post('/auth/register', data);
@@ -46,8 +57,10 @@ export const register = async (data) => {
 
 /**
  * Login an existing user.
+ *
  * @param {{ email: string, password: string }} data
  * @returns {Promise<{ token: string, refreshToken: string, user: object }>}
+ * @throws {Error} On invalid credentials or network error
  */
 export const login = async (data) => {
   const response = await api.post('/auth/login', data);
@@ -63,7 +76,10 @@ export const login = async (data) => {
 
 /**
  * Logout the current user.
- * Calls the server to invalidate the refresh token, then clears local storage.
+ *
+ * Calls the server to invalidate the refresh token server-side,
+ * then clears all locally stored tokens regardless of API result.
+ *
  * @returns {Promise<void>}
  */
 export const logout = async () => {
@@ -72,7 +88,7 @@ export const logout = async () => {
     await api.post('/auth/logout', { refreshToken });
   } catch (err) {
     // Ignore errors on logout — clear tokens regardless
-    console.warn('Logout API call failed:', err.message);
+    console.warn('Logout API call failed:', err?.message || err);
   } finally {
     clearStoredTokens();
   }
@@ -80,8 +96,10 @@ export const logout = async () => {
 
 /**
  * Refresh the access token using the stored refresh token.
- * @param {string} refreshToken
+ *
+ * @param {string} refreshToken - The current refresh token
  * @returns {Promise<{ token: string, refreshToken: string }>}
+ * @throws {Error} If the refresh token is invalid or expired
  */
 export const refreshAccessToken = async (refreshToken) => {
   const response = await api.post('/auth/refresh', { refreshToken });
@@ -94,7 +112,13 @@ export const refreshAccessToken = async (refreshToken) => {
 
 /**
  * Get the current authenticated user's profile from the server.
- * @returns {Promise<object>} Normalized user object
+ *
+ * Handles both response shapes:
+ *   - { data: { user: {...} } }
+ *   - { data: {...} }  (user object directly)
+ *
+ * @returns {Promise<{ id: string, email: string, phone: string, verified: boolean }>}
+ * @throws {Error} If not authenticated or network error
  */
 export const getMe = async () => {
   const response = await api.get('/auth/me');
