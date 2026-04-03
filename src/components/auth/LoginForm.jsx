@@ -13,10 +13,11 @@
  *   7. Register link
  *
  * Google sign-in flow:
- *   - Opens Firebase popup via googleLogin() from authService
- *   - Null return = user closed popup → silent no-op
- *   - Success → toast + navigate /dashboard
- *   - Error → toast with message
+ *   - Calls googleLogin() from useAuth() which delegates to AuthContext.
+ *   - AuthContext calls authService.googleLogin() → Firebase popup → backend.
+ *   - Null return = user closed popup → silent no-op.
+ *   - { success: true } → toast + navigate /dashboard.
+ *   - { success: false, error } → toast with message.
  *
  * Shows inline validation errors and toast notifications.
  * Supports password visibility toggle.
@@ -29,7 +30,6 @@ import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import { loginValidationRules } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
-import { googleLogin as googleLoginService } from '../../services/authService';
 import { useToast } from '../common/Toast';
 
 /**
@@ -49,7 +49,7 @@ const OrDivider = () => (
 
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const { success, error: showError } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -86,24 +86,29 @@ const LoginForm = () => {
   };
 
   /**
-   * Handle Google OAuth sign-in.
+   * Handle Google OAuth sign-in via AuthContext.
    *
-   * Calls googleLogin() from authService directly (AuthContext integration
-   * is handled in task 4 — Update AuthContext to support googleLogin).
+   * Uses googleLogin() from useAuth() so that AuthContext state is updated
+   * (isAuthenticated, user, token) upon successful sign-in.
    *
-   * - Null result means user closed the popup → silent no-op.
-   * - On success, tokens are stored by authService; navigate to /dashboard.
-   * - On error, show toast.
+   * - null result means user closed the popup → silent no-op.
+   * - { success: true } → toast + navigate /dashboard.
+   * - { success: false, error } → toast with error message.
    */
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      const result = await googleLoginService();
+      const result = await googleLogin();
       // User closed the popup — treat as silent no-op
       if (result === null) return;
-      success('ברוך הבא!', 'Signed in with Google');
-      navigate('/dashboard');
+      if (result.success) {
+        success('ברוך הבא!', 'Signed in with Google');
+        navigate('/dashboard');
+      } else {
+        showError(result.error || 'Google sign-in failed. Please try again.', 'Sign in failed');
+      }
     } catch (err) {
+      // Unexpected error not caught by AuthContext (should be rare)
       const message =
         err?.code === 'auth/popup-blocked'
           ? 'Enable popups for this site to use Google sign-in'

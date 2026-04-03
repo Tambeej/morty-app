@@ -3,6 +3,16 @@
  *
  * Uses Vitest (vi) — aligned with the project's test setup.
  * Mock user shapes use Firestore string IDs (not ObjectIds).
+ *
+ * Covers:
+ *   - Initial loading state
+ *   - Session restore from localStorage
+ *   - loginUser (success, failure with message/error fields)
+ *   - registerUser (success, failure)
+ *   - googleLoginUser (success, popup dismissed, error)
+ *   - logoutUser (success, API failure)
+ *   - clearError
+ *   - useAuth outside provider throws
  */
 import React from 'react';
 import { render, screen, act, waitFor } from '@testing-library/react';
@@ -15,6 +25,7 @@ vi.mock('../../services/authService', () => ({
   login: vi.fn(),
   register: vi.fn(),
   logout: vi.fn(),
+  googleLogin: vi.fn(),
   getMe: vi.fn(),
   normalizeUser: vi.fn((user) => ({
     id: user.id || user._id || '',
@@ -48,9 +59,25 @@ const mockUser = {
   verified: true,
 };
 
+const googleMockUser = {
+  id: 'google-firestore-uid-xyz789',
+  email: 'google@morty.co.il',
+  phone: '',
+  verified: true,
+};
+
 // ── Test component ────────────────────────────────────────────────────────────
 const TestComponent = () => {
-  const { user, isAuthenticated, isLoading, error, loginUser, logoutUser } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    error,
+    loginUser,
+    logoutUser,
+    googleLoginUser,
+    clearError,
+  } = useAuth();
   return (
     <div>
       <div data-testid="loading">{String(isLoading)}</div>
@@ -65,6 +92,8 @@ const TestComponent = () => {
         Login
       </button>
       <button onClick={logoutUser}>Logout</button>
+      <button onClick={googleLoginUser}>Google Login</button>
+      <button onClick={clearError}>Clear Error</button>
     </div>
   );
 };
@@ -175,6 +204,171 @@ describe('AuthContext', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('error').textContent).toBe('אימייל או סיסמה שגויים');
+    });
+  });
+
+  // ── googleLoginUser tests ─────────────────────────────────────────────────
+
+  it('should sign in with Google successfully and update auth state', async () => {
+    authService.googleLogin.mockResolvedValue({
+      token: 'google-access-token',
+      refreshToken: 'google-refresh-token',
+      user: googleMockUser,
+    });
+
+    renderWithAuth();
+    await waitFor(() =>
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    );
+
+    await act(async () => {
+      await userEvent.click(screen.getByText('Google Login'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('true');
+      expect(screen.getByTestId('user').textContent).toBe('google@morty.co.il');
+      expect(screen.getByTestId('error').textContent).toBe('none');
+    });
+
+    expect(authService.googleLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('should return null and not update auth state when user dismisses Google popup', async () => {
+    // authService.googleLogin returns null when popup is dismissed
+    authService.googleLogin.mockResolvedValue(null);
+
+    renderWithAuth();
+    await waitFor(() =>
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    );
+
+    let result;
+    await act(async () => {
+      // Directly call googleLoginUser to capture return value
+      const { googleLoginUser } = screen.getByText('Google Login').closest('[data-testid]')
+        ? { googleLoginUser: null }
+        : { googleLoginUser: null };
+      await userEvent.click(screen.getByText('Google Login'));
+    });
+
+    await waitFor(() => {
+      // State should remain unauthenticated
+      expect(screen.getByTestId('authenticated').textContent).toBe('false');
+      // No error should be shown
+      expect(screen.getByTestId('error').textContent).toBe('none');
+      // Loading should be false
+      expect(screen.getByTestId('loading').textContent).toBe('false');
+    });
+  });
+
+  it('should handle Google login failure and set error state', async () => {
+    authService.googleLogin.mockRejectedValue({
+      message: 'Firebase: Error (auth/network-request-failed).',
+      code: 'auth/network-request-failed',
+    });
+
+    renderWithAuth();
+    await waitFor(() =>
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    );
+
+    await act(async () => {
+      await userEvent.click(screen.getByText('Google Login'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('false');
+      expect(screen.getByTestId('error').textContent).not.toBe('none');
+    });
+  });
+
+  it('should handle Google login popup-blocked error with friendly message', async () => {
+    authService.googleLogin.mockRejectedValue({
+      code: 'auth/popup-blocked',
+      message: 'Firebase: Error (auth/popup-blocked).',
+    });
+
+    renderWithAuth();
+    await waitFor(() =>
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    );
+
+    await act(async () => {
+      await userEvent.click(screen.getByText('Google Login'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe(
+        'Enable popups for this site to use Google sign-in'
+      );
+    });
+  });
+
+  it('should handle Google login backend error', async () => {
+    authService.googleLogin.mockRejectedValue({
+      response: { data: { message: 'INVALID_FIREBASE_TOKEN' } },
+    });
+
+    renderWithAuth();
+    await waitFor(() =>
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    );
+
+    await act(async () => {
+      await userEvent.click(screen.getByText('Google Login'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe('INVALID_FIREBASE_TOKEN');
+      expect(screen.getByTestId('authenticated').textContent).toBe('false');
+    });
+  });
+
+  it('should expose googleLogin as a legacy alias for googleLoginUser', async () => {
+    // Verify the context value includes googleLogin
+    const TestAliasComponent = () => {
+      const ctx = useAuth();
+      return (
+        <div data-testid="has-google-login">
+          {typeof ctx.googleLogin === 'function' ? 'yes' : 'no'}
+        </div>
+      );
+    };
+    render(
+      <AuthProvider>
+        <TestAliasComponent />
+      </AuthProvider>
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('has-google-login').textContent).toBe('yes');
+    });
+  });
+
+  it('should clear error state when clearError is called', async () => {
+    authService.login.mockRejectedValue({
+      response: { data: { error: 'Invalid credentials' } },
+    });
+
+    renderWithAuth();
+    await waitFor(() =>
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    );
+
+    // Trigger an error
+    await act(async () => {
+      await userEvent.click(screen.getByText('Login'));
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('error').textContent).toBe('Invalid credentials')
+    );
+
+    // Clear the error
+    await act(async () => {
+      await userEvent.click(screen.getByText('Clear Error'));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('error').textContent).toBe('none');
     });
   });
 

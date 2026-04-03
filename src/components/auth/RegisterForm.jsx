@@ -15,10 +15,11 @@
  *   9. Sign In link
  *
  * Google sign-up flow:
- *   - Opens Firebase popup via googleLogin() from authService
- *   - Null return = user closed popup → silent no-op
- *   - Success → toast + navigate /dashboard
- *   - Error → toast with message
+ *   - Calls googleLogin() from useAuth() which delegates to AuthContext.
+ *   - AuthContext calls authService.googleLogin() → Firebase popup → backend.
+ *   - Null return = user closed popup → silent no-op.
+ *   - { success: true } → toast + navigate /dashboard.
+ *   - { success: false, error } → toast with message.
  *
  * Shows inline validation errors and toast notifications.
  * Validation messages aligned with test expectations.
@@ -30,7 +31,6 @@ import Input from '../common/Input';
 import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import useAuth from '../../hooks/useAuth';
-import { googleLogin as googleLoginService } from '../../services/authService';
 import { useToast } from '../common/Toast';
 
 /**
@@ -50,7 +50,7 @@ const OrDivider = () => (
 
 const RegisterForm = () => {
   const navigate = useNavigate();
-  const { register: registerUser } = useAuth();
+  const { register: registerUser, googleLogin } = useAuth();
   const { success, error: showError } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -121,24 +121,29 @@ const RegisterForm = () => {
   };
 
   /**
-   * Handle Google OAuth sign-up.
+   * Handle Google OAuth sign-up via AuthContext.
    *
-   * Calls googleLogin() from authService directly (AuthContext integration
-   * is handled in task 4 — Update AuthContext to support googleLogin).
+   * Uses googleLogin() from useAuth() so that AuthContext state is updated
+   * (isAuthenticated, user, token) upon successful sign-up.
    *
-   * - Null result means user closed the popup → silent no-op.
-   * - On success, tokens are stored by authService; navigate to /dashboard.
-   * - On error, show toast.
+   * - null result means user closed the popup → silent no-op.
+   * - { success: true } → toast + navigate /dashboard.
+   * - { success: false, error } → toast with error message.
    */
   const handleGoogleRegister = async () => {
     setIsGoogleLoading(true);
     try {
-      const result = await googleLoginService();
+      const result = await googleLogin();
       // User closed the popup — treat as silent no-op
       if (result === null) return;
-      success('ברוך הבא!', 'Signed up with Google');
-      navigate('/dashboard');
+      if (result.success) {
+        success('ברוך הבא!', 'Signed up with Google');
+        navigate('/dashboard');
+      } else {
+        showError(result.error || 'Google sign-up failed. Please try again.', 'Registration failed');
+      }
     } catch (err) {
+      // Unexpected error not caught by AuthContext (should be rare)
       const message =
         err?.code === 'auth/popup-blocked'
           ? 'Enable popups for this site to use Google sign-up'
