@@ -31,12 +31,19 @@ vi.mock('../../../services/authService', () => ({
   register: vi.fn(),
   logout: vi.fn(),
   getMe: vi.fn(),
+  googleLogin: vi.fn(),
   normalizeUser: vi.fn((user) => ({
     id: user.id || user._id || '',
     email: user.email || '',
     phone: user.phone || '',
     verified: user.verified || false,
   })),
+}));
+
+// Mock Firebase module to prevent initialization errors in tests
+vi.mock('../../../firebase', () => ({
+  auth: {},
+  googleProvider: {},
 }));
 
 // Mock storage utilities
@@ -77,6 +84,18 @@ describe('LoginForm', () => {
   it('renders sign in button', () => {
     renderLoginForm();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+  });
+
+  it('renders Google sign-in button', () => {
+    renderLoginForm();
+    expect(
+      screen.getByRole('button', { name: /sign in with google/i })
+    ).toBeInTheDocument();
+  });
+
+  it('renders "or" divider between sign-in and Google button', () => {
+    renderLoginForm();
+    expect(screen.getByText('or')).toBeInTheDocument();
   });
 
   it('shows validation error for empty email on submit', async () => {
@@ -129,5 +148,33 @@ describe('LoginForm', () => {
 
     await userEvent.click(screen.getByLabelText('Hide password'));
     expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('calls googleLogin when Google button is clicked', async () => {
+    const { googleLogin: mockGoogleLogin } = await import('../../../services/authService');
+    // Simulate user closing the popup (null return = silent no-op)
+    mockGoogleLogin.mockResolvedValueOnce(null);
+
+    renderLoginForm();
+    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
+    await userEvent.click(googleButton);
+
+    await waitFor(() => {
+      expect(mockGoogleLogin).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('Google button shows loading state while signing in', async () => {
+    const { googleLogin: mockGoogleLogin } = await import('../../../services/authService');
+    // Never resolves during this test — keeps button in loading state
+    mockGoogleLogin.mockImplementationOnce(() => new Promise(() => {}));
+
+    renderLoginForm();
+    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
+    await userEvent.click(googleButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Connecting...')).toBeInTheDocument();
+    });
   });
 });
