@@ -31,7 +31,7 @@ import Input from '../common/Input';
 import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import useAuth from '../../hooks/useAuth';
-import { useToast } from '../common/Toast';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Inline "or" divider between OAuth and email/password sign-up options.
@@ -51,7 +51,7 @@ const OrDivider = () => (
 const RegisterForm = () => {
   const navigate = useNavigate();
   const { register: registerUser, googleLogin } = useAuth();
-  const { success, error: showError } = useToast();
+  const { showSuccess, showError } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
@@ -107,8 +107,12 @@ const RegisterForm = () => {
   const onSubmit = async (data) => {
     try {
       const { confirmPassword, ...userData } = data;
-      await registerUser(userData);
-      success('Your account has been created!', 'Welcome to Morty');
+      const result = await registerUser(userData);
+      if (result && result.success === false) {
+        showError(result.error || 'Registration failed. Please try again.');
+        return;
+      }
+      showSuccess('Your account has been created! Welcome to Morty');
       navigate('/dashboard');
     } catch (err) {
       const message =
@@ -116,7 +120,7 @@ const RegisterForm = () => {
         err.response?.data?.error ||
         err.message ||
         'Registration failed. Please try again.';
-      showError(message, 'Registration failed');
+      showError(message);
     }
   };
 
@@ -137,10 +141,10 @@ const RegisterForm = () => {
       // User closed the popup — treat as silent no-op
       if (result === null) return;
       if (result.success) {
-        success('ברוך הבא!', 'Signed up with Google');
+        showSuccess('ברוך הבא! Signed up with Google');
         navigate('/dashboard');
       } else {
-        showError(result.error || 'Google sign-up failed. Please try again.', 'Registration failed');
+        showError(result.error || 'Google sign-up failed. Please try again.');
       }
     } catch (err) {
       // Unexpected error not caught by AuthContext (should be rare)
@@ -148,7 +152,7 @@ const RegisterForm = () => {
         err?.code === 'auth/popup-blocked'
           ? 'Enable popups for this site to use Google sign-up'
           : err?.message || 'Google sign-up failed. Please try again.';
-      showError(message, 'Registration failed');
+      showError(message);
     } finally {
       setIsGoogleLoading(false);
     }

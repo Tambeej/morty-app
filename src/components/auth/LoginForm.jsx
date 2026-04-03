@@ -30,7 +30,7 @@ import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import { loginValidationRules } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
-import { useToast } from '../common/Toast';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Inline "or" divider between primary and OAuth sign-in options.
@@ -50,7 +50,7 @@ const OrDivider = () => (
 const LoginForm = () => {
   const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
-  const { success, error: showError } = useToast();
+  const { showSuccess, showError } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -72,8 +72,12 @@ const LoginForm = () => {
    */
   const onSubmit = async (data) => {
     try {
-      await login(data.email, data.password);
-      success('Welcome back to Morty!', 'Signed in successfully');
+      const result = await login(data.email, data.password);
+      if (result && result.success === false) {
+        showError(result.error || 'Invalid email or password. Please try again.');
+        return;
+      }
+      showSuccess('ברוך הבא! Welcome back to Morty!');
       navigate('/dashboard');
     } catch (err) {
       const message =
@@ -81,7 +85,7 @@ const LoginForm = () => {
         err.response?.data?.error ||
         err.message ||
         'Invalid email or password. Please try again.';
-      showError(message, 'Sign in failed');
+      showError(message);
     }
   };
 
@@ -102,10 +106,10 @@ const LoginForm = () => {
       // User closed the popup — treat as silent no-op
       if (result === null) return;
       if (result.success) {
-        success('ברוך הבא!', 'Signed in with Google');
+        showSuccess('ברוך הבא! Signed in with Google');
         navigate('/dashboard');
       } else {
-        showError(result.error || 'Google sign-in failed. Please try again.', 'Sign in failed');
+        showError(result.error || 'Google sign-in failed. Please try again.');
       }
     } catch (err) {
       // Unexpected error not caught by AuthContext (should be rare)
@@ -113,7 +117,7 @@ const LoginForm = () => {
         err?.code === 'auth/popup-blocked'
           ? 'Enable popups for this site to use Google sign-in'
           : err?.message || 'Google sign-in failed. Please try again.';
-      showError(message, 'Sign in failed');
+      showError(message);
     } finally {
       setIsGoogleLoading(false);
     }
