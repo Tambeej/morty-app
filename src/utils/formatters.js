@@ -40,20 +40,26 @@ export const formatPercent = (value, decimals = 2) => {
 };
 
 /**
- * Format a date to a human-readable string
- * @param {string|Date} date
- * @param {Object} [options] - Intl.DateTimeFormat options
- * @returns {string}
+ * Format a date to a human-readable string in Israeli locale.
+ * Accepts ISO strings (Firestore timestamps) or Date objects.
+ *
+ * @param {string|Date|null|undefined} iso - ISO date string or Date object
+ * @param {Object} [options] - Intl.DateTimeFormat options override
+ * @returns {string} Formatted date string, or '—' if falsy
  */
-export const formatDate = (date, options = {}) => {
-  if (!date) return '';
+export const formatDate = (iso, options = {}) => {
+  if (!iso) return '\u2014'; // em-dash '—'
   const defaultOptions = {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     ...options,
   };
-  return new Intl.DateTimeFormat('en-IL', defaultOptions).format(new Date(date));
+  try {
+    return new Intl.DateTimeFormat('he-IL', defaultOptions).format(new Date(iso));
+  } catch {
+    return '\u2014';
+  }
 };
 
 /**
