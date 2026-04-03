@@ -1,7 +1,12 @@
 /**
  * Local storage utility functions for token management.
  * Centralizes all localStorage access for auth tokens.
+ *
+ * Firestore alignment:
+ *   - normalizeStoredUser() ensures retrieved user objects have `id` (string),
+ *     not `_id` (legacy MongoDB ObjectId), for backward compatibility.
  */
+import { normalizeUserDoc } from './firestoreUtils';
 
 const TOKEN_KEY = 'morty_token';
 const REFRESH_TOKEN_KEY = 'morty_refresh_token';
@@ -69,7 +74,10 @@ export const clearStoredTokens = () => {
 };
 
 /**
- * Get the stored user object
+ * Get the stored user object.
+ * Returns the raw stored object without normalization.
+ * Use normalizeStoredUser() if you need Firestore-aligned shape.
+ *
  * @returns {Object|null}
  */
 export const getStoredUser = () => {
@@ -79,6 +87,30 @@ export const getStoredUser = () => {
   } catch {
     return null;
   }
+};
+
+/**
+ * Get the stored user object, normalized to Firestore shape.
+ *
+ * Ensures the returned user has:
+ *   - `id` (string) — prefers `id`, falls back to `_id` for legacy compat
+ *   - `email`, `phone`, `verified` with safe defaults
+ *
+ * Use this when restoring session state to guarantee Firestore-aligned shape.
+ *
+ * @returns {{ id: string, email: string, phone: string, verified: boolean }|null}
+ *
+ * @example
+ *   // Stored as { _id: 'legacy-id', email: 'user@example.com' }
+ *   normalizeStoredUser() // → { id: 'legacy-id', email: 'user@example.com', phone: '', verified: false }
+ *
+ *   // Stored as { id: 'firestore-uid', email: 'user@example.com', verified: true }
+ *   normalizeStoredUser() // → { id: 'firestore-uid', email: 'user@example.com', phone: '', verified: true }
+ */
+export const normalizeStoredUser = () => {
+  const raw = getStoredUser();
+  if (!raw) return null;
+  return normalizeUserDoc(raw);
 };
 
 /**

@@ -4,6 +4,7 @@
  * Route: /analysis
  *
  * Uses GET /offers endpoint (returns OfferShape[] sorted by createdAt desc).
+ * Per API contract: GET /offers → { data: OfferShape[] } (flat array)
  * Uses offer.id (Firestore string ID) for keys and navigation.
  */
 
@@ -15,6 +16,7 @@ import Button from '../components/common/Button';
 import Skeleton from '../components/common/Skeleton';
 import { useToast } from '../components/common/Toast';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { normalizeOfferDoc } from '../utils/firestoreUtils';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -25,6 +27,10 @@ const formatPercent = (value) => {
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
 
+/**
+ * Status badge with Firestore-aligned color scheme.
+ * Status values: 'pending' | 'analyzed' | 'error' | 'processing'
+ */
 const StatusBadge = ({ status }) => {
   const map = {
     pending:    { label: 'Pending',    cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
@@ -45,8 +51,8 @@ const StatusBadge = ({ status }) => {
 // ─── OfferRow ─────────────────────────────────────────────────────────────────
 
 const OfferRow = ({ offer }) => {
-  // Support both Firestore string id and legacy _id
-  const offerId = offer.id || offer._id;
+  // Use Firestore string id (normalizeOfferDoc ensures this)
+  const offerId = offer.id;
   const { status, extractedData, analysis, createdAt } = offer;
 
   return (
@@ -55,6 +61,7 @@ const OfferRow = ({ offer }) => {
         <div className="font-medium text-text-primary">
           {extractedData?.bank || 'Unknown Bank'}
         </div>
+        {/* formatDate handles ISO strings from Firestore */}
         <div className="text-xs text-text-muted mt-0.5">{formatDate(createdAt)}</div>
       </td>
       <td className="px-4 py-4 text-text-secondary text-sm">
@@ -67,7 +74,8 @@ const OfferRow = ({ offer }) => {
         {extractedData?.term ? `${extractedData.term} yr` : '—'}
       </td>
       <td className="px-4 py-4 text-text-secondary text-sm">
-        {formatCurrency(analysis?.savings)}
+        {/* Null-guard: analysis may be null for pending offers */}
+        {formatCurrency(analysis?.savings ?? 0)}
       </td>
       <td className="px-4 py-4">
         <StatusBadge status={status} />
@@ -114,8 +122,10 @@ const SkeletonTable = () => (
 
 /**
  * AnalysisListPage
- * Displays a paginated table of all mortgage offer analyses.
- * Fetches from GET /offers (returns OfferShape[] sorted by createdAt desc).
+ * Displays a table of all mortgage offer analyses.
+ *
+ * API contract: GET /offers → { data: OfferShape[] } (flat array, sorted createdAt desc)
+ * Each offer uses Firestore string `id` and ISO timestamp strings.
  */
 const AnalysisListPage = () => {
   const navigate = useNavigate();
@@ -134,22 +144,26 @@ const AnalysisListPage = () => {
       setError(null);
       const params = { page, limit: 10 };
       if (statusFilter) params.status = statusFilter;
-      // Use /analysis endpoint for the analysis list
-      const response = await api.get('/analysis', { params });
-      // Handle both paginated and flat array responses
+
+      // Per API contract: GET /offers returns { data: OfferShape[] } (flat array)
+      const response = await api.get('/offers', { params });
       const responseData = response.data?.data;
-      if (responseData && responseData.offers) {
-        setOffers(responseData.offers || []);
-        setPagination(responseData.pagination || null);
-      } else if (Array.isArray(responseData)) {
-        setOffers(responseData);
+
+      if (Array.isArray(responseData)) {
+        // Flat array response (primary Firestore API contract)
+        // Normalize each offer to ensure string IDs and ISO timestamps
+        setOffers(responseData.map(normalizeOfferDoc));
         setPagination(null);
+      } else if (responseData && Array.isArray(responseData.offers)) {
+        // Paginated response shape (optional)
+        setOffers(responseData.offers.map(normalizeOfferDoc));
+        setPagination(responseData.pagination || null);
       } else {
         setOffers([]);
         setPagination(null);
       }
     } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to load analyses.';
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to load analyses.';
       setError(msg);
       showToast(msg, 'error');
     } finally {
@@ -248,8 +262,9 @@ const AnalysisListPage = () => {
                 </thead>
                 <tbody>
                   {offers.map((offer) => (
+                    // Use Firestore string id as key
                     <OfferRow
-                      key={offer.id || offer._id}
+                      key={offer.id}
                       offer={offer}
                     />
                   ))}

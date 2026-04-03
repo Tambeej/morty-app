@@ -1,8 +1,9 @@
 /**
  * Tests for storage utility functions.
  * Uses Vitest (vi) — aligned with the project's test setup.
+ * Includes tests for normalizeStoredUser() which handles Firestore ID normalization.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   getStoredToken,
   setStoredToken,
@@ -11,6 +12,7 @@ import {
   clearStoredTokens,
   getStoredUser,
   setStoredUser,
+  normalizeStoredUser,
   isAuthenticated,
 } from '../../utils/storage';
 
@@ -76,6 +78,60 @@ describe('Storage Utils', () => {
       const user = { _id: 'legacy-id', email: 'test@example.com' };
       setStoredUser(user);
       expect(getStoredUser()).toEqual(user);
+    });
+  });
+
+  describe('normalizeStoredUser', () => {
+    it('should return null when no user is stored', () => {
+      expect(normalizeStoredUser()).toBeNull();
+    });
+
+    it('should normalize a Firestore user (string id)', () => {
+      const user = {
+        id: 'firestore-uid-abc123',
+        email: 'test@morty.co.il',
+        phone: '050-0000000',
+        verified: true,
+      };
+      setStoredUser(user);
+      const result = normalizeStoredUser();
+      expect(result).not.toBeNull();
+      expect(result.id).toBe('firestore-uid-abc123');
+      expect(result.email).toBe('test@morty.co.il');
+      expect(result.verified).toBe(true);
+    });
+
+    it('should normalize a legacy user (_id → id)', () => {
+      const user = {
+        _id: 'legacy-mongo-id',
+        email: 'legacy@example.com',
+        phone: '052-1234567',
+        verified: false,
+      };
+      setStoredUser(user);
+      const result = normalizeStoredUser();
+      expect(result).not.toBeNull();
+      // Should map _id to id
+      expect(result.id).toBe('legacy-mongo-id');
+      expect(result.email).toBe('legacy@example.com');
+    });
+
+    it('should provide safe defaults for missing fields', () => {
+      setStoredUser({ id: 'uid-1' });
+      const result = normalizeStoredUser();
+      expect(result.email).toBe('');
+      expect(result.phone).toBe('');
+      expect(result.verified).toBe(false);
+    });
+
+    it('should handle user with both id and _id (prefers id)', () => {
+      setStoredUser({
+        id: 'firestore-id',
+        _id: 'legacy-id',
+        email: 'test@example.com',
+      });
+      const result = normalizeStoredUser();
+      expect(result.id).toBe('firestore-id');
     });
   });
 

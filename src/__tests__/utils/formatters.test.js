@@ -1,6 +1,7 @@
 /**
  * Tests for formatting utility functions.
  * Covers Firestore-aligned ISO date strings and Israeli locale formatting.
+ * Includes tests for formatTimestamp() which handles Firestore Timestamp objects.
  * Uses Vitest (vi) — aligned with the project's test setup.
  */
 import { describe, it, expect } from 'vitest';
@@ -9,10 +10,25 @@ import {
   formatNumber,
   formatPercent,
   formatDate,
+  formatTimestamp,
   formatFileSize,
   formatTerm,
   parseFormattedNumber,
 } from '../../utils/formatters';
+
+// ─── Mock Firestore Timestamp ─────────────────────────────────────────────────
+
+/**
+ * Creates a mock Firestore Timestamp object (as returned by client SDK).
+ */
+function createMockTimestamp(isoString) {
+  const date = new Date(isoString);
+  return {
+    seconds: Math.floor(date.getTime() / 1000),
+    nanoseconds: 0,
+    toDate: () => date,
+  };
+}
 
 describe('Formatters', () => {
   describe('formatCurrency', () => {
@@ -99,6 +115,49 @@ describe('Formatters', () => {
     it('should contain the year from the ISO string', () => {
       const result = formatDate('2026-04-03T02:16:00.000Z');
       expect(result).toContain('2026');
+    });
+  });
+
+  describe('formatTimestamp', () => {
+    it('should format an ISO string (Firestore Admin SDK format)', () => {
+      const result = formatTimestamp('2026-04-03T02:16:00.000Z');
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+      expect(result).toContain('2026');
+    });
+
+    it('should format a Firestore Timestamp object (client SDK)', () => {
+      const ts = createMockTimestamp('2026-04-03T02:16:00.000Z');
+      const result = formatTimestamp(ts);
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+      expect(result).toContain('2026');
+    });
+
+    it('should format a serialized Firestore Timestamp (seconds only)', () => {
+      const seconds = Math.floor(new Date('2026-04-03T02:16:00.000Z').getTime() / 1000);
+      const result = formatTimestamp({ seconds, nanoseconds: 0 });
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+    });
+
+    it('should format a Date object', () => {
+      const result = formatTimestamp(new Date('2026-04-03'));
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+    });
+
+    it('should return em-dash for null', () => {
+      expect(formatTimestamp(null)).toBe('\u2014');
+    });
+
+    it('should return em-dash for undefined', () => {
+      expect(formatTimestamp(undefined)).toBe('\u2014');
+    });
+
+    it('should produce same output as formatDate for ISO strings', () => {
+      const iso = '2026-04-03T02:16:00.000Z';
+      expect(formatTimestamp(iso)).toBe(formatDate(iso));
     });
   });
 
