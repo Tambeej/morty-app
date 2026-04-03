@@ -1,6 +1,17 @@
 /**
  * Dashboard Context
  * Manages the aggregated dashboard summary data.
+ *
+ * Aligned with Firestore backend API contract:
+ *   GET /dashboard → { data: { financials: financialShape, recentOffers: OfferShape[5], stats: { totalOffers, savingsTotal } } }
+ *
+ * State shape:
+ *   financials     — normalized financial profile (from /dashboard response)
+ *   recentOffers   — up to 5 most recent OfferShape objects (string IDs, ISO timestamps)
+ *   stats          — { totalOffers: number, savingsTotal: number }
+ *   isLoading      — boolean
+ *   error          — string | null
+ *   lastFetched    — ISO string | null
  */
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { getDashboard } from '../services/dashboardService';
@@ -8,10 +19,15 @@ import { extractApiError } from '../utils/validators';
 
 // ─── State Shape ────────────────────────────────────────────────────────────
 const initialState = {
-  summary: null,
-  financialProfile: null,
-  comparisonData: [],
+  /** Normalized financial profile from the dashboard endpoint */
+  financials: null,
+  /** Up to 5 most recent offers (OfferShape with string IDs) */
   recentOffers: [],
+  /** Aggregate stats: { totalOffers, savingsTotal } */
+  stats: {
+    totalOffers: 0,
+    savingsTotal: 0,
+  },
   isLoading: false,
   error: null,
   lastFetched: null,
@@ -30,21 +46,29 @@ const dashboardReducer = (state, action) => {
   switch (action.type) {
     case DASHBOARD_ACTIONS.FETCH_START:
       return { ...state, isLoading: true, error: null };
-    case DASHBOARD_ACTIONS.FETCH_SUCCESS:
+
+    case DASHBOARD_ACTIONS.FETCH_SUCCESS: {
+      const { financials, recentOffers, stats } = action.payload;
       return {
         ...state,
         isLoading: false,
-        summary: action.payload.summary,
-        financialProfile: action.payload.financialProfile,
-        comparisonData: action.payload.comparisonData || [],
-        recentOffers: action.payload.recentOffers || [],
+        financials: financials || null,
+        recentOffers: Array.isArray(recentOffers) ? recentOffers : [],
+        stats: {
+          totalOffers: stats?.totalOffers ?? 0,
+          savingsTotal: stats?.savingsTotal ?? 0,
+        },
         lastFetched: new Date().toISOString(),
         error: null,
       };
+    }
+
     case DASHBOARD_ACTIONS.FETCH_ERROR:
       return { ...state, isLoading: false, error: action.payload };
+
     case DASHBOARD_ACTIONS.CLEAR_ERROR:
       return { ...state, error: null };
+
     default:
       return state;
   }
@@ -57,7 +81,9 @@ export const DashboardProvider = ({ children }) => {
   const [state, dispatch] = useReducer(dashboardReducer, initialState);
 
   /**
-   * Fetch dashboard data
+   * Fetch dashboard data.
+   * getDashboard() returns { financials, recentOffers, stats } — already normalized.
+   *
    * @param {boolean} [force=false] - Force refresh even if recently fetched
    */
   const fetchDashboard = useCallback(
@@ -70,6 +96,7 @@ export const DashboardProvider = ({ children }) => {
 
       dispatch({ type: DASHBOARD_ACTIONS.FETCH_START });
       try {
+        // getDashboard returns { financials, recentOffers, stats }
         const data = await getDashboard();
         dispatch({ type: DASHBOARD_ACTIONS.FETCH_SUCCESS, payload: data });
         return data;

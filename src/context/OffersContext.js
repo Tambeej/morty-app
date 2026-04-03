@@ -1,16 +1,21 @@
 /**
  * Mortgage Offers Context
  * Manages the list of uploaded mortgage offers, upload state, and pagination.
+ *
+ * Aligned with Firestore backend API contract:
+ *   GET  /offers  → { data: OfferShape[] }  (flat array, sorted createdAt desc)
+ *   POST /offers  → { data: { id: string, status: 'pending' } }
+ *
+ * OfferShape uses string `id` (Firestore), not `_id` (Mongoose).
+ * Timestamps are ISO strings.
  */
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
-import { listOffers, uploadOffer, deleteOffer, getOfferStats } from '../services/offersService';
+import { listOffers, uploadOffer } from '../services/offersService';
 import { extractApiError } from '../utils/validators';
 
 // ─── State Shape ────────────────────────────────────────────────────────────
 const initialState = {
   offers: [],
-  pagination: null,
-  stats: null,
   isLoading: false,
   isUploading: false,
   uploadProgress: 0,
@@ -28,7 +33,6 @@ const OFFERS_ACTIONS = {
   UPLOAD_SUCCESS: 'UPLOAD_SUCCESS',
   UPLOAD_ERROR: 'UPLOAD_ERROR',
   DELETE_SUCCESS: 'DELETE_SUCCESS',
-  SET_STATS: 'SET_STATS',
   CLEAR_ERROR: 'CLEAR_ERROR',
   CLEAR_UPLOAD_ERROR: 'CLEAR_UPLOAD_ERROR',
 };
@@ -38,21 +42,27 @@ const offersReducer = (state, action) => {
   switch (action.type) {
     case OFFERS_ACTIONS.FETCH_START:
       return { ...state, isLoading: true, error: null };
+
     case OFFERS_ACTIONS.FETCH_SUCCESS:
+      // listOffers returns a flat array of normalized OfferShape objects
       return {
         ...state,
         isLoading: false,
-        offers: action.payload.offers,
-        pagination: action.payload.pagination,
+        offers: Array.isArray(action.payload) ? action.payload : [],
         error: null,
       };
+
     case OFFERS_ACTIONS.FETCH_ERROR:
       return { ...state, isLoading: false, error: action.payload };
+
     case OFFERS_ACTIONS.UPLOAD_START:
       return { ...state, isUploading: true, uploadProgress: 0, uploadError: null };
+
     case OFFERS_ACTIONS.UPLOAD_PROGRESS:
       return { ...state, uploadProgress: action.payload };
+
     case OFFERS_ACTIONS.UPLOAD_SUCCESS:
+      // Prepend the new offer stub to the list
       return {
         ...state,
         isUploading: false,
@@ -60,19 +70,23 @@ const offersReducer = (state, action) => {
         offers: [action.payload, ...state.offers],
         uploadError: null,
       };
+
     case OFFERS_ACTIONS.UPLOAD_ERROR:
       return { ...state, isUploading: false, uploadProgress: 0, uploadError: action.payload };
+
     case OFFERS_ACTIONS.DELETE_SUCCESS:
+      // Firestore uses string `id`, not `_id`
       return {
         ...state,
-        offers: state.offers.filter((o) => o._id !== action.payload),
+        offers: state.offers.filter((o) => o.id !== action.payload),
       };
-    case OFFERS_ACTIONS.SET_STATS:
-      return { ...state, stats: action.payload };
+
     case OFFERS_ACTIONS.CLEAR_ERROR:
       return { ...state, error: null };
+
     case OFFERS_ACTIONS.CLEAR_UPLOAD_ERROR:
       return { ...state, uploadError: null };
+
     default:
       return state;
   }
@@ -85,15 +99,16 @@ export const OffersProvider = ({ children }) => {
   const [state, dispatch] = useReducer(offersReducer, initialState);
 
   /**
-   * Fetch the list of offers
-   * @param {Object} [params] - { status, page, limit }
+   * Fetch the list of offers for the current user.
+   * Returns a flat array of normalized OfferShape objects (sorted createdAt desc).
    */
-  const fetchOffers = useCallback(async (params = {}) => {
+  const fetchOffers = useCallback(async () => {
     dispatch({ type: OFFERS_ACTIONS.FETCH_START });
     try {
-      const data = await listOffers(params);
-      dispatch({ type: OFFERS_ACTIONS.FETCH_SUCCESS, payload: data });
-      return data;
+      // listOffers returns OfferShape[] (flat array, already normalized)
+      const offers = await listOffers();
+      dispatch({ type: OFFERS_ACTIONS.FETCH_SUCCESS, payload: offers });
+      return offers;
     } catch (err) {
       const message = extractApiError(err, 'Failed to load offers');
       dispatch({ type: OFFERS_ACTIONS.FETCH_ERROR, payload: message });
@@ -102,15 +117,17 @@ export const OffersProvider = ({ children }) => {
   }, []);
 
   /**
-   * Upload a new mortgage offer file
-   * @param {File} file
-   * @param {string} [bankName]
+   * Upload a new mortgage offer file.
+   * @param {File} file - The PDF/PNG/JPG file to upload
+   * @param {Function} [onProgress] - Optional progress callback (percent: number) => void
+   * @returns {Promise<{ id: string, status: string }>} Created offer stub
    */
-  const uploadNewOffer = useCallback(async (file, bankName) => {
+  const uploadNewOffer = useCallback(async (file, onProgress) => {
     dispatch({ type: OFFERS_ACTIONS.UPLOAD_START });
     try {
-      const offer = await uploadOffer(file, bankName, (progress) => {
+      const offer = await uploadOffer(file, (progress) => {
         dispatch({ type: OFFERS_ACTIONS.UPLOAD_PROGRESS, payload: progress });
+        if (typeof onProgress === 'function') onProgress(progress);
       });
       dispatch({ type: OFFERS_ACTIONS.UPLOAD_SUCCESS, payload: offer });
       return offer;
@@ -122,31 +139,13 @@ export const OffersProvider = ({ children }) => {
   }, []);
 
   /**
-   * Delete an offer by ID
-   * @param {string} id
+   * Remove an offer from local state by its Firestore string ID.
+   * Note: The current API contract does not include a DELETE /offers/:id endpoint.
+   * This only removes the offer from local state (optimistic removal).
+   * @param {string} id - Firestore string offer ID
    */
-  const removeOffer = useCallback(async (id) => {
-    try {
-      await deleteOffer(id);
-      dispatch({ type: OFFERS_ACTIONS.DELETE_SUCCESS, payload: id });
-    } catch (err) {
-      const message = extractApiError(err, 'Failed to delete offer');
-      dispatch({ type: OFFERS_ACTIONS.FETCH_ERROR, payload: message });
-      throw err;
-    }
-  }, []);
-
-  /**
-   * Fetch offer statistics
-   */
-  const fetchStats = useCallback(async () => {
-    try {
-      const stats = await getOfferStats();
-      dispatch({ type: OFFERS_ACTIONS.SET_STATS, payload: stats });
-      return stats;
-    } catch (err) {
-      console.error('Failed to fetch offer stats:', err);
-    }
+  const removeOffer = useCallback((id) => {
+    dispatch({ type: OFFERS_ACTIONS.DELETE_SUCCESS, payload: id });
   }, []);
 
   const clearError = useCallback(() => {
@@ -162,7 +161,6 @@ export const OffersProvider = ({ children }) => {
     fetchOffers,
     uploadNewOffer,
     removeOffer,
-    fetchStats,
     clearError,
     clearUploadError,
   };
