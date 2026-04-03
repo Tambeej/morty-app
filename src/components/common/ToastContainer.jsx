@@ -4,7 +4,7 @@
  * Consumes ToastContext to display and dismiss toasts.
  */
 import React from 'react';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/ToastContext.jsx';
 
 /**
  * Individual Toast item

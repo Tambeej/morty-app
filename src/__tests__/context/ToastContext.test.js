@@ -9,7 +9,7 @@ import React from 'react';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ToastProvider, useToast } from '../../context/ToastContext';
+import { ToastProvider, useToast } from '../../context/ToastContext.jsx';
 
 const TestComponent = () => {
   const { toasts, showSuccess, showError, showInfo, removeToast } = useToast();

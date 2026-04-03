@@ -31,7 +31,7 @@ import Input from '../common/Input';
 import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import useAuth from '../../hooks/useAuth';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/ToastContext.jsx';
 
 /**
  * Inline "or" divider between OAuth and email/password sign-up options.

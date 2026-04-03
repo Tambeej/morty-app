@@ -4,7 +4,7 @@
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ToastProvider, useToast } from './ToastContext';
+import { ToastProvider, useToast } from './ToastContext.jsx';
 
 function ToastTrigger({ message, type }) {
   const { addToast } = useToast();
