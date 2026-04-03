@@ -1,10 +1,19 @@
 /**
  * Toast Notification Component
- * Displays toast notifications from ToastContext
+ *
+ * Exports:
+ *   - default: ToastContainer (renders all active toasts)
+ *   - ToastProvider: re-exported from ToastContext for test convenience
+ *
+ * Tests import ToastProvider from this file:
+ *   import { ToastProvider } from '../components/common/Toast';
  */
 
 import React from 'react';
-import { useToast } from '../../context/ToastContext';
+import { useToast, ToastProvider } from '../../context/ToastContext';
+
+// Re-export ToastProvider so tests can import it from this file
+export { ToastProvider };
 
 /**
  * Individual Toast Item
@@ -44,13 +53,13 @@ const ToastItem = ({ toast, onRemove }) => {
     <div
       className={`
         flex items-start gap-3 w-80 bg-navy-surface border border-border
-        border-l-4 ${borderColors[toast.type]} rounded-lg p-4 shadow-lg
+        border-l-4 ${borderColors[toast.type] || borderColors.info} rounded-lg p-4 shadow-lg
         animate-fade-in
       `}
       role="alert"
       aria-live="polite"
     >
-      <div className="flex-shrink-0 mt-0.5">{icons[toast.type]}</div>
+      <div className="flex-shrink-0 mt-0.5">{icons[toast.type] || icons.info}</div>
       <p className="flex-1 text-sm text-[#f8fafc]">{toast.message}</p>
       <button
         onClick={() => onRemove(toast.id)}
@@ -66,7 +75,8 @@ const ToastItem = ({ toast, onRemove }) => {
 };
 
 /**
- * Toast Container - renders all active toasts
+ * Toast Container — renders all active toasts in the top-right corner.
+ * Consumes ToastContext to display and dismiss toasts.
  */
 const ToastContainer = () => {
   const { toasts, removeToast } = useToast();

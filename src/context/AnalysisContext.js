@@ -1,6 +1,7 @@
 /**
  * Analysis Context
- * Manages analysis results state and SSE streaming.
+ *
+ * Manages analysis results state and optional SSE streaming.
  *
  * Aligned with Firestore backend API contract:
  *   GET /analysis/:offerId → { data: OfferShape }  (single offer with analysis)
@@ -12,6 +13,10 @@
  *
  * OfferShape uses string `id` (Firestore), ISO timestamps.
  * analysis field may be null when status is 'pending'.
+ *
+ * Null-guard pattern for analysis fields:
+ *   const savings = analysis?.savings ?? 0;
+ *   const reasoning = analysis?.aiReasoning || 'אין נימוק זמין';
  */
 import React, { createContext, useContext, useReducer, useCallback, useRef } from 'react';
 import { getAnalysis, streamAnalysis } from '../services/analysisService';
@@ -22,7 +27,10 @@ import { extractApiError } from '../utils/validators';
 const initialState = {
   /** Array of OfferShape objects (used as analysis list) */
   analyses: [],
-  /** Currently viewed OfferShape (full, with analysis fields) */
+  /**
+   * Currently viewed OfferShape (full, with analysis fields).
+   * May have analysis: null when status is 'pending'.
+   */
   currentAnalysis: null,
   isLoading: false,
   isStreaming: false,
@@ -42,6 +50,7 @@ const ANALYSIS_ACTIONS = {
   STREAM_END: 'STREAM_END',
   CLEAR_CURRENT: 'CLEAR_CURRENT',
   CLEAR_ERROR: 'CLEAR_ERROR',
+  RESET: 'RESET',
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -66,7 +75,12 @@ const analysisReducer = (state, action) => {
       return { ...state, isLoading: true, error: null };
 
     case ANALYSIS_ACTIONS.FETCH_ONE_SUCCESS:
-      return { ...state, isLoading: false, currentAnalysis: action.payload, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        currentAnalysis: action.payload,
+        error: null,
+      };
 
     case ANALYSIS_ACTIONS.FETCH_ONE_ERROR:
       return { ...state, isLoading: false, error: action.payload };
@@ -75,6 +89,7 @@ const analysisReducer = (state, action) => {
       return { ...state, isStreaming: true };
 
     case ANALYSIS_ACTIONS.STREAM_UPDATE:
+      // Merge streaming data into currentAnalysis
       return {
         ...state,
         currentAnalysis: state.currentAnalysis
@@ -91,6 +106,9 @@ const analysisReducer = (state, action) => {
     case ANALYSIS_ACTIONS.CLEAR_ERROR:
       return { ...state, error: null };
 
+    case ANALYSIS_ACTIONS.RESET:
+      return { ...initialState };
+
     default:
       return state;
   }
@@ -99,6 +117,11 @@ const analysisReducer = (state, action) => {
 // ─── Context ─────────────────────────────────────────────────────────────────
 export const AnalysisContext = createContext(null);
 
+/**
+ * AnalysisProvider — wraps pages that need analysis state.
+ *
+ * @param {{ children: React.ReactNode }} props
+ */
 export const AnalysisProvider = ({ children }) => {
   const [state, dispatch] = useReducer(analysisReducer, initialState);
   const eventSourceRef = useRef(null);
@@ -107,6 +130,8 @@ export const AnalysisProvider = ({ children }) => {
    * Fetch all offers (used as the analysis list).
    * Uses listOffers() since there is no dedicated GET /analysis endpoint.
    * Returns a flat array of normalized OfferShape objects.
+   *
+   * @returns {Promise<object[]>} Array of normalized OfferShape objects
    */
   const fetchAnalyses = useCallback(async () => {
     dispatch({ type: ANALYSIS_ACTIONS.FETCH_LIST_START });
@@ -124,6 +149,8 @@ export const AnalysisProvider = ({ children }) => {
 
   /**
    * Fetch a single analysis result (full OfferShape with analysis fields).
+   * The analysis field may be null if status is 'pending'.
+   *
    * @param {string} id - Firestore string offer ID
    * @returns {Promise<object>} Full normalized OfferShape
    */
@@ -143,7 +170,8 @@ export const AnalysisProvider = ({ children }) => {
   /**
    * Trigger re-analysis for an offer.
    * Note: POST /analysis/:id/reanalyze is not in the current API contract.
-   * This method starts SSE streaming to poll for status updates instead.
+   * This method re-fetches the offer and starts SSE streaming for status updates.
+   *
    * @param {string} id - Firestore string offer ID
    */
   const triggerReanalysis = useCallback(
@@ -164,6 +192,8 @@ export const AnalysisProvider = ({ children }) => {
 
   /**
    * Start SSE streaming for real-time analysis status updates.
+   * Closes any existing stream before opening a new one.
+   *
    * @param {string} id - Firestore string offer ID
    */
   const startStreaming = useCallback((id) => {
@@ -192,7 +222,7 @@ export const AnalysisProvider = ({ children }) => {
   }, []);
 
   /**
-   * Stop SSE streaming.
+   * Stop SSE streaming and clean up the EventSource.
    */
   const stopStreaming = useCallback(() => {
     if (eventSourceRef.current) {
@@ -202,16 +232,32 @@ export const AnalysisProvider = ({ children }) => {
     dispatch({ type: ANALYSIS_ACTIONS.STREAM_END });
   }, []);
 
+  /**
+   * Clear the currently viewed analysis.
+   */
   const clearCurrentAnalysis = useCallback(() => {
     dispatch({ type: ANALYSIS_ACTIONS.CLEAR_CURRENT });
   }, []);
 
+  /**
+   * Clear the error message.
+   */
   const clearError = useCallback(() => {
     dispatch({ type: ANALYSIS_ACTIONS.CLEAR_ERROR });
   }, []);
 
+  /**
+   * Reset analysis state to initial (e.g., on logout).
+   */
+  const reset = useCallback(() => {
+    stopStreaming();
+    dispatch({ type: ANALYSIS_ACTIONS.RESET });
+  }, [stopStreaming]);
+
   const value = {
+    // State
     ...state,
+    // Actions
     fetchAnalyses,
     fetchAnalysis,
     triggerReanalysis,
@@ -219,11 +265,36 @@ export const AnalysisProvider = ({ children }) => {
     stopStreaming,
     clearCurrentAnalysis,
     clearError,
+    reset,
   };
 
-  return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
+  return (
+    <AnalysisContext.Provider value={value}>
+      {children}
+    </AnalysisContext.Provider>
+  );
 };
 
+/**
+ * useAnalysis hook — access analysis context.
+ * Must be used inside <AnalysisProvider>.
+ *
+ * @returns {{
+ *   analyses: object[],
+ *   currentAnalysis: object|null,
+ *   isLoading: boolean,
+ *   isStreaming: boolean,
+ *   error: string|null,
+ *   fetchAnalyses: function,
+ *   fetchAnalysis: function,
+ *   triggerReanalysis: function,
+ *   startStreaming: function,
+ *   stopStreaming: function,
+ *   clearCurrentAnalysis: function,
+ *   clearError: function,
+ *   reset: function,
+ * }}
+ */
 export const useAnalysis = () => {
   const context = useContext(AnalysisContext);
   if (!context) {
