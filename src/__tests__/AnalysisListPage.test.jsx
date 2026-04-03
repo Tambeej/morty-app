@@ -1,19 +1,44 @@
 /**
  * AnalysisListPage.test.jsx
  * Tests for the AnalysisListPage component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  * Uses Firestore string IDs (offer.id, not offer._id).
  */
 
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AnalysisListPage from '../pages/AnalysisListPage';
-import api from '../services/api';
 
-jest.mock('../services/api');
-jest.mock('../components/common/Toast', () => ({
-  useToast: () => ({ showToast: jest.fn() }),
+// Mock the api module
+vi.mock('../services/api', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    defaults: { headers: { common: {} } },
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+  },
 }));
+
+// Mock ToastContext — AnalysisListPage uses useToast from context
+vi.mock('../context/ToastContext', () => ({
+  useToast: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn() }),
+  ToastProvider: ({ children }) => children,
+  default: null,
+}));
+
+// Mock Toast component (re-exports ToastProvider)
+vi.mock('../components/common/Toast', () => ({
+  default: () => null,
+  ToastProvider: ({ children }) => children,
+  useToast: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn() }),
+}));
+
+import api from '../services/api';
 
 /**
  * Mock offers using Firestore string IDs.
@@ -45,7 +70,7 @@ const mockResponse = {
 };
 
 describe('AnalysisListPage', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('shows skeleton while loading', () => {
     api.get.mockReturnValue(new Promise(() => {}));

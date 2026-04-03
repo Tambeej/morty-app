@@ -1,6 +1,8 @@
 /**
  * Tests for storage utility functions.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  */
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   getStoredToken,
   setStoredToken,
@@ -58,8 +60,20 @@ describe('Storage Utils', () => {
       expect(getStoredUser()).toBeNull();
     });
 
-    it('should store and retrieve a user object', () => {
-      const user = { id: '123', email: 'test@example.com', fullName: 'Test User' };
+    it('should store and retrieve a Firestore user object (string id)', () => {
+      // Firestore user shape: { id: string, email, phone, verified }
+      const user = {
+        id: 'firestore-uid-abc123',
+        email: 'test@morty.co.il',
+        phone: '050-0000000',
+        verified: true,
+      };
+      setStoredUser(user);
+      expect(getStoredUser()).toEqual(user);
+    });
+
+    it('should store and retrieve a user object with legacy _id', () => {
+      const user = { _id: 'legacy-id', email: 'test@example.com' };
       setStoredUser(user);
       expect(getStoredUser()).toEqual(user);
     });

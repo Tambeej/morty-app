@@ -1,6 +1,13 @@
+/**
+ * RecentUploads.test.jsx
+ * Tests for the RecentUploads component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
+ * Uses Firestore string IDs (offer.id, not offer._id).
+ */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import RecentUploads from '../RecentUploads';
 
 /**
@@ -53,6 +60,10 @@ const renderWithRouter = (ui) =>
   render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe('RecentUploads', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders loading skeletons when isLoading is true', () => {
     const { container } = renderWithRouter(
       <RecentUploads offers={[]} isLoading={true} />
@@ -93,7 +104,7 @@ describe('RecentUploads', () => {
   });
 
   it('calls onDelete with offer.id when delete button is clicked', () => {
-    const onDelete = jest.fn();
+    const onDelete = vi.fn();
     renderWithRouter(
       <RecentUploads offers={mockOffers} isLoading={false} onDelete={onDelete} />
     );

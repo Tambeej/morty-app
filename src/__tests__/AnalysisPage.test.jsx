@@ -1,21 +1,32 @@
 /**
  * AnalysisPage.test.jsx
  * Unit / integration tests for the AnalysisPage component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  * Uses Firestore string IDs and ISO timestamps.
  */
 
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AnalysisPage from '../pages/AnalysisPage';
-import api from '../services/api';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock('../services/api');
-jest.mock('../hooks/useAnalysisStream', () => () => {});
-jest.mock('../components/common/Toast', () => ({
-  useToast: () => ({ showToast: jest.fn() }),
+vi.mock('../services/api', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    defaults: { headers: { common: {} } },
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+  },
+}));
+
+vi.mock('../hooks/useAnalysisStream', () => ({
+  default: () => {},
 }));
 
 // Recharts uses ResizeObserver which is not available in jsdom
@@ -24,6 +35,8 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
   disconnect() {}
 };
+
+import api from '../services/api';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,7 +90,7 @@ const mockAnalyzedResponse = {
 
 describe('AnalysisPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('shows skeleton while loading', () => {

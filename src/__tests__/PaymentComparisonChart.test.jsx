@@ -1,10 +1,12 @@
 /**
  * PaymentComparisonChart.test.jsx
  * Tests for the PaymentComparisonChart component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  */
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import PaymentComparisonChart from '../components/analysis/PaymentComparisonChart';
 
 // Recharts uses ResizeObserver
@@ -48,5 +50,18 @@ describe('PaymentComparisonChart', () => {
       />
     );
     expect(container.firstChild).toBeNull();
+  });
+
+  it('renders with only required props', () => {
+    render(
+      <PaymentComparisonChart
+        principal={1_000_000}
+        yourRate={3.5}
+        termYears={20}
+      />
+    );
+    expect(
+      screen.getByLabelText('Cumulative payment comparison chart')
+    ).toBeInTheDocument();
   });
 });

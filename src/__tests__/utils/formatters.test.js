@@ -1,7 +1,9 @@
 /**
  * Tests for formatting utility functions.
  * Covers Firestore-aligned ISO date strings and Israeli locale formatting.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  */
+import { describe, it, expect } from 'vitest';
 import {
   formatCurrency,
   formatNumber,

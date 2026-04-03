@@ -1,24 +1,38 @@
 /**
  * FinancialProfilePage.test.jsx
  * Tests for the FinancialProfilePage component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  * Uses Firestore data shapes and updated API endpoints.
  */
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ToastProvider } from '../components/common/Toast';
-import { AuthContext } from '../context/AuthContext';
+import AuthContext from '../context/AuthContext';
 import FinancialProfilePage from '../pages/FinancialProfilePage';
 
+// Mock react-hot-toast (used by FinancialProfilePage)
+vi.mock('react-hot-toast', () => ({
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+  success: vi.fn(),
+  error: vi.fn(),
+}));
+
 // Mock the api module (default export = axios instance)
-jest.mock('../services/api', () => ({
-  get: jest.fn(),
-  put: jest.fn(),
-  defaults: { headers: { common: {} } },
-  interceptors: {
-    request: { use: jest.fn() },
-    response: { use: jest.fn() },
+vi.mock('../services/api', () => ({
+  default: {
+    get: vi.fn(),
+    put: vi.fn(),
+    defaults: { headers: { common: {} } },
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
   },
 }));
 
@@ -37,7 +51,7 @@ const mockUser = {
 const renderWithProviders = (ui) =>
   render(
     <MemoryRouter>
-      <AuthContext.Provider value={{ user: mockUser, token: 'test-token', loading: false, logout: jest.fn() }}>
+      <AuthContext.Provider value={{ user: mockUser, token: 'test-token', loading: false, logout: vi.fn() }}>
         <ToastProvider>{ui}</ToastProvider>
       </AuthContext.Provider>
     </MemoryRouter>
@@ -45,7 +59,7 @@ const renderWithProviders = (ui) =>
 
 describe('FinancialProfilePage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders the page heading', async () => {
@@ -117,6 +131,22 @@ describe('FinancialProfilePage', () => {
     api.get.mockRejectedValueOnce(new Error('Network error'));
     renderWithProviders(<FinancialProfilePage />);
     // Should still render the form (starts fresh on error)
+    await waitFor(() => {
+      expect(screen.getByText('Financial Profile')).toBeInTheDocument();
+    });
+  });
+
+  it('shows null-safe defaults for missing nested fields', async () => {
+    // Firestore may return partial data — ensure no crashes
+    api.get.mockResolvedValueOnce({
+      data: {
+        data: {
+          income: 10000,
+          // No expenses, assets, or debts
+        },
+      },
+    });
+    renderWithProviders(<FinancialProfilePage />);
     await waitFor(() => {
       expect(screen.getByText('Financial Profile')).toBeInTheDocument();
     });

@@ -1,20 +1,54 @@
+/**
+ * LoginForm.test.jsx
+ * Tests for the LoginForm component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
+ */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LoginForm from '../LoginForm';
 import { AuthProvider } from '../../../context/AuthContext';
 import { ToastProvider } from '../../common/Toast';
 
 // Mock the api module
-jest.mock('../../../services/api', () => ({
-  post: jest.fn(),
-  get: jest.fn(),
-  interceptors: {
-    request: { use: jest.fn() },
-    response: { use: jest.fn() },
+vi.mock('../../../services/api', () => ({
+  default: {
+    post: vi.fn(),
+    get: vi.fn(),
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+    defaults: { headers: { common: {} } },
   },
-  defaults: { headers: { common: {} } },
+}));
+
+// Mock authService to prevent real API calls
+vi.mock('../../../services/authService', () => ({
+  login: vi.fn(),
+  register: vi.fn(),
+  logout: vi.fn(),
+  getMe: vi.fn(),
+  normalizeUser: vi.fn((user) => ({
+    id: user.id || user._id || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    verified: user.verified || false,
+  })),
+}));
+
+// Mock storage utilities
+vi.mock('../../../utils/storage', () => ({
+  getStoredToken: vi.fn(() => null),
+  getStoredRefreshToken: vi.fn(() => null),
+  getStoredUser: vi.fn(() => null),
+  setStoredToken: vi.fn(),
+  setStoredRefreshToken: vi.fn(),
+  setStoredUser: vi.fn(),
+  clearStoredTokens: vi.fn(),
+  isAuthenticated: vi.fn(() => false),
 }));
 
 const renderLoginForm = () => {
@@ -30,6 +64,10 @@ const renderLoginForm = () => {
 };
 
 describe('LoginForm', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders email and password fields', () => {
     renderLoginForm();
     expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument();

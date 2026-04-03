@@ -2,7 +2,7 @@
  * Tests for the core API Axios instance and apiService.
  * Uses Vitest (vi) — aligned with the project's test setup.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock storage utilities
 vi.mock('../../utils/storage', () => ({

@@ -58,6 +58,12 @@ describe('offersService', () => {
       expect(result.extractedData.bank).toBeNull();
       expect(result.extractedData.amount).toBeNull();
     });
+
+    it('should preserve ISO timestamp strings', () => {
+      const result = offersService.normalizeOffer(mockOffer);
+      expect(result.createdAt).toBe('2026-04-03T02:16:00.000Z');
+      expect(result.updatedAt).toBe('2026-04-03T02:20:00.000Z');
+    });
   });
 
   describe('listOffers', () => {
@@ -74,6 +80,12 @@ describe('offersService', () => {
       api.get.mockResolvedValue({ data: { data: [] } });
       const result = await offersService.listOffers();
       expect(result).toEqual([]);
+    });
+
+    it('should handle paginated response with offers array', async () => {
+      api.get.mockResolvedValue({ data: { data: { offers: [mockOffer] } } });
+      const result = await offersService.listOffers();
+      expect(result[0].id).toBe('offer-id-xyz');
     });
   });
 
