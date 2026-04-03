@@ -1,7 +1,12 @@
 /**
  * Formatting utility functions for the Morty application.
  * Handles currency, numbers, dates, and percentages in Israeli locale.
+ *
+ * Firestore alignment:
+ *   - formatDate() and formatTimestamp() accept ISO strings (Firestore Admin SDK)
+ *     as well as Firestore Timestamp objects (client SDK) and Date objects.
  */
+import { isFirestoreTimestamp, normalizeTimestamp } from './firestoreUtils';
 
 /**
  * Format a number as Israeli Shekel currency
@@ -40,20 +45,72 @@ export const formatPercent = (value, decimals = 2) => {
 };
 
 /**
- * Format a date to a human-readable string
- * @param {string|Date} date
- * @param {Object} [options] - Intl.DateTimeFormat options
- * @returns {string}
+ * Format a date to a human-readable string in Israeli locale.
+ * Accepts ISO strings (Firestore timestamps) or Date objects.
+ *
+ * @param {string|Date|null|undefined} iso - ISO date string or Date object
+ * @param {Object} [options] - Intl.DateTimeFormat options override
+ * @returns {string} Formatted date string, or '—' if falsy
  */
-export const formatDate = (date, options = {}) => {
-  if (!date) return '';
+export const formatDate = (iso, options = {}) => {
+  if (!iso) return '\u2014'; // em-dash '—'
   const defaultOptions = {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     ...options,
   };
-  return new Intl.DateTimeFormat('en-IL', defaultOptions).format(new Date(date));
+  try {
+    return new Intl.DateTimeFormat('he-IL', defaultOptions).format(new Date(iso));
+  } catch {
+    return '\u2014';
+  }
+};
+
+/**
+ * Format a Firestore timestamp (or ISO string / Date) to a human-readable string.
+ *
+ * This is the Firestore-aware version of formatDate. It handles:
+ *   - Firestore Timestamp objects (client SDK): `{ seconds, nanoseconds, toDate() }`
+ *   - ISO strings (backend Admin SDK): `'2026-04-03T02:16:00.000Z'`
+ *   - JavaScript Date objects
+ *   - null / undefined → returns '—'
+ *
+ * @param {object|string|Date|null|undefined} value - Timestamp value
+ * @param {Object} [options] - Intl.DateTimeFormat options override
+ * @returns {string} Formatted date string in he-IL locale, or '—' if invalid
+ *
+ * @example
+ *   formatTimestamp('2026-04-03T02:16:00.000Z')  // → '3 באפר׳ 2026'
+ *   formatTimestamp(new Date('2026-04-03'))        // → '3 באפר׳ 2026'
+ *   formatTimestamp({ seconds: 1743645360, nanoseconds: 0, toDate: () => new Date(1743645360000) })
+ *   formatTimestamp(null)                          // → '—'
+ */
+export const formatTimestamp = (value, options = {}) => {
+  if (value === null || value === undefined) return '\u2014';
+
+  // Handle Firestore Timestamp objects (client SDK)
+  if (isFirestoreTimestamp(value)) {
+    try {
+      const date = value.toDate();
+      return formatDate(date, options);
+    } catch {
+      return '\u2014';
+    }
+  }
+
+  // Handle serialized Firestore Timestamp (e.g., { seconds, nanoseconds })
+  if (typeof value === 'object' && !(value instanceof Date) && typeof value.seconds === 'number') {
+    try {
+      const date = new Date(value.seconds * 1000);
+      return formatDate(date, options);
+    } catch {
+      return '\u2014';
+    }
+  }
+
+  // Delegate to formatDate for ISO strings and Date objects
+  return formatDate(value, options);
 };
 
 /**
@@ -63,8 +120,10 @@ export const formatDate = (date, options = {}) => {
  */
 export const formatRelativeTime = (date) => {
   if (!date) return '';
+  // Normalize Firestore Timestamp if needed
+  const isoDate = isFirestoreTimestamp(date) ? normalizeTimestamp(date) : date;
   const now = new Date();
-  const then = new Date(date);
+  const then = new Date(isoDate);
   const diffMs = now - then;
   const diffSecs = Math.floor(diffMs / 1000);
   const diffMins = Math.floor(diffSecs / 60);
@@ -75,7 +134,7 @@ export const formatRelativeTime = (date) => {
   if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
   if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-  return formatDate(date);
+  return formatDate(isoDate);
 };
 
 /**

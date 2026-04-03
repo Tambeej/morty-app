@@ -1,5 +1,11 @@
+/**
+ * UploadDropzone.test.jsx
+ * Tests for the UploadDropzone component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
+ */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import UploadDropzone from '../UploadDropzone';
 
 // Helper to create a mock File object
@@ -11,15 +17,15 @@ const createFile = (name, size, type) => {
 describe('UploadDropzone', () => {
   const defaultProps = {
     file: null,
-    onFileSelect: jest.fn(),
-    onFileRemove: jest.fn(),
+    onFileSelect: vi.fn(),
+    onFileRemove: vi.fn(),
     uploadProgress: null,
     isUploading: false,
     error: null,
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders the dropzone when no file is selected', () => {
@@ -45,7 +51,7 @@ describe('UploadDropzone', () => {
 
   it('calls onFileRemove when remove button is clicked', () => {
     const file = createFile('offer.pdf', 1024, 'application/pdf');
-    const onFileRemove = jest.fn();
+    const onFileRemove = vi.fn();
     render(
       <UploadDropzone {...defaultProps} file={file} onFileRemove={onFileRemove} />
     );
@@ -106,7 +112,7 @@ describe('UploadDropzone', () => {
   });
 
   it('calls onFileSelect with error for oversized file via input', () => {
-    const onFileSelect = jest.fn();
+    const onFileSelect = vi.fn();
     render(<UploadDropzone {...defaultProps} onFileSelect={onFileSelect} />);
 
     const input = document.querySelector('input[type="file"]');
@@ -125,7 +131,7 @@ describe('UploadDropzone', () => {
   });
 
   it('calls onFileSelect with error for invalid file type via input', () => {
-    const onFileSelect = jest.fn();
+    const onFileSelect = vi.fn();
     render(<UploadDropzone {...defaultProps} onFileSelect={onFileSelect} />);
 
     const input = document.querySelector('input[type="file"]');
@@ -144,7 +150,7 @@ describe('UploadDropzone', () => {
   });
 
   it('calls onFileSelect with valid file via input', () => {
-    const onFileSelect = jest.fn();
+    const onFileSelect = vi.fn();
     render(<UploadDropzone {...defaultProps} onFileSelect={onFileSelect} />);
 
     const input = document.querySelector('input[type="file"]');

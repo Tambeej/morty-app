@@ -1,13 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+/**
+ * AnalysisPage.jsx
+ * Analysis results page for a specific mortgage offer.
+ * Route: /analysis/:id
+ *
+ * Handles three states:
+ * - pending: shows spinner + "Waiting for analysis" with auto-polling
+ * - analyzed: shows full results (extracted terms, AI summary, chart, recommendations)
+ * - error: shows error state with retry button
+ *
+ * Uses offer.id (Firestore string ID) from route params.
+ * Null-guards all analysis fields (offer may still be pending).
+ */
+
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { apiService } from '../services/api.js';
+import api from '../services/api.js';
+import { formatCurrency, formatDate } from '../utils/formatters.js';
 import PageLayout from '../components/layout/PageLayout.jsx';
 import Card from '../components/common/Card.jsx';
 import Skeleton from '../components/common/Skeleton.jsx';
 import Button from '../components/common/Button.jsx';
+import Spinner from '../components/common/Spinner.jsx';
 
 /**
  * Generates monthly payment data for a line chart.
@@ -19,7 +35,7 @@ import Button from '../components/common/Button.jsx';
 function generatePaymentData(principal, annualRate, termYears) {
   const months = termYears * 12;
   const r = annualRate / 100 / 12;
-  if (r === 0) return [];
+  if (r === 0 || months === 0) return [];
   const payment = (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
   // Sample every 12 months for readability
   return Array.from({ length: Math.ceil(months / 12) }, (_, i) => ({
@@ -33,63 +49,100 @@ function generatePaymentData(principal, annualRate, termYears) {
  */
 export default function AnalysisPage() {
   const { id } = useParams();
-  const [analysis, setAnalysis] = useState(null);
+  const navigate = useNavigate();
+  const [offer, setOffer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [polling, setPolling] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+
+  const fetchOffer = useCallback(async () => {
+    try {
+      const { data: envelope } = await api.get(`/analysis/${id}`);
+      // Backend returns { data: OfferShape }
+      const data = envelope?.data || envelope;
+      setOffer(data);
+      return data;
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Analysis not found';
+      setError(msg);
+      return null;
+    }
+  }, [id]);
 
   useEffect(() => {
     let interval;
 
-    async function fetchAnalysis() {
-      try {
-        const data = await apiService.getAnalysis(id);
-        setAnalysis(data);
-        if (data.status === 'pending') {
-          setPolling(true);
-          interval = setInterval(async () => {
-            try {
-              const updated = await apiService.getAnalysis(id);
-              setAnalysis(updated);
-              if (updated.status !== 'pending') {
-                clearInterval(interval);
-                setPolling(false);
-              }
-            } catch {
+    async function init() {
+      setLoading(true);
+      const data = await fetchOffer();
+      setLoading(false);
+
+      if (data && data.status === 'pending') {
+        setPolling(true);
+        interval = setInterval(async () => {
+          try {
+            const { data: envelope } = await api.get(`/analysis/${id}`);
+            const updated = envelope?.data || envelope;
+            setOffer(updated);
+            if (updated.status !== 'pending') {
               clearInterval(interval);
               setPolling(false);
             }
-          }, 5000);
-        }
-      } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load analysis.');
-      } finally {
-        setLoading(false);
+          } catch {
+            clearInterval(interval);
+            setPolling(false);
+          }
+        }, 5000);
       }
     }
 
-    fetchAnalysis();
+    init();
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, fetchOffer]);
 
-  const extracted = analysis?.extractedData || {};
-  const result = analysis?.analysis || {};
+  /**
+   * Retry analysis for an offer in error state.
+   */
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await api.post(`/analysis/${id}/reanalyze`);
+      // Refresh the offer data
+      const data = await fetchOffer();
+      if (data) setOffer(data);
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Failed to retry analysis.'
+      );
+    } finally {
+      setRetrying(false);
+    }
+  };
 
-  const chartData = extracted.amount && extracted.rate && extracted.term
-    ? [
-        ...generatePaymentData(extracted.amount, extracted.rate, extracted.term).map((d) => ({
+  const extracted = offer?.extractedData || {};
+  const result = offer?.analysis || {};
+
+  const chartData =
+    extracted.amount && extracted.rate && extracted.term
+      ? generatePaymentData(extracted.amount, extracted.rate, extracted.term).map((d) => ({
           ...d,
           yourOffer: d.payment,
           recommended: result.recommendedRate
             ? Math.round(
-                (extracted.amount * (result.recommendedRate / 100 / 12) *
+                (extracted.amount *
+                  (result.recommendedRate / 100 / 12) *
                   Math.pow(1 + result.recommendedRate / 100 / 12, extracted.term * 12)) /
                   (Math.pow(1 + result.recommendedRate / 100 / 12, extracted.term * 12) - 1)
               )
             : undefined
         }))
-      ]
-    : [];
+      : [];
 
   return (
     <PageLayout>
@@ -99,9 +152,9 @@ export default function AnalysisPage() {
           <h1 className="text-2xl font-bold text-[#f8fafc]">
             Analysis Results{extracted.bank ? ` — ${extracted.bank}` : ''}
           </h1>
-          {analysis?.updatedAt && (
+          {offer?.updatedAt && (
             <p className="text-[#94a3b8] mt-1 text-sm">
-              Analyzed {new Date(analysis.updatedAt).toLocaleString()}
+              Analyzed {formatDate(offer.updatedAt)}
             </p>
           )}
           {polling && (
@@ -112,16 +165,67 @@ export default function AnalysisPage() {
           )}
         </div>
 
+        {/* Loading skeleton */}
         {loading ? (
-          <div className="flex flex-col gap-4">
+          <div
+            className="flex flex-col gap-4"
+            aria-label="Loading analysis results"
+            aria-busy="true"
+          >
             <Skeleton height="120px" className="rounded-card" />
             <Skeleton height="200px" className="rounded-card" />
           </div>
         ) : error ? (
+          /* API error state */
           <Card>
-            <p className="text-red-400">{error}</p>
+            <div className="text-center py-6">
+              <p className="text-red-400 mb-4">{error}</p>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  fetchOffer().then(() => setLoading(false));
+                }}
+              >
+                Try Again
+              </Button>
+            </div>
+          </Card>
+        ) : offer?.status === 'pending' ? (
+          /* Pending state */
+          <Card>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Spinner size="lg" className="mb-4" />
+              <h2 className="text-lg font-semibold text-[#f8fafc] mb-2">
+                Waiting for analysis
+              </h2>
+              <p className="text-[#94a3b8] text-sm">
+                Your mortgage offer is being analyzed by AI. This may take a few minutes.
+              </p>
+            </div>
+          </Card>
+        ) : offer?.status === 'error' ? (
+          /* Analysis error state */
+          <Card>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <span className="text-5xl mb-4" aria-hidden="true">❌</span>
+              <h2 className="text-lg font-semibold text-red-400 mb-2">Analysis Failed</h2>
+              <p className="text-[#94a3b8] text-sm mb-6">
+                There was an error analyzing your mortgage offer. Please try again.
+              </p>
+              <Button
+                variant="primary"
+                onClick={handleRetry}
+                loading={retrying}
+                aria-label="Retry analysis"
+              >
+                Retry Analysis
+              </Button>
+            </div>
           </Card>
         ) : (
+          /* Analyzed state — full results */
           <>
             {/* AI Summary */}
             {result.aiReasoning && (
@@ -136,12 +240,12 @@ export default function AnalysisPage() {
               <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Extracted Terms</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[
-                  { label: 'Bank',         value: extracted.bank },
-                  { label: 'Amount',       value: extracted.amount ? `₪${extracted.amount.toLocaleString('he-IL')}` : undefined },
-                  { label: 'Interest Rate',value: extracted.rate ? `${extracted.rate}%` : undefined },
-                  { label: 'Term',         value: extracted.term ? `${extracted.term} years` : undefined },
-                  { label: 'Monthly Pmt', value: extracted.monthlyPayment ? `₪${extracted.monthlyPayment.toLocaleString('he-IL')}` : undefined },
-                  { label: 'Recommended', value: result.recommendedRate ? `${result.recommendedRate}%` : undefined }
+                  { label: 'Bank',          value: extracted.bank },
+                  { label: 'Amount',        value: extracted.amount ? formatCurrency(extracted.amount) : undefined },
+                  { label: 'Interest Rate', value: extracted.rate ? `${Number(extracted.rate).toFixed(2)}%` : undefined },
+                  { label: 'Term',          value: extracted.term ? `${extracted.term} years` : undefined },
+                  { label: 'Monthly Pmt',   value: extracted.monthlyPayment ? formatCurrency(extracted.monthlyPayment) : undefined },
+                  { label: 'Recommended',   value: result.recommendedRate ? `${result.recommendedRate}%` : undefined }
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p className="text-xs text-[#64748b] mb-1">{label}</p>
@@ -152,10 +256,10 @@ export default function AnalysisPage() {
             </Card>
 
             {/* Savings highlight */}
-            {result.savings && (
+            {(result.savings ?? 0) > 0 && (
               <Card className="mb-6 border-green-800">
                 <p className="text-xs font-medium uppercase tracking-widest text-green-400 mb-1">Potential Savings</p>
-                <p className="text-3xl font-bold text-green-400">₪{result.savings.toLocaleString('he-IL')}</p>
+                <p className="text-3xl font-bold text-green-400">{formatCurrency(result.savings)}</p>
                 <p className="text-[#94a3b8] text-sm mt-1">over the life of the loan</p>
               </Card>
             )}
@@ -167,17 +271,40 @@ export default function AnalysisPage() {
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" stroke="#94a3b8" tick={{ fontSize: 11 }} label={{ value: 'Month', position: 'insideBottom', offset: -2, fill: '#94a3b8', fontSize: 11 }} />
-                    <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={(v) => `₪${v.toLocaleString()}`} />
+                    <XAxis
+                      dataKey="month"
+                      stroke="#94a3b8"
+                      tick={{ fontSize: 11 }}
+                      label={{ value: 'Month', position: 'insideBottom', offset: -2, fill: '#94a3b8', fontSize: 11 }}
+                    />
+                    <YAxis
+                      stroke="#94a3b8"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v) => `₪${v.toLocaleString()}`}
+                    />
                     <Tooltip
                       contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
                       labelStyle={{ color: '#f8fafc' }}
                       formatter={(v) => [`₪${v.toLocaleString()}`, '']}
                     />
                     <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
-                    <Line type="monotone" dataKey="yourOffer" name="Your Offer" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                    <Line
+                      type="monotone"
+                      dataKey="yourOffer"
+                      name="Your Offer"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot={false}
+                    />
                     {result.recommendedRate && (
-                      <Line type="monotone" dataKey="recommended" name="Recommended" stroke="#10b981" strokeWidth={2} dot={false} />
+                      <Line
+                        type="monotone"
+                        dataKey="recommended"
+                        name="Recommended"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={false}
+                      />
                     )}
                   </LineChart>
                 </ResponsiveContainer>
@@ -203,11 +330,15 @@ export default function AnalysisPage() {
 
             {/* Actions */}
             <div className="flex gap-4">
-              <Button variant="ghost" onClick={() => window.print()}>
+              <Button
+                variant="ghost"
+                onClick={() => window.print()}
+                aria-label="Download analysis report as PDF"
+              >
                 Download Report PDF
               </Button>
               <Link to="/upload">
-                <Button>Upload Another</Button>
+                <Button aria-label="Upload another mortgage offer">Upload Another</Button>
               </Link>
             </div>
           </>

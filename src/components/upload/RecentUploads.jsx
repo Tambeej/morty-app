@@ -1,9 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileIcon from '../common/FileIcon';
+import { formatDate } from '../../utils/formatters';
 
 /**
  * Status badge component for offer status.
+ * Color scheme aligned with Firestore migration design:
+ * - pending  → yellow
+ * - analyzed → green
+ * - error    → red
+ * - processing → blue
  */
 const StatusBadge = ({ status }) => {
   const config = {
@@ -48,12 +54,22 @@ const StatusBadge = ({ status }) => {
  * Displays a list of recently uploaded mortgage offer files with their
  * status and a link to view analysis results.
  *
+ * Uses offer.id (Firestore string ID) for keys and navigation.
+ * Supports backward-compat with offer._id (legacy MongoDB ObjectId).
+ *
  * @param {Array} offers - Array of offer objects from the API
  * @param {boolean} isLoading - Whether offers are being fetched
  * @param {Function} onDelete - Callback to delete an offer by id
  */
 const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
   const navigate = useNavigate();
+
+  /**
+   * Get the offer ID — supports both Firestore string id and legacy _id.
+   * @param {object} offer
+   * @returns {string}
+   */
+  const getOfferId = (offer) => offer.id || offer._id;
 
   if (isLoading) {
     return (
@@ -92,6 +108,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
       </h3>
       <ul className="space-y-3" role="list" aria-label="Recent mortgage offer uploads">
         {offers.map((offer) => {
+          const offerId = getOfferId(offer);
           const filename =
             offer.originalFile?.originalName ||
             offer.originalFile?.url?.split('/').pop() ||
@@ -100,7 +117,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
 
           return (
             <li
-              key={offer._id}
+              key={offerId}
               className="
                 flex items-center gap-4 rounded-xl
                 border border-slate-700 bg-slate-800/60
@@ -123,6 +140,9 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
                 {offer.extractedData?.bank && (
                   <p className="text-xs text-slate-400">{offer.extractedData.bank}</p>
                 )}
+                {offer.createdAt && (
+                  <p className="text-xs text-slate-500">{formatDate(offer.createdAt)}</p>
+                )}
               </div>
 
               {/* Status badge */}
@@ -133,7 +153,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
                 {offer.status === 'analyzed' && (
                   <button
                     type="button"
-                    onClick={() => navigate(`/analysis/${offer._id}`)}
+                    onClick={() => navigate(`/analysis/${offerId}`)}
                     className="
                       rounded-lg border border-amber-500/40 px-3 py-1.5
                       text-xs font-medium text-amber-400
@@ -149,7 +169,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
                 {(offer.status === 'pending' || offer.status === 'error') && (
                   <button
                     type="button"
-                    onClick={() => onDelete && onDelete(offer._id)}
+                    onClick={() => onDelete && onDelete(offerId)}
                     aria-label={`Delete ${filename}`}
                     className="
                       rounded-md p-1.5 text-slate-500

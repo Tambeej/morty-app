@@ -1,10 +1,12 @@
 /**
  * RecommendationCard.test.jsx
  * Tests for the RecommendationCard component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  */
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import RecommendationCard from '../components/analysis/RecommendationCard';
 
 describe('RecommendationCard', () => {
@@ -46,5 +48,19 @@ describe('RecommendationCard', () => {
       <RecommendationCard index={1} text="Rate recommendation" type="rate" />
     );
     expect(container.textContent).toContain('📉');
+  });
+
+  it('renders default icon for general type', () => {
+    const { container } = render(
+      <RecommendationCard index={1} text="General recommendation" />
+    );
+    expect(container.textContent).toContain('💡');
+  });
+
+  it('renders correct icon for term type', () => {
+    const { container } = render(
+      <RecommendationCard index={1} text="Term recommendation" type="term" />
+    );
+    expect(container.textContent).toContain('📅');
   });
 });

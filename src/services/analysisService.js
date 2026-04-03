@@ -1,48 +1,45 @@
 /**
  * Analysis service module.
- * Handles fetching analysis results, re-analysis, and SSE streaming.
+ *
+ * Handles fetching analysis results.
+ * Aligned with Firestore backend API contract:
+ *   GET /analysis/:offerId → { data: OfferShape }
+ *
+ * Note: The new API contract does not include:
+ *   - GET /analysis (list) — use offersService.listOffers() instead
+ *   - POST /analysis/:id/reanalyze — not in current contract
+ *   - SSE streaming — polling is the recommended approach
  */
 import api from './api';
 import { getStoredToken } from '../utils/storage';
 import { API_BASE_URL } from './api';
+import { normalizeOffer } from './offersService';
 
 /**
- * Get all analysis results for the current user
- * @param {Object} [params] - Query params: { page, limit }
- * @returns {Promise<{offers: Array, pagination: Object}>}
- */
-export const listAnalysis = async (params = {}) => {
-  const response = await api.get('/analysis', { params });
-  return response.data.data;
-};
-
-/**
- * Get a single analysis result by offer ID
- * @param {string} id - Offer/Analysis ID
- * @returns {Promise<Object>} Analysis result with extractedData and analysis fields
+ * Get a single analysis result (full offer) by offer ID.
+ * @param {string} id - Offer/Analysis ID (Firestore string)
+ * @returns {Promise<object>} Full normalized OfferShape with analysis fields
  */
 export const getAnalysis = async (id) => {
   const response = await api.get(`/analysis/${id}`);
-  return response.data.data;
+  // Backend envelope: { data: OfferShape, message? }
+  const payload = response.data?.data || response.data;
+  return normalizeOffer(payload);
 };
 
 /**
- * Trigger re-analysis for an offer
- * @param {string} id - Offer ID
- * @returns {Promise<Object>} Response data
- */
-export const reanalyze = async (id) => {
-  const response = await api.post(`/analysis/${id}/reanalyze`);
-  return response.data;
-};
-
-/**
- * Subscribe to real-time analysis status updates via SSE
+ * Subscribe to real-time analysis status updates via SSE.
+ * Falls back gracefully if SSE is not supported.
  * @param {string} id - Offer ID
  * @param {Object} callbacks - { onMessage, onError, onComplete }
- * @returns {EventSource} The EventSource instance (call .close() to unsubscribe)
+ * @returns {EventSource|null} The EventSource instance (call .close() to unsubscribe)
  */
-export const streamAnalysis = (id, { onMessage, onError, onComplete }) => {
+export const streamAnalysis = (id, { onMessage, onError, onComplete } = {}) => {
+  if (typeof EventSource === 'undefined') {
+    console.warn('SSE not supported in this environment');
+    return null;
+  }
+
   const token = getStoredToken();
   const url = `${API_BASE_URL}/analysis/${id}/stream?token=${encodeURIComponent(token || '')}`;
 

@@ -1,7 +1,20 @@
+/**
+ * Legacy offers API module (XHR-based upload with progress tracking).
+ *
+ * This module provides an XHR-based upload implementation for environments
+ * where Axios progress tracking is insufficient. It is aligned with the
+ * Firestore backend API contract.
+ *
+ * Prefer using offersService.js for most use cases.
+ */
 import axios from 'axios';
 
+/**
+ * Backend API base URL.
+ * Uses VITE_API_URL env var (Vite projects) with fallback to production URL.
+ */
 const API_BASE_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+  import.meta.env.VITE_API_URL || 'https://morty-backend.onrender.com/api/v1';
 
 /**
  * Get the stored JWT access token.
@@ -18,28 +31,23 @@ const authHeader = () => ({
 });
 
 /**
- * Offers API service
- *
- * Provides methods to interact with the /api/v1/offers endpoints.
+ * Offers API service (XHR-based for upload progress support).
  */
 export const offersApi = {
   /**
    * Upload a mortgage offer file.
    *
    * Uses XMLHttpRequest directly to support upload progress tracking.
+   * Backend returns: { data: { id: string, status: 'pending' } }
    *
    * @param {File} file - The file to upload
-   * @param {string} [bankName] - Optional bank name metadata
    * @param {Function} [onProgress] - Progress callback (0-100)
-   * @returns {Promise<object>} Parsed API response data
+   * @returns {Promise<{ id: string, status: string }>} Created offer stub
    */
-  uploadOffer(file, bankName, onProgress) {
+  uploadOffer(file, onProgress) {
     return new Promise((resolve, reject) => {
       const formData = new FormData();
       formData.append('file', file);
-      if (bankName) {
-        formData.append('bankName', bankName);
-      }
 
       const xhr = new XMLHttpRequest();
 
@@ -53,27 +61,30 @@ export const offersApi = {
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data);
+            const envelope = JSON.parse(xhr.responseText);
+            // Unwrap { data: { id, status } } envelope
+            resolve(envelope.data || envelope);
           } catch {
-            resolve({ success: true });
+            resolve({ status: 'pending' });
           }
         } else {
           let errorMessage = 'Upload failed';
           try {
             const errData = JSON.parse(xhr.responseText);
-            errorMessage = errData.error || errorMessage;
+            errorMessage = errData.message || errData.error || errorMessage;
           } catch {
             // ignore parse error
           }
           const error = new Error(errorMessage);
-          error.response = { data: { error: errorMessage }, status: xhr.status };
+          error.response = { data: { message: errorMessage }, status: xhr.status };
           reject(error);
         }
       });
 
       xhr.addEventListener('error', () => {
-        reject(new Error('Network error during upload. Please check your connection.'));
+        reject(
+          new Error('Network error during upload. Please check your connection.')
+        );
       });
 
       xhr.addEventListener('abort', () => {
@@ -88,54 +99,30 @@ export const offersApi = {
 
   /**
    * Fetch the list of user's mortgage offers.
+   * Backend returns: { data: OfferShape[] }
    *
-   * @param {object} [params] - Query parameters (status, page, limit)
-   * @returns {Promise<object>} { offers, pagination }
+   * @returns {Promise<object[]>} Array of OfferShape objects
    */
-  async getOffers(params = {}) {
+  async getOffers() {
     const response = await axios.get(`${API_BASE_URL}/offers`, {
       headers: authHeader(),
-      params,
     });
-    return response.data.data;
+    const payload = response.data?.data || response.data;
+    return Array.isArray(payload) ? payload : (payload?.offers || []);
   },
 
   /**
-   * Fetch a single offer by ID.
+   * Fetch a single offer by ID (via analysis endpoint).
+   * Backend returns: { data: OfferShape }
    *
-   * @param {string} offerId
-   * @returns {Promise<object>} Offer object
+   * @param {string} offerId - Firestore string ID
+   * @returns {Promise<object>} OfferShape object
    */
   async getOffer(offerId) {
-    const response = await axios.get(`${API_BASE_URL}/offers/${offerId}`, {
+    const response = await axios.get(`${API_BASE_URL}/analysis/${offerId}`, {
       headers: authHeader(),
     });
-    return response.data.data;
-  },
-
-  /**
-   * Delete an offer by ID.
-   *
-   * @param {string} offerId
-   * @returns {Promise<object>} API response
-   */
-  async deleteOffer(offerId) {
-    const response = await axios.delete(`${API_BASE_URL}/offers/${offerId}`, {
-      headers: authHeader(),
-    });
-    return response.data;
-  },
-
-  /**
-   * Fetch offer statistics for the current user.
-   *
-   * @returns {Promise<object>} { stats: { total, pending, processing, analyzed, error } }
-   */
-  async getStats() {
-    const response = await axios.get(`${API_BASE_URL}/offers/stats`, {
-      headers: authHeader(),
-    });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 };
 

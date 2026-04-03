@@ -1,14 +1,34 @@
 /**
  * Tests for formatting utility functions.
+ * Covers Firestore-aligned ISO date strings and Israeli locale formatting.
+ * Includes tests for formatTimestamp() which handles Firestore Timestamp objects.
+ * Uses Vitest (vi) — aligned with the project's test setup.
  */
+import { describe, it, expect } from 'vitest';
 import {
   formatCurrency,
   formatNumber,
   formatPercent,
+  formatDate,
+  formatTimestamp,
   formatFileSize,
   formatTerm,
   parseFormattedNumber,
 } from '../../utils/formatters';
+
+// ─── Mock Firestore Timestamp ─────────────────────────────────────────────────
+
+/**
+ * Creates a mock Firestore Timestamp object (as returned by client SDK).
+ */
+function createMockTimestamp(isoString) {
+  const date = new Date(isoString);
+  return {
+    seconds: Math.floor(date.getTime() / 1000),
+    nanoseconds: 0,
+    toDate: () => date,
+  };
+}
 
 describe('Formatters', () => {
   describe('formatCurrency', () => {
@@ -27,6 +47,23 @@ describe('Formatters', () => {
       const result = formatCurrency(1000, false);
       expect(result).not.toContain('\u20aa');
     });
+
+    it('should handle zero', () => {
+      expect(formatCurrency(0)).toBe('\u20aa0');
+    });
+  });
+
+  describe('formatNumber', () => {
+    it('should format a number with thousands separators', () => {
+      const result = formatNumber(1000000);
+      expect(result).toContain('1');
+      expect(result).toContain('000');
+    });
+
+    it('should return 0 for null/undefined', () => {
+      expect(formatNumber(null)).toBe('0');
+      expect(formatNumber(undefined)).toBe('0');
+    });
   });
 
   describe('formatPercent', () => {
@@ -40,6 +77,87 @@ describe('Formatters', () => {
 
     it('should return 0% for null/undefined', () => {
       expect(formatPercent(null)).toBe('0%');
+    });
+
+    it('should handle zero', () => {
+      expect(formatPercent(0)).toBe('0.00%');
+    });
+  });
+
+  describe('formatDate', () => {
+    it('should format an ISO string to a readable date', () => {
+      // Firestore timestamps are ISO strings
+      const result = formatDate('2026-04-03T02:16:00.000Z');
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+      // Should not be the em-dash fallback
+      expect(result).not.toBe('\u2014');
+    });
+
+    it('should return em-dash for null', () => {
+      expect(formatDate(null)).toBe('\u2014');
+    });
+
+    it('should return em-dash for undefined', () => {
+      expect(formatDate(undefined)).toBe('\u2014');
+    });
+
+    it('should return em-dash for empty string', () => {
+      expect(formatDate('')).toBe('\u2014');
+    });
+
+    it('should accept a Date object', () => {
+      const result = formatDate(new Date('2026-01-15'));
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+    });
+
+    it('should contain the year from the ISO string', () => {
+      const result = formatDate('2026-04-03T02:16:00.000Z');
+      expect(result).toContain('2026');
+    });
+  });
+
+  describe('formatTimestamp', () => {
+    it('should format an ISO string (Firestore Admin SDK format)', () => {
+      const result = formatTimestamp('2026-04-03T02:16:00.000Z');
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+      expect(result).toContain('2026');
+    });
+
+    it('should format a Firestore Timestamp object (client SDK)', () => {
+      const ts = createMockTimestamp('2026-04-03T02:16:00.000Z');
+      const result = formatTimestamp(ts);
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+      expect(result).toContain('2026');
+    });
+
+    it('should format a serialized Firestore Timestamp (seconds only)', () => {
+      const seconds = Math.floor(new Date('2026-04-03T02:16:00.000Z').getTime() / 1000);
+      const result = formatTimestamp({ seconds, nanoseconds: 0 });
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+    });
+
+    it('should format a Date object', () => {
+      const result = formatTimestamp(new Date('2026-04-03'));
+      expect(typeof result).toBe('string');
+      expect(result).not.toBe('\u2014');
+    });
+
+    it('should return em-dash for null', () => {
+      expect(formatTimestamp(null)).toBe('\u2014');
+    });
+
+    it('should return em-dash for undefined', () => {
+      expect(formatTimestamp(undefined)).toBe('\u2014');
+    });
+
+    it('should produce same output as formatDate for ISO strings', () => {
+      const iso = '2026-04-03T02:16:00.000Z';
+      expect(formatTimestamp(iso)).toBe(formatDate(iso));
     });
   });
 
@@ -73,6 +191,10 @@ describe('Formatters', () => {
     it('should return empty string for falsy values', () => {
       expect(formatTerm(0)).toBe('');
     });
+
+    it('should handle 12 months as 1 year', () => {
+      expect(formatTerm(12)).toBe('1 year');
+    });
   });
 
   describe('parseFormattedNumber', () => {
@@ -86,6 +208,10 @@ describe('Formatters', () => {
 
     it('should return 0 for empty string', () => {
       expect(parseFormattedNumber('')).toBe(0);
+    });
+
+    it('should strip currency symbols', () => {
+      expect(parseFormattedNumber('\u20aa1,200,000')).toBe(1200000);
     });
   });
 });

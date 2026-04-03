@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { apiService } from '../services/api.js';
+import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { formatCurrency, formatDate } from '../utils/formatters.js';
 import PageLayout from '../components/layout/PageLayout.jsx';
 import Card from '../components/common/Card.jsx';
 import Skeleton from '../components/common/Skeleton.jsx';
@@ -12,6 +13,8 @@ import Button from '../components/common/Button.jsx';
 
 /**
  * Main dashboard page showing mortgage analysis summary.
+ * Uses Firestore data shapes: offer.id (string), ISO timestamps.
+ * Dashboard response: { data: { financials, recentOffers, stats: { totalOffers, savingsTotal } } }
  */
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -23,12 +26,12 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [dashData, offersData] = await Promise.all([
-          apiService.getDashboard(),
-          apiService.getOffers()
-        ]);
+        const { data: envelope } = await api.get('/dashboard');
+        // Backend returns { data: { financials, recentOffers, stats } }
+        const dashData = envelope?.data || envelope;
         setDashboard(dashData);
-        setOffers(offersData);
+        // Use recentOffers from dashboard response
+        setOffers(dashData?.recentOffers || []);
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load dashboard data.');
       } finally {
@@ -38,10 +41,40 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
+  /**
+   * Get the offer ID — supports both Firestore string id and legacy _id.
+   */
+  function getOfferId(offer) {
+    return offer.id || offer._id;
+  }
+
+  /**
+   * Get display name from user object.
+   * Firestore user shape: { id, email, phone, verified }
+   * Falls back to email prefix or 'there'.
+   */
+  function getUserDisplayName() {
+    if (!user) return 'there';
+    // Try name fields first, then email prefix
+    const name = user.name || user.fullName || user.displayName;
+    if (name) return name.split(' ')[0];
+    if (user.email) return user.email.split('@')[0];
+    return 'there';
+  }
+
+  const stats = dashboard?.stats || {};
+  const totalOffers = stats.totalOffers ?? offers.length;
+  const savingsTotal = stats.savingsTotal ?? 0;
+
   const chartData = offers.slice(0, 3).map((o, i) => ({
     name: o.extractedData?.bank || `Offer ${i + 1}`,
     monthly: o.extractedData?.monthlyPayment || 0,
-    recommended: o.analysis?.recommendedRate ? Math.round(o.extractedData?.amount / (o.extractedData?.term * 12)) : 0
+    recommended: o.analysis?.recommendedRate
+      ? Math.round(
+          (o.extractedData?.amount || 0) /
+          ((o.extractedData?.term || 1) * 12)
+        )
+      : 0
   }));
 
   return (
@@ -49,7 +82,7 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-[#f8fafc]">
-          Welcome back, {user?.name?.split(' ')[0] || 'there'} 👋
+          Welcome back, {getUserDisplayName()} 👋
         </h1>
         <p className="text-[#94a3b8] mt-1">Here&apos;s your mortgage analysis summary</p>
       </div>
@@ -69,21 +102,23 @@ export default function DashboardPage() {
             <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Best Rate</p>
             <p className="text-3xl font-bold text-gold">{dashboard?.bestRate ?? '—'}%</p>
             <p className="text-sm text-[#64748b] mt-1">
-              {dashboard?.rateVsMarket ? `${dashboard.rateVsMarket > 0 ? '+' : ''}${dashboard.rateVsMarket}% vs market` : 'No data yet'}
+              {dashboard?.rateVsMarket
+                ? `${dashboard.rateVsMarket > 0 ? '+' : ''}${dashboard.rateVsMarket}% vs market`
+                : 'No data yet'}
             </p>
           </Card>
 
           <Card interactive>
             <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Potential Savings</p>
             <p className="text-3xl font-bold text-gold">
-              {dashboard?.potentialSavings ? `₪${dashboard.potentialSavings.toLocaleString('he-IL')}` : '—'}
+              {savingsTotal ? formatCurrency(savingsTotal) : '—'}
             </p>
             <p className="text-sm text-[#64748b] mt-1">lifetime savings</p>
           </Card>
 
           <Card interactive>
             <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Active Offers</p>
-            <p className="text-3xl font-bold text-gold">{offers.length}</p>
+            <p className="text-3xl font-bold text-gold">{totalOffers}</p>
             <p className="text-sm text-[#64748b] mt-1">uploaded offers</p>
           </Card>
         </div>
@@ -126,7 +161,7 @@ export default function DashboardPage() {
           </div>
         ) : offers.length === 0 ? (
           <p className="text-[#64748b] text-sm py-4 text-center">
-            No offers yet.{' '}
+            No offers uploaded yet.{' '}
             <Link to="/upload" className="text-gold hover:underline">Upload your first offer →</Link>
           </p>
         ) : (
@@ -137,40 +172,49 @@ export default function DashboardPage() {
                   <th className="pb-3 font-medium">Bank</th>
                   <th className="pb-3 font-medium">Rate</th>
                   <th className="pb-3 font-medium">Term</th>
-                  <th className="pb-3 font-medium">Monthly</th>
+                  <th className="pb-3 font-medium">Date</th>
                   <th className="pb-3 font-medium">Status</th>
                   <th className="pb-3 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
-                {offers.map((offer) => (
-                  <tr key={offer._id} className="border-b border-border/50 hover:bg-navy-elevated transition-colors">
-                    <td className="py-3 text-[#f8fafc]">{offer.extractedData?.bank || '—'}</td>
-                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.rate ? `${offer.extractedData.rate}%` : '—'}</td>
-                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.term ? `${offer.extractedData.term}yr` : '—'}</td>
-                    <td className="py-3 text-[#94a3b8]">{offer.extractedData?.monthlyPayment ? `₪${offer.extractedData.monthlyPayment.toLocaleString('he-IL')}` : '—'}</td>
-                    <td className="py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        offer.status === 'analyzed' ? 'bg-green-900/40 text-green-400' :
-                        offer.status === 'error'    ? 'bg-red-900/40 text-red-400' :
-                        'bg-yellow-900/40 text-yellow-400'
-                      }`}>
-                        {offer.status === 'analyzed' ? '✓ Analyzed' :
-                         offer.status === 'error'    ? '✗ Error' : '⏳ Pending'}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      {offer.status === 'analyzed' && (
-                        <Link
-                          to={`/analysis/${offer._id}`}
-                          className="text-gold hover:text-gold-light text-xs font-medium"
-                        >
-                          View Results →
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {offers.map((offer) => {
+                  const offerId = getOfferId(offer);
+                  return (
+                    <tr key={offerId} className="border-b border-border/50 hover:bg-navy-elevated transition-colors">
+                      <td className="py-3 text-[#f8fafc]">{offer.extractedData?.bank || '—'}</td>
+                      <td className="py-3 text-[#94a3b8]">
+                        {offer.extractedData?.rate ? `${offer.extractedData.rate}%` : '—'}
+                      </td>
+                      <td className="py-3 text-[#94a3b8]">
+                        {offer.extractedData?.term ? `${offer.extractedData.term}yr` : '—'}
+                      </td>
+                      <td className="py-3 text-[#94a3b8]">
+                        {formatDate(offer.createdAt)}
+                      </td>
+                      <td className="py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          offer.status === 'analyzed' ? 'bg-green-900/40 text-green-400' :
+                          offer.status === 'error'    ? 'bg-red-900/40 text-red-400' :
+                          'bg-yellow-900/40 text-yellow-400'
+                        }`}>
+                          {offer.status === 'analyzed' ? '✓ Analyzed' :
+                           offer.status === 'error'    ? '✗ Error' : '⏳ Pending'}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        {offer.status === 'analyzed' && (
+                          <Link
+                            to={`/analysis/${offerId}`}
+                            className="text-gold hover:text-gold-light text-xs font-medium"
+                          >
+                            View Results →
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -3,14 +3,20 @@
  * Custom hook that subscribes to the SSE stream for real-time analysis status updates.
  * Endpoint: GET /api/v1/analysis/:id/stream
  *
+ * Uses VITE_API_URL environment variable (Vite project).
+ *
  * @param {string|null} analysisId  - The offer/analysis ID to stream. Pass null to disable.
  * @param {Function}    onUpdate    - Callback invoked with the parsed SSE event data.
  */
 
 import { useEffect, useRef } from 'react';
 
+/**
+ * Backend API base URL.
+ * Uses VITE_API_URL env var (Vite projects) with fallback to production URL.
+ */
 const API_BASE_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+  import.meta.env.VITE_API_URL || 'https://morty-backend.onrender.com/api/v1';
 
 /**
  * Subscribes to the SSE stream for a given analysis ID.
@@ -31,7 +37,7 @@ const useAnalysisStream = (analysisId, onUpdate) => {
     const token = localStorage.getItem('morty_token');
     // EventSource doesn't support custom headers natively;
     // pass token as query param (backend must accept this for SSE).
-    const url = `${API_BASE_URL}/analysis/${analysisId}/stream?token=${token || ''}`;
+    const url = `${API_BASE_URL}/analysis/${analysisId}/stream?token=${encodeURIComponent(token || '')}`;
 
     const connect = () => {
       if (esRef.current) {

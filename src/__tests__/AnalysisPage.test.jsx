@@ -1,20 +1,32 @@
 /**
  * AnalysisPage.test.jsx
  * Unit / integration tests for the AnalysisPage component.
+ * Uses Vitest (vi) — aligned with the project's test setup.
+ * Uses Firestore string IDs and ISO timestamps.
  */
 
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AnalysisPage from '../pages/AnalysisPage';
-import api from '../services/api';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock('../services/api');
-jest.mock('../hooks/useAnalysisStream', () => () => {});
-jest.mock('../components/common/Toast', () => ({
-  useToast: () => ({ showToast: jest.fn() }),
+vi.mock('../services/api', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    defaults: { headers: { common: {} } },
+    interceptors: {
+      request: { use: vi.fn() },
+      response: { use: vi.fn() },
+    },
+  },
+}));
+
+vi.mock('../hooks/useAnalysisStream', () => ({
+  default: () => {},
 }));
 
 // Recharts uses ResizeObserver which is not available in jsdom
@@ -24,9 +36,11 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+import api from '../services/api';
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const renderPage = (id = 'offer-123') =>
+const renderPage = (id = 'offer-id-abc123') =>
   render(
     <MemoryRouter initialEntries={[`/analysis/${id}`]}>
       <Routes>
@@ -35,12 +49,16 @@ const renderPage = (id = 'offer-123') =>
     </MemoryRouter>
   );
 
+/**
+ * Mock analyzed offer using Firestore string ID and ISO timestamps.
+ */
 const mockAnalyzedResponse = {
   data: {
     data: {
-      id: 'offer-123',
+      id: 'offer-id-abc123',
       status: 'analyzed',
-      createdAt: new Date().toISOString(),
+      createdAt: '2026-04-03T02:16:00.000Z',
+      updatedAt: '2026-04-03T02:20:00.000Z',
       extractedData: {
         bank: 'Bank Hapoalim',
         amount: 1_200_000,
@@ -72,7 +90,7 @@ const mockAnalyzedResponse = {
 
 describe('AnalysisPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('shows skeleton while loading', () => {
@@ -109,9 +127,9 @@ describe('AnalysisPage', () => {
     api.get.mockResolvedValueOnce({
       data: {
         data: {
-          id: 'offer-123',
+          id: 'offer-id-abc123',
           status: 'pending',
-          createdAt: new Date().toISOString(),
+          createdAt: '2026-04-03T02:16:00.000Z',
           extractedData: null,
           analysis: null,
         },
@@ -140,9 +158,9 @@ describe('AnalysisPage', () => {
     api.get.mockResolvedValueOnce({
       data: {
         data: {
-          id: 'offer-123',
+          id: 'offer-id-abc123',
           status: 'error',
-          createdAt: new Date().toISOString(),
+          createdAt: '2026-04-03T02:16:00.000Z',
           extractedData: null,
           analysis: null,
         },
@@ -160,15 +178,27 @@ describe('AnalysisPage', () => {
     api.get.mockResolvedValueOnce({
       data: {
         data: {
-          id: 'offer-123',
+          id: 'offer-id-abc123',
           status: 'error',
-          createdAt: new Date().toISOString(),
+          createdAt: '2026-04-03T02:16:00.000Z',
           extractedData: null,
           analysis: null,
         },
       },
     });
     api.post.mockResolvedValueOnce({ data: { success: true } });
+    // After retry, return a pending offer
+    api.get.mockResolvedValueOnce({
+      data: {
+        data: {
+          id: 'offer-id-abc123',
+          status: 'pending',
+          createdAt: '2026-04-03T02:16:00.000Z',
+          extractedData: null,
+          analysis: null,
+        },
+      },
+    });
 
     renderPage();
 
@@ -179,7 +209,7 @@ describe('AnalysisPage', () => {
     fireEvent.click(screen.getByLabelText('Retry analysis'));
 
     await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('/analysis/offer-123/reanalyze')
+      expect(api.post).toHaveBeenCalledWith('/analysis/offer-id-abc123/reanalyze')
     );
   });
 

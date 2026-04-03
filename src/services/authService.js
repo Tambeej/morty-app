@@ -1,69 +1,129 @@
 /**
  * Authentication service module.
- * Handles all auth-related API calls: register, login, logout, refresh, profile.
+ *
+ * Handles all auth-related API calls: register, login, logout, refresh, getMe.
+ * Normalizes the user shape from Firestore backend (string `id`, no `_id`).
+ * Stores tokens and user in localStorage via storage utilities.
+ *
+ * Firestore user shape:
+ *   { id: string, email: string, phone: string, verified: boolean }
+ *
+ * Backend response envelope:
+ *   { data: { token, refreshToken, user }, message?: string }
  */
 import api from './api';
-import { setStoredToken, setStoredRefreshToken, clearStoredTokens } from '../utils/storage';
+import {
+  setStoredToken,
+  setStoredRefreshToken,
+  setStoredUser,
+  clearStoredTokens,
+  getStoredRefreshToken,
+} from '../utils/storage';
 
 /**
- * Register a new user
- * @param {Object} data - { email, password, fullName, phone }
- * @returns {Promise<{token, refreshToken, user}>}
+ * Normalize user object from backend response.
+ *
+ * Provides backward-compat shim: prefers `id` (Firestore string), falls back
+ * to `_id` (legacy Mongoose ObjectId). Ensures all fields have safe defaults.
+ *
+ * @param {object} user - Raw user from API response
+ * @returns {{ id: string, email: string, phone: string, verified: boolean }}
+ */
+export const normalizeUser = (user) => ({
+  id: user.id || user._id || '',
+  email: user.email || '',
+  phone: user.phone || '',
+  verified: user.verified || false,
+});
+
+/**
+ * Register a new user.
+ *
+ * @param {{ email: string, password: string, phone?: string }} data
+ * @returns {Promise<{ token: string, refreshToken: string, user: object }>}
+ * @throws {Error} On network or server error
  */
 export const register = async (data) => {
   const response = await api.post('/auth/register', data);
-  const { token, refreshToken, user } = response.data;
+  // Backend envelope: { data: { token, refreshToken, user }, message? }
+  const payload = response.data?.data || response.data;
+  const { token, refreshToken, user } = payload;
+  const normalizedUser = normalizeUser(user);
   setStoredToken(token);
   setStoredRefreshToken(refreshToken);
-  return { token, refreshToken, user };
+  setStoredUser(normalizedUser);
+  return { token, refreshToken, user: normalizedUser };
 };
 
 /**
- * Login an existing user
- * @param {Object} data - { email, password }
- * @returns {Promise<{token, refreshToken, user}>}
+ * Login an existing user.
+ *
+ * @param {{ email: string, password: string }} data
+ * @returns {Promise<{ token: string, refreshToken: string, user: object }>}
+ * @throws {Error} On invalid credentials or network error
  */
 export const login = async (data) => {
   const response = await api.post('/auth/login', data);
-  const { token, refreshToken, user } = response.data;
+  // Backend envelope: { data: { token, refreshToken, user }, message? }
+  const payload = response.data?.data || response.data;
+  const { token, refreshToken, user } = payload;
+  const normalizedUser = normalizeUser(user);
   setStoredToken(token);
   setStoredRefreshToken(refreshToken);
-  return { token, refreshToken, user };
+  setStoredUser(normalizedUser);
+  return { token, refreshToken, user: normalizedUser };
 };
 
 /**
- * Logout the current user
+ * Logout the current user.
+ *
+ * Calls the server to invalidate the refresh token server-side,
+ * then clears all locally stored tokens regardless of API result.
+ *
  * @returns {Promise<void>}
  */
 export const logout = async () => {
   try {
-    await api.post('/auth/logout');
+    const refreshToken = getStoredRefreshToken();
+    await api.post('/auth/logout', { refreshToken });
   } catch (err) {
     // Ignore errors on logout — clear tokens regardless
-    console.warn('Logout API call failed:', err.message);
+    console.warn('Logout API call failed:', err?.message || err);
   } finally {
     clearStoredTokens();
   }
 };
 
 /**
- * Refresh the access token using the stored refresh token
- * @param {string} refreshToken
- * @returns {Promise<{token, refreshToken}>}
+ * Refresh the access token using the stored refresh token.
+ *
+ * @param {string} refreshToken - The current refresh token
+ * @returns {Promise<{ token: string, refreshToken: string }>}
+ * @throws {Error} If the refresh token is invalid or expired
  */
 export const refreshAccessToken = async (refreshToken) => {
   const response = await api.post('/auth/refresh', { refreshToken });
-  const { token, refreshToken: newRefreshToken } = response.data;
+  const payload = response.data?.data || response.data;
+  const { token, refreshToken: newRefreshToken } = payload;
   setStoredToken(token);
-  setStoredRefreshToken(newRefreshToken);
-  return { token, refreshToken: newRefreshToken };
+  if (newRefreshToken) setStoredRefreshToken(newRefreshToken);
+  return { token, refreshToken: newRefreshToken || refreshToken };
 };
 
 /**
- * Get the current authenticated user's profile
- * @returns {Promise<{user}>}
+ * Get the current authenticated user's profile from the server.
+ *
+ * Handles both response shapes:
+ *   - { data: { user: {...} } }
+ *   - { data: {...} }  (user object directly)
+ *
+ * @returns {Promise<{ id: string, email: string, phone: string, verified: boolean }>}
+ * @throws {Error} If not authenticated or network error
  */
 export const getMe = async () => {
   const response = await api.get('/auth/me');
-  return response.data.user;
+  // Backend envelope: { data: { user } } or { data: user }
+  const payload = response.data?.data || response.data;
+  const rawUser = payload.user || payload;
+  return normalizeUser(rawUser);
 };

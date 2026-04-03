@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { apiService } from '../services/api.js';
+import api from '../services/api.js';
 import PageLayout from '../components/layout/PageLayout.jsx';
 import Card from '../components/common/Card.jsx';
 import Input from '../components/common/Input.jsx';
@@ -32,6 +32,8 @@ function calcCompletion(values) {
 
 /**
  * Financial profile form page.
+ * Loads existing profile from GET /profile and saves via PUT /profile.
+ * Supports auto-save with debounce and manual save.
  */
 export default function FinancialProfilePage() {
   const [initialLoading, setInitialLoading] = useState(true);
@@ -50,12 +52,14 @@ export default function FinancialProfilePage() {
   const watchedValues = watch();
   const completion = calcCompletion(watchedValues);
 
-  // Load existing profile
+  // Load existing profile from GET /profile
   useEffect(() => {
     async function load() {
       try {
-        const data = await apiService.getFinancials();
-        if (data) {
+        const { data: envelope } = await api.get('/profile');
+        // Backend returns { data: financialShape } or { data: null }
+        const data = envelope?.data || envelope;
+        if (data && (data.income !== undefined)) {
           reset({
             income:           data.income || 0,
             additionalIncome: data.additionalIncome || 0,
@@ -75,13 +79,13 @@ export default function FinancialProfilePage() {
     load();
   }, [reset]);
 
-  // Auto-save debounce
+  // Auto-save debounce (2 seconds after last change)
   useEffect(() => {
     if (initialLoading) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       try {
-        await apiService.updateFinancials(buildPayload(watchedValues));
+        await api.put('/profile', buildPayload(watchedValues));
         setSavedIndicator(true);
         setTimeout(() => setSavedIndicator(false), 2000);
       } catch {
@@ -94,16 +98,16 @@ export default function FinancialProfilePage() {
 
   function buildPayload(values) {
     return {
-      income:           Number(values.income),
-      additionalIncome: Number(values.additionalIncome),
+      income:           Number(values.income) || 0,
+      additionalIncome: Number(values.additionalIncome) || 0,
       expenses: {
-        housing: Number(values.housing),
-        loans:   Number(values.loans),
-        other:   Number(values.otherExpenses)
+        housing: Number(values.housing) || 0,
+        loans:   Number(values.loans) || 0,
+        other:   Number(values.otherExpenses) || 0
       },
       assets: {
-        savings:     Number(values.savings),
-        investments: Number(values.investments)
+        savings:     Number(values.savings) || 0,
+        investments: Number(values.investments) || 0
       }
     };
   }
@@ -111,7 +115,7 @@ export default function FinancialProfilePage() {
   async function onSubmit(values) {
     setSaving(true);
     try {
-      await apiService.updateFinancials(buildPayload(values));
+      await api.put('/profile', buildPayload(values));
       toast.success('Financial profile saved!');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to save profile.');
@@ -142,7 +146,7 @@ export default function FinancialProfilePage() {
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-sm text-[#94a3b8] mb-2">
-            <span>Profile {completion}% complete</span>
+            <span>Profile Completion: {completion}%</span>
             {savedIndicator && <span className="text-green-400 text-xs">✓ Saved</span>}
           </div>
           <ProgressBar value={completion} label="Profile completion" />
@@ -205,7 +209,7 @@ export default function FinancialProfilePage() {
 
           {/* Assets */}
           <Card>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Assets & Savings</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Assets &amp; Savings</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Savings / Cash"
@@ -227,7 +231,7 @@ export default function FinancialProfilePage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button type="submit" loading={saving}>
+            <Button type="submit" loading={saving} aria-label="Save profile">
               Save Profile
             </Button>
           </div>
