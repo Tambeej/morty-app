@@ -1,22 +1,65 @@
 /**
  * Mortgage offers service module.
- * Handles file upload, listing, fetching, and deleting offers.
+ *
+ * Handles file upload and listing of offers.
+ * Aligned with Firestore backend API contract:
+ *   GET  /offers       → { data: OfferShape[] }
+ *   POST /offers       → { data: { id: string, status: 'pending' } }
+ *
+ * OfferShape:
+ * {
+ *   id: string,
+ *   userId: string,
+ *   originalFile: { url: string, mimetype: string },
+ *   extractedData: { bank?: string, amount?: number, rate?: number, term?: number },
+ *   analysis: { recommendedRate?: number, savings?: number, aiReasoning?: string },
+ *   status: 'pending' | 'analyzed' | 'error',
+ *   createdAt: string (ISO),
+ *   updatedAt: string (ISO)
+ * }
  */
 import api from './api';
 
 /**
- * Upload a mortgage offer file
- * @param {File} file - The PDF/PNG/JPG file
- * @param {string} [bankName] - Optional bank name
- * @param {Function} [onUploadProgress] - Progress callback (percent: number) => void
- * @returns {Promise<Object>} Created offer object
+ * Normalize an offer object from the API response.
+ * Ensures string IDs (Firestore) and safe defaults for optional fields.
+ * @param {object} offer - Raw offer from API
+ * @returns {object} Normalized offer
  */
-export const uploadOffer = async (file, bankName, onUploadProgress) => {
+export const normalizeOffer = (offer) => ({
+  id: offer.id || offer._id || '',
+  userId: offer.userId || '',
+  originalFile: {
+    url: offer.originalFile?.url || '',
+    mimetype: offer.originalFile?.mimetype || '',
+  },
+  extractedData: {
+    bank: offer.extractedData?.bank || null,
+    amount: offer.extractedData?.amount ?? null,
+    rate: offer.extractedData?.rate ?? null,
+    term: offer.extractedData?.term ?? null,
+  },
+  analysis: offer.analysis
+    ? {
+        recommendedRate: offer.analysis.recommendedRate ?? null,
+        savings: offer.analysis.savings ?? null,
+        aiReasoning: offer.analysis.aiReasoning || null,
+      }
+    : null,
+  status: offer.status || 'pending',
+  createdAt: offer.createdAt || null,
+  updatedAt: offer.updatedAt || null,
+});
+
+/**
+ * Upload a mortgage offer file.
+ * @param {File} file - The PDF/PNG/JPG file
+ * @param {Function} [onUploadProgress] - Progress callback (percent: number) => void
+ * @returns {Promise<{ id: string, status: string }>} Created offer stub
+ */
+export const uploadOffer = async (file, onUploadProgress) => {
   const formData = new FormData();
   formData.append('file', file);
-  if (bankName) {
-    formData.append('bankName', bankName);
-  }
 
   const response = await api.post('/offers', formData, {
     headers: {
@@ -24,49 +67,40 @@ export const uploadOffer = async (file, bankName, onUploadProgress) => {
     },
     onUploadProgress: (progressEvent) => {
       if (onUploadProgress && progressEvent.total) {
-        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const percent = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total
+        );
         onUploadProgress(percent);
       }
     },
   });
 
-  return response.data.data.offer;
+  // Backend returns { data: { id: string, status: 'pending' } }
+  const payload = response.data?.data || response.data;
+  return payload;
 };
 
 /**
- * List all offers for the current user
- * @param {Object} [params] - Query params: { status, page, limit }
- * @returns {Promise<{offers: Array, pagination: Object}>}
+ * List all offers for the current user (sorted by createdAt desc).
+ * @returns {Promise<object[]>} Array of normalized OfferShape objects
  */
-export const listOffers = async (params = {}) => {
-  const response = await api.get('/offers', { params });
-  return response.data.data;
+export const listOffers = async () => {
+  const response = await api.get('/offers');
+  // Backend returns { data: OfferShape[] }
+  const payload = response.data?.data || response.data;
+  const offers = Array.isArray(payload) ? payload : (payload?.offers || []);
+  return offers.map(normalizeOffer);
 };
 
 /**
- * Get offer statistics
- * @returns {Promise<Object>} Stats: { total, pending, processing, analyzed, error }
- */
-export const getOfferStats = async () => {
-  const response = await api.get('/offers/stats');
-  return response.data.data.stats;
-};
-
-/**
- * Get a single offer by ID
+ * Get a single offer by ID (via analysis endpoint).
+ * Note: The new API contract exposes individual offers via GET /analysis/:id.
+ * Use analysisService.getAnalysis(id) for full offer details.
  * @param {string} id - Offer ID
- * @returns {Promise<Object>} Offer object
+ * @returns {Promise<object>} Normalized offer object
  */
 export const getOffer = async (id) => {
-  const response = await api.get(`/offers/${id}`);
-  return response.data.data;
-};
-
-/**
- * Delete an offer by ID
- * @param {string} id - Offer ID
- * @returns {Promise<void>}
- */
-export const deleteOffer = async (id) => {
-  await api.delete(`/offers/${id}`);
+  const response = await api.get(`/analysis/${id}`);
+  const payload = response.data?.data || response.data;
+  return normalizeOffer(payload);
 };
