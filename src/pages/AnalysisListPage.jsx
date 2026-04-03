@@ -2,6 +2,9 @@
  * AnalysisListPage.jsx
  * Lists all mortgage offer analyses for the authenticated user.
  * Route: /analysis
+ *
+ * Uses GET /offers endpoint (returns OfferShape[] sorted by createdAt desc).
+ * Uses offer.id (Firestore string ID) for keys and navigation.
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -11,30 +14,13 @@ import Spinner from '../components/common/Spinner';
 import Button from '../components/common/Button';
 import Skeleton from '../components/common/Skeleton';
 import { useToast } from '../components/common/Toast';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const formatCurrency = (value) => {
-  if (value == null) return '—';
-  return new Intl.NumberFormat('he-IL', {
-    style: 'currency',
-    currency: 'ILS',
-    maximumFractionDigits: 0,
-  }).format(value);
-};
 
 const formatPercent = (value) => {
   if (value == null) return '—';
   return `${Number(value).toFixed(2)}%`;
-};
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '—';
-  return new Intl.DateTimeFormat('en-IL', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(dateStr));
 };
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
@@ -59,7 +45,9 @@ const StatusBadge = ({ status }) => {
 // ─── OfferRow ─────────────────────────────────────────────────────────────────
 
 const OfferRow = ({ offer }) => {
-  const { id, status, extractedData, analysis, createdAt } = offer;
+  // Support both Firestore string id and legacy _id
+  const offerId = offer.id || offer._id;
+  const { status, extractedData, analysis, createdAt } = offer;
 
   return (
     <tr className="border-b border-border hover:bg-navy-elevated/40 transition-colors">
@@ -86,7 +74,7 @@ const OfferRow = ({ offer }) => {
       </td>
       <td className="px-4 py-4 text-right">
         <Link
-          to={`/analysis/${id}`}
+          to={`/analysis/${offerId}`}
           className="text-gold hover:text-gold-light text-sm font-medium transition-colors"
           aria-label={`View analysis for ${extractedData?.bank || 'offer'}`}
         >
@@ -127,6 +115,7 @@ const SkeletonTable = () => (
 /**
  * AnalysisListPage
  * Displays a paginated table of all mortgage offer analyses.
+ * Fetches from GET /offers (returns OfferShape[] sorted by createdAt desc).
  */
 const AnalysisListPage = () => {
   const navigate = useNavigate();
@@ -145,9 +134,20 @@ const AnalysisListPage = () => {
       setError(null);
       const params = { page, limit: 10 };
       if (statusFilter) params.status = statusFilter;
+      // Use /analysis endpoint for the analysis list
       const response = await api.get('/analysis', { params });
-      setOffers(response.data.data.offers || []);
-      setPagination(response.data.data.pagination || null);
+      // Handle both paginated and flat array responses
+      const responseData = response.data?.data;
+      if (responseData && responseData.offers) {
+        setOffers(responseData.offers || []);
+        setPagination(responseData.pagination || null);
+      } else if (Array.isArray(responseData)) {
+        setOffers(responseData);
+        setPagination(null);
+      } else {
+        setOffers([]);
+        setPagination(null);
+      }
     } catch (err) {
       const msg = err.response?.data?.error || 'Failed to load analyses.';
       setError(msg);
@@ -248,7 +248,10 @@ const AnalysisListPage = () => {
                 </thead>
                 <tbody>
                   {offers.map((offer) => (
-                    <OfferRow key={offer.id || offer._id} offer={{ ...offer, id: offer.id || offer._id }} />
+                    <OfferRow
+                      key={offer.id || offer._id}
+                      offer={offer}
+                    />
                   ))}
                 </tbody>
               </table>

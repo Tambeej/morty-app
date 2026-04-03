@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../common/Input';
 import Button from '../common/Button';
-import { registerValidationRules } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
 import { useToast } from '../common/Toast';
 
@@ -11,6 +10,7 @@ import { useToast } from '../common/Toast';
  * RegisterForm component.
  * Handles new user registration with full name, phone, email, password.
  * Shows inline validation errors and toast notifications.
+ * Validation messages aligned with test expectations.
  */
 const RegisterForm = () => {
   const navigate = useNavigate();
@@ -33,6 +33,36 @@ const RegisterForm = () => {
     },
   });
 
+  const validationRules = {
+    fullName: {
+      required: 'Full name is required',
+      minLength: { value: 2, message: 'Full name must be at least 2 characters' },
+    },
+    phone: {
+      required: 'Phone number is required',
+      pattern: {
+        value: /^(\+972|0)[0-9]{8,9}$/,
+        message: 'Enter a valid Israeli phone number (e.g. 050-1234567 or +972501234567)',
+      },
+    },
+    email: {
+      required: 'Email is required',
+      pattern: {
+        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        message: 'Please enter a valid email address',
+      },
+    },
+    password: {
+      required: 'Password is required',
+      minLength: { value: 8, message: 'Password must be at least 8 characters' },
+    },
+    confirmPassword: {
+      required: 'Please confirm your password',
+      validate: (value) =>
+        value === getValues('password') || 'Passwords do not match',
+    },
+  };
+
   const onSubmit = async (data) => {
     try {
       const { confirmPassword, ...userData } = data;
@@ -41,6 +71,7 @@ const RegisterForm = () => {
       navigate('/dashboard');
     } catch (err) {
       const message =
+        err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
         'Registration failed. Please try again.';
@@ -71,7 +102,7 @@ const RegisterForm = () => {
             />
           </svg>
         }
-        {...register('fullName', registerValidationRules.fullName)}
+        {...register('fullName', validationRules.fullName)}
       />
 
       {/* Phone */}
@@ -87,7 +118,7 @@ const RegisterForm = () => {
             <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
           </svg>
         }
-        {...register('phone', registerValidationRules.phone)}
+        {...register('phone', validationRules.phone)}
       />
 
       {/* Email */}
@@ -103,7 +134,7 @@ const RegisterForm = () => {
             <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
           </svg>
         }
-        {...register('email', registerValidationRules.email)}
+        {...register('email', validationRules.email)}
       />
 
       {/* Password */}
@@ -123,7 +154,7 @@ const RegisterForm = () => {
             />
           </svg>
         }
-        {...register('password', registerValidationRules.password)}
+        {...register('password', validationRules.password)}
       />
 
       {/* Confirm Password */}
@@ -142,7 +173,7 @@ const RegisterForm = () => {
             />
           </svg>
         }
-        {...register('confirmPassword', registerValidationRules.confirmPassword(getValues))}
+        {...register('confirmPassword', validationRules.confirmPassword)}
       />
 
       <Button

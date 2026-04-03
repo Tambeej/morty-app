@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiService } from '../services/api.js';
+import { formatDate } from '../utils/formatters.js';
 import PageLayout from '../components/layout/PageLayout.jsx';
 import Card from '../components/common/Card.jsx';
 import Button from '../components/common/Button.jsx';
@@ -13,6 +14,7 @@ const MAX_SIZE_MB = 5;
 
 /**
  * File upload page for mortgage offer documents.
+ * Uses offer.id (Firestore string ID) for keys and navigation links.
  */
 export default function UploadPage() {
   const [file, setFile] = useState(null);
@@ -80,6 +82,15 @@ export default function UploadPage() {
 
   function formatSize(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  /**
+   * Get the offer ID — supports both Firestore string id and legacy _id.
+   * @param {object} offer
+   * @returns {string}
+   */
+  function getOfferId(offer) {
+    return offer.id || offer._id;
   }
 
   return (
@@ -174,37 +185,49 @@ export default function UploadPage() {
             <p className="text-[#64748b] text-sm text-center py-4">No uploads yet.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {recentOffers.map((offer) => (
-                <div
-                  key={offer._id}
-                  className="flex items-center justify-between p-3 bg-navy-elevated rounded-input border border-border"
-                >
-                  <div className="flex items-center gap-3">
-                    <span aria-hidden="true">📄</span>
-                    <div>
-                      <p className="text-sm text-[#f8fafc]">
-                        {offer.originalFile?.url?.split('/').pop() || 'offer.pdf'}
-                      </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        offer.status === 'analyzed' ? 'bg-green-900/40 text-green-400' :
-                        offer.status === 'error'    ? 'bg-red-900/40 text-red-400' :
-                        'bg-yellow-900/40 text-yellow-400'
-                      }`}>
-                        {offer.status === 'analyzed' ? 'Analyzed' :
-                         offer.status === 'error'    ? 'Error' : 'Pending'}
-                      </span>
+              {recentOffers.map((offer) => {
+                const offerId = getOfferId(offer);
+                return (
+                  <div
+                    key={offerId}
+                    className="flex items-center justify-between p-3 bg-navy-elevated rounded-input border border-border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span aria-hidden="true">📄</span>
+                      <div>
+                        <p className="text-sm text-[#f8fafc]">
+                          {offer.originalFile?.url?.split('/').pop() || 'offer.pdf'}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                            offer.status === 'analyzed'
+                              ? 'bg-green-100/10 text-green-400 border-green-200/20'
+                              : offer.status === 'error'
+                              ? 'bg-red-100/10 text-red-400 border-red-200/20'
+                              : 'bg-yellow-100/10 text-yellow-400 border-yellow-200/20'
+                          }`}>
+                            {offer.status === 'analyzed' ? 'Analyzed' :
+                             offer.status === 'error'    ? 'Error' : 'Pending'}
+                          </span>
+                          {offer.createdAt && (
+                            <span className="text-xs text-[#64748b]">
+                              {formatDate(offer.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                    {offer.status === 'analyzed' && (
+                      <Link
+                        to={`/analysis/${offerId}`}
+                        className="text-gold hover:text-gold-light text-xs font-medium"
+                      >
+                        View Results →
+                      </Link>
+                    )}
                   </div>
-                  {offer.status === 'analyzed' && (
-                    <Link
-                      to={`/analysis/${offer._id}`}
-                      className="text-gold hover:text-gold-light text-xs font-medium"
-                    >
-                      View Results →
-                    </Link>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>

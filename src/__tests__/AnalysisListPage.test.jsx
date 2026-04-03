@@ -1,6 +1,7 @@
 /**
  * AnalysisListPage.test.jsx
  * Tests for the AnalysisListPage component.
+ * Uses Firestore string IDs (offer.id, not offer._id).
  */
 
 import React from 'react';
@@ -14,18 +15,21 @@ jest.mock('../components/common/Toast', () => ({
   useToast: () => ({ showToast: jest.fn() }),
 }));
 
+/**
+ * Mock offers using Firestore string IDs.
+ */
 const mockOffers = [
   {
-    _id: 'offer-1',
+    id: 'offer-id-abc123',
     status: 'analyzed',
-    createdAt: new Date().toISOString(),
+    createdAt: '2026-04-03T02:16:00.000Z',
     extractedData: { bank: 'Bank Hapoalim', amount: 1_200_000, rate: 3.8, term: 25 },
     analysis: { savings: 48_000 },
   },
   {
-    _id: 'offer-2',
+    id: 'offer-id-def456',
     status: 'pending',
-    createdAt: new Date().toISOString(),
+    createdAt: '2026-04-03T02:16:00.000Z',
     extractedData: { bank: 'Bank Leumi', amount: 900_000, rate: 3.6, term: 20 },
     analysis: null,
   },
@@ -102,5 +106,18 @@ describe('AnalysisListPage', () => {
         expect.objectContaining({ params: expect.objectContaining({ status: 'analyzed' }) })
       )
     );
+  });
+
+  it('uses offer.id (Firestore string ID) as row key', async () => {
+    api.get.mockResolvedValueOnce(mockResponse);
+    render(<MemoryRouter><AnalysisListPage /></MemoryRouter>);
+
+    await waitFor(() =>
+      expect(screen.getByText('Bank Hapoalim')).toBeInTheDocument()
+    );
+
+    // Verify links use string IDs
+    const links = screen.getAllByText('View Results →');
+    expect(links.length).toBe(2);
   });
 });

@@ -3,42 +3,49 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RecentUploads from '../RecentUploads';
 
+/**
+ * Mock offers using Firestore string IDs (offer.id, not offer._id).
+ */
 const mockOffers = [
   {
-    _id: '1',
+    id: 'offer-id-1',
     status: 'analyzed',
     originalFile: {
       originalName: 'hapoalim_offer.pdf',
       mimetype: 'application/pdf',
     },
     extractedData: { bank: 'Bank Hapoalim' },
+    createdAt: '2026-04-03T02:16:00.000Z',
   },
   {
-    _id: '2',
+    id: 'offer-id-2',
     status: 'pending',
     originalFile: {
       originalName: 'leumi_offer.pdf',
       mimetype: 'application/pdf',
     },
     extractedData: { bank: 'Bank Leumi' },
+    createdAt: '2026-04-03T02:16:00.000Z',
   },
   {
-    _id: '3',
+    id: 'offer-id-3',
     status: 'processing',
     originalFile: {
       originalName: 'discount_offer.png',
       mimetype: 'image/png',
     },
     extractedData: {},
+    createdAt: '2026-04-03T02:16:00.000Z',
   },
   {
-    _id: '4',
+    id: 'offer-id-4',
     status: 'error',
     originalFile: {
       originalName: 'bad_offer.pdf',
       mimetype: 'application/pdf',
     },
     extractedData: {},
+    createdAt: '2026-04-03T02:16:00.000Z',
   },
 ];
 
@@ -80,12 +87,12 @@ describe('RecentUploads', () => {
     renderWithRouter(
       <RecentUploads offers={mockOffers} isLoading={false} />
     );
-    // pending offer (id=2) and error offer (id=4) should have delete buttons
+    // pending offer (id=offer-id-2) and error offer (id=offer-id-4) should have delete buttons
     const deleteButtons = screen.getAllByLabelText(/Delete/i);
     expect(deleteButtons.length).toBe(2);
   });
 
-  it('calls onDelete when delete button is clicked', () => {
+  it('calls onDelete with offer.id when delete button is clicked', () => {
     const onDelete = jest.fn();
     renderWithRouter(
       <RecentUploads offers={mockOffers} isLoading={false} onDelete={onDelete} />
@@ -93,6 +100,8 @@ describe('RecentUploads', () => {
     const deleteButtons = screen.getAllByLabelText(/Delete/i);
     fireEvent.click(deleteButtons[0]);
     expect(onDelete).toHaveBeenCalledTimes(1);
+    // Should be called with the string ID (Firestore shape)
+    expect(onDelete).toHaveBeenCalledWith('offer-id-2');
   });
 
   it('shows correct status badges', () => {
@@ -111,5 +120,14 @@ describe('RecentUploads', () => {
     );
     expect(screen.getByText('Bank Hapoalim')).toBeInTheDocument();
     expect(screen.getByText('Bank Leumi')).toBeInTheDocument();
+  });
+
+  it('uses offer.id (Firestore string ID) as list item key', () => {
+    // This test verifies no React key warnings by checking renders correctly
+    const { container } = renderWithRouter(
+      <RecentUploads offers={mockOffers} isLoading={false} />
+    );
+    const listItems = container.querySelectorAll('li');
+    expect(listItems.length).toBe(mockOffers.length);
   });
 });

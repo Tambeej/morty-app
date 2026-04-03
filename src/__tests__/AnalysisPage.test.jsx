@@ -1,6 +1,7 @@
 /**
  * AnalysisPage.test.jsx
  * Unit / integration tests for the AnalysisPage component.
+ * Uses Firestore string IDs and ISO timestamps.
  */
 
 import React from 'react';
@@ -26,7 +27,7 @@ global.ResizeObserver = class ResizeObserver {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const renderPage = (id = 'offer-123') =>
+const renderPage = (id = 'offer-id-abc123') =>
   render(
     <MemoryRouter initialEntries={[`/analysis/${id}`]}>
       <Routes>
@@ -35,12 +36,16 @@ const renderPage = (id = 'offer-123') =>
     </MemoryRouter>
   );
 
+/**
+ * Mock analyzed offer using Firestore string ID and ISO timestamps.
+ */
 const mockAnalyzedResponse = {
   data: {
     data: {
-      id: 'offer-123',
+      id: 'offer-id-abc123',
       status: 'analyzed',
-      createdAt: new Date().toISOString(),
+      createdAt: '2026-04-03T02:16:00.000Z',
+      updatedAt: '2026-04-03T02:20:00.000Z',
       extractedData: {
         bank: 'Bank Hapoalim',
         amount: 1_200_000,
@@ -109,9 +114,9 @@ describe('AnalysisPage', () => {
     api.get.mockResolvedValueOnce({
       data: {
         data: {
-          id: 'offer-123',
+          id: 'offer-id-abc123',
           status: 'pending',
-          createdAt: new Date().toISOString(),
+          createdAt: '2026-04-03T02:16:00.000Z',
           extractedData: null,
           analysis: null,
         },
@@ -140,9 +145,9 @@ describe('AnalysisPage', () => {
     api.get.mockResolvedValueOnce({
       data: {
         data: {
-          id: 'offer-123',
+          id: 'offer-id-abc123',
           status: 'error',
-          createdAt: new Date().toISOString(),
+          createdAt: '2026-04-03T02:16:00.000Z',
           extractedData: null,
           analysis: null,
         },
@@ -160,15 +165,27 @@ describe('AnalysisPage', () => {
     api.get.mockResolvedValueOnce({
       data: {
         data: {
-          id: 'offer-123',
+          id: 'offer-id-abc123',
           status: 'error',
-          createdAt: new Date().toISOString(),
+          createdAt: '2026-04-03T02:16:00.000Z',
           extractedData: null,
           analysis: null,
         },
       },
     });
     api.post.mockResolvedValueOnce({ data: { success: true } });
+    // After retry, return a pending offer
+    api.get.mockResolvedValueOnce({
+      data: {
+        data: {
+          id: 'offer-id-abc123',
+          status: 'pending',
+          createdAt: '2026-04-03T02:16:00.000Z',
+          extractedData: null,
+          analysis: null,
+        },
+      },
+    });
 
     renderPage();
 
@@ -179,7 +196,7 @@ describe('AnalysisPage', () => {
     fireEvent.click(screen.getByLabelText('Retry analysis'));
 
     await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('/analysis/offer-123/reanalyze')
+      expect(api.post).toHaveBeenCalledWith('/analysis/offer-id-abc123/reanalyze')
     );
   });
 
