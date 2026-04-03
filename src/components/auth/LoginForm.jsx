@@ -30,7 +30,7 @@ import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import { loginValidationRules } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
-import { useToast } from '../../context/ToastContext';
+import { useToast } from '../../context/ToastContext.jsx';
 
 /**
  * Inline "or" divider between primary and OAuth sign-in options.
