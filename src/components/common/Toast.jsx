@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { useToast, ToastProvider } from '../../context/ToastContext';
+import { useToast, ToastProvider } from '../../context/ToastContext.jsx';
 
 // Re-export ToastProvider so tests can import it from this file
 export { ToastProvider };
