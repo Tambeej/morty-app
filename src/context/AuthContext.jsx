@@ -9,6 +9,9 @@
  * Exposes:
  *   user, token, isAuthenticated, isLoading, error,
  *   loginUser, registerUser, logoutUser, clearError
+ *
+ * Also exposes legacy aliases: login, register, logout, loading
+ * for backward compatibility with existing components.
  */
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
@@ -23,7 +26,6 @@ import {
   getStoredUser,
   clearStoredTokens,
 } from '../utils/storage';
-import { apiService } from './api-compat';
 
 /** @type {React.Context} */
 const AuthContext = createContext(null);
@@ -132,12 +134,12 @@ export function AuthProvider({ children }) {
   /**
    * Log in with email and password.
    * @param {{ email: string, password: string }} credentials
-   * @returns {Promise<{ success: boolean, error?: string }>}
+   * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
    */
   const loginUser = useCallback(async (credentials) => {
     dispatch({ type: AUTH_ACTIONS.AUTH_START });
     try {
-      const { token, refreshToken, user } = await authLogin(credentials);
+      const { token, user } = await authLogin(credentials);
       dispatch({
         type: AUTH_ACTIONS.AUTH_SUCCESS,
         payload: { user, token },
@@ -158,12 +160,12 @@ export function AuthProvider({ children }) {
   /**
    * Register a new account.
    * @param {{ email: string, password: string, phone?: string }} userData
-   * @returns {Promise<{ success: boolean, error?: string }>}
+   * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
    */
   const registerUser = useCallback(async (userData) => {
     dispatch({ type: AUTH_ACTIONS.AUTH_START });
     try {
-      const { token, refreshToken, user } = await authRegister(userData);
+      const { token, user } = await authRegister(userData);
       dispatch({
         type: AUTH_ACTIONS.AUTH_SUCCESS,
         payload: { user, token },
@@ -202,6 +204,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ── Legacy aliases (backward-compat for components using login/logout) ────
+  /**
+   * Legacy login alias. Accepts (email, password) or ({ email, password }).
+   * @param {string|object} emailOrCredentials
+   * @param {string} [password]
+   */
   const login = useCallback(
     async (emailOrCredentials, password) => {
       const credentials =
@@ -213,11 +220,13 @@ export function AuthProvider({ children }) {
     [loginUser]
   );
 
+  /** Legacy register alias */
   const register = useCallback(
     (userData) => registerUser(userData),
     [registerUser]
   );
 
+  /** Legacy logout alias */
   const logout = useCallback(() => logoutUser(), [logoutUser]);
 
   const value = {
@@ -250,7 +259,21 @@ AuthProvider.propTypes = {
  * Hook to access authentication context.
  * Must be used inside <AuthProvider>.
  *
- * @returns {{ user, token, isAuthenticated, isLoading, error, loginUser, registerUser, logoutUser, clearError }}
+ * @returns {{
+ *   user: object|null,
+ *   token: string|null,
+ *   isAuthenticated: boolean,
+ *   isLoading: boolean,
+ *   loading: boolean,
+ *   error: string|null,
+ *   loginUser: function,
+ *   registerUser: function,
+ *   logoutUser: function,
+ *   clearError: function,
+ *   login: function,
+ *   register: function,
+ *   logout: function,
+ * }}
  */
 export function useAuth() {
   const ctx = useContext(AuthContext);

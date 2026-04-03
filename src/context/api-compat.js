@@ -1,8 +1,7 @@
 /**
- * Compatibility shim — re-exports apiService so AuthContext.jsx
- * can import it without a circular dependency on services/api.js.
+ * This file is intentionally empty.
+ * It was created as a shim but is no longer needed.
+ * AuthContext.jsx uses authService directly.
  *
- * This file exists solely to satisfy the import in AuthContext.jsx
- * while keeping the real implementation in services/api.js.
+ * @deprecated Remove this file in a future cleanup.
  */
-export { apiService } from '../services/api';
