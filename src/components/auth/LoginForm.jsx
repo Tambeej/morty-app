@@ -13,7 +13,7 @@
  *   7. Register link
  *
  * Google sign-in flow:
- *   - Opens Firebase popup via googleLogin() from authService (via useAuth)
+ *   - Opens Firebase popup via googleLogin() from authService
  *   - Null return = user closed popup → silent no-op
  *   - Success → toast + navigate /dashboard
  *   - Error → toast with message
@@ -29,6 +29,7 @@ import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import { loginValidationRules } from '../../utils/validators';
 import useAuth from '../../hooks/useAuth';
+import { googleLogin as googleLoginService } from '../../services/authService';
 import { useToast } from '../common/Toast';
 
 /**
@@ -48,7 +49,7 @@ const OrDivider = () => (
 
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { login, googleLogin } = useAuth();
+  const { login } = useAuth();
   const { success, error: showError } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -86,22 +87,22 @@ const LoginForm = () => {
 
   /**
    * Handle Google OAuth sign-in.
+   *
+   * Calls googleLogin() from authService directly (AuthContext integration
+   * is handled in task 4 — Update AuthContext to support googleLogin).
+   *
    * - Null result means user closed the popup → silent no-op.
-   * - On success, dispatch AUTH_SUCCESS via googleLogin and navigate.
+   * - On success, tokens are stored by authService; navigate to /dashboard.
    * - On error, show toast.
    */
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      const result = await googleLogin();
+      const result = await googleLoginService();
       // User closed the popup — treat as silent no-op
       if (result === null) return;
-      if (result && result.success !== false) {
-        success('ברוך הבא!', 'Signed in with Google');
-        navigate('/dashboard');
-      } else {
-        showError(result?.error || 'Google sign-in failed', 'Sign in failed');
-      }
+      success('ברוך הבא!', 'Signed in with Google');
+      navigate('/dashboard');
     } catch (err) {
       const message =
         err?.code === 'auth/popup-blocked'

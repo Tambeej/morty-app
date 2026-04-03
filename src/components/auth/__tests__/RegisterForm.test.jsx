@@ -179,23 +179,23 @@ describe('RegisterForm', () => {
   });
 
   it('calls googleLogin when Google button is clicked', async () => {
-    const { googleLogin: mockGoogleLogin } = await import('../../../services/authService');
+    const authService = await import('../../../services/authService');
     // Simulate user closing the popup (null return = silent no-op)
-    mockGoogleLogin.mockResolvedValueOnce(null);
+    authService.googleLogin.mockResolvedValueOnce(null);
 
     renderRegisterForm();
     const googleButton = screen.getByRole('button', { name: /sign in with google/i });
     await userEvent.click(googleButton);
 
     await waitFor(() => {
-      expect(mockGoogleLogin).toHaveBeenCalledTimes(1);
+      expect(authService.googleLogin).toHaveBeenCalledTimes(1);
     });
   });
 
   it('Google button shows loading state while signing up', async () => {
-    const { googleLogin: mockGoogleLogin } = await import('../../../services/authService');
+    const authService = await import('../../../services/authService');
     // Never resolves during this test — keeps button in loading state
-    mockGoogleLogin.mockImplementationOnce(() => new Promise(() => {}));
+    authService.googleLogin.mockImplementationOnce(() => new Promise(() => {}));
 
     renderRegisterForm();
     const googleButton = screen.getByRole('button', { name: /sign in with google/i });

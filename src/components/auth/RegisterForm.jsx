@@ -15,7 +15,7 @@
  *   9. Sign In link
  *
  * Google sign-up flow:
- *   - Opens Firebase popup via googleLogin() from useAuth
+ *   - Opens Firebase popup via googleLogin() from authService
  *   - Null return = user closed popup → silent no-op
  *   - Success → toast + navigate /dashboard
  *   - Error → toast with message
@@ -30,6 +30,7 @@ import Input from '../common/Input';
 import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
 import useAuth from '../../hooks/useAuth';
+import { googleLogin as googleLoginService } from '../../services/authService';
 import { useToast } from '../common/Toast';
 
 /**
@@ -49,7 +50,7 @@ const OrDivider = () => (
 
 const RegisterForm = () => {
   const navigate = useNavigate();
-  const { register: registerUser, googleLogin } = useAuth();
+  const { register: registerUser } = useAuth();
   const { success, error: showError } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -121,22 +122,22 @@ const RegisterForm = () => {
 
   /**
    * Handle Google OAuth sign-up.
+   *
+   * Calls googleLogin() from authService directly (AuthContext integration
+   * is handled in task 4 — Update AuthContext to support googleLogin).
+   *
    * - Null result means user closed the popup → silent no-op.
-   * - On success, dispatch AUTH_SUCCESS via googleLogin and navigate.
+   * - On success, tokens are stored by authService; navigate to /dashboard.
    * - On error, show toast.
    */
   const handleGoogleRegister = async () => {
     setIsGoogleLoading(true);
     try {
-      const result = await googleLogin();
+      const result = await googleLoginService();
       // User closed the popup — treat as silent no-op
       if (result === null) return;
-      if (result && result.success !== false) {
-        success('ברוך הבא!', 'Signed up with Google');
-        navigate('/dashboard');
-      } else {
-        showError(result?.error || 'Google sign-up failed', 'Registration failed');
-      }
+      success('ברוך הבא!', 'Signed up with Google');
+      navigate('/dashboard');
     } catch (err) {
       const message =
         err?.code === 'auth/popup-blocked'
