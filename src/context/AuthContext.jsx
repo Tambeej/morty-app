@@ -12,6 +12,13 @@
  *
  * Also exposes legacy aliases: login, register, logout, googleLogin, loading
  * for backward compatibility with existing components.
+ *
+ * Logout flow:
+ *   logoutUser() → authService.logout() which:
+ *     1. Calls firebase.auth().signOut() to clear Google OAuth session
+ *     2. POSTs refresh token to /auth/logout to invalidate server-side
+ *     3. Clears all tokens from localStorage
+ *   Then dispatches LOGOUT action to reset AuthContext state.
  */
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
@@ -236,13 +243,25 @@ export function AuthProvider({ children }) {
   // ── Logout ────────────────────────────────────────────────────────────────
   /**
    * Log out and clear all stored credentials.
+   *
+   * Delegates to authService.logout() which performs a full sign-out:
+   *   1. Firebase signOut() — clears Google OAuth session (safe no-op for
+   *      email/password users with no Firebase session).
+   *   2. Backend POST /auth/logout — invalidates the refresh token server-side.
+   *   3. localStorage cleanup — clears all tokens regardless of API result.
+   *
+   * After authService.logout() completes (or fails), the LOGOUT action is
+   * dispatched to reset AuthContext state to the initial unauthenticated state.
+   *
    * @returns {Promise<void>}
    */
   const logoutUser = useCallback(async () => {
     try {
       await authLogout();
-    } catch {
-      // authLogout already handles errors internally and clears tokens
+    } catch (err) {
+      // authLogout handles errors internally and always clears tokens.
+      // This catch is a safety net for unexpected throws.
+      console.warn('[AuthContext] logoutUser caught unexpected error:', err?.message || err);
       clearStoredTokens();
     } finally {
       dispatch({ type: AUTH_ACTIONS.LOGOUT });

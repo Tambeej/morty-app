@@ -22,7 +22,7 @@ import {
   getStoredRefreshToken,
 } from '../utils/storage';
 import { auth, googleProvider } from '../firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 
 /**
  * Normalize user object from backend response.
@@ -135,18 +135,42 @@ export const googleLogin = async () => {
 /**
  * Logout the current user.
  *
- * Calls the server to invalidate the refresh token server-side,
- * then clears all locally stored tokens regardless of API result.
+ * Performs a full sign-out in two steps:
+ *   1. Firebase sign-out — clears the Firebase Auth session (Google OAuth
+ *      session cookie, cached credentials). This is a no-op for email/password
+ *      users who never signed in via Firebase, so it is always safe to call.
+ *   2. Backend invalidation — POSTs the refresh token to /auth/logout so the
+ *      server can revoke it in Firestore.
+ *   3. Local token cleanup — clears all tokens from localStorage regardless of
+ *      whether steps 1 or 2 succeed, ensuring the user is always logged out
+ *      on the client side.
+ *
+ * Error handling:
+ *   - Firebase signOut errors are caught and logged as warnings (non-fatal).
+ *     The Firebase session may already be expired or the user may have been
+ *     an email/password user with no Firebase session.
+ *   - Backend logout errors are caught and logged as warnings (non-fatal).
+ *     Token cleanup always runs in the `finally` block.
  *
  * @returns {Promise<void>}
  */
 export const logout = async () => {
+  // Step 1: Sign out from Firebase Auth to clear Google OAuth session.
+  // This is safe to call even for email/password users (no-op if no Firebase session).
+  try {
+    await firebaseSignOut(auth);
+  } catch (err) {
+    // Non-fatal: Firebase session may already be expired or absent.
+    console.warn('[authService] Firebase signOut failed (non-fatal):', err?.message || err);
+  }
+
+  // Step 2: Invalidate the refresh token on the backend + Step 3: clear local storage.
   try {
     const refreshToken = getStoredRefreshToken();
     await api.post('/auth/logout', { refreshToken });
   } catch (err) {
     // Ignore errors on logout — clear tokens regardless
-    console.warn('Logout API call failed:', err?.message || err);
+    console.warn('[authService] Logout API call failed (non-fatal):', err?.message || err);
   } finally {
     clearStoredTokens();
   }

@@ -10,7 +10,7 @@
  *   - loginUser (success, failure with message/error fields)
  *   - registerUser (success, failure)
  *   - googleLoginUser (success, popup dismissed, error)
- *   - logoutUser (success, API failure)
+ *   - logoutUser (success, API failure, Firebase signOut failure)
  *   - clearError
  *   - useAuth outside provider throws
  */
@@ -372,6 +372,8 @@ describe('AuthContext', () => {
     });
   });
 
+  // ── logoutUser tests (Firebase signOut integration) ───────────────────────
+
   it('should logout successfully and clear state', async () => {
     authService.login.mockResolvedValue({
       token: 'access-token',
@@ -401,6 +403,9 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('authenticated').textContent).toBe('false');
       expect(screen.getByTestId('user').textContent).toBe('none');
     });
+
+    // authService.logout (which includes Firebase signOut) must be called
+    expect(authService.logout).toHaveBeenCalledTimes(1);
   });
 
   it('should clear tokens even if logout API call fails', async () => {
@@ -427,7 +432,34 @@ describe('AuthContext', () => {
       await userEvent.click(screen.getByText('Logout'));
     });
     await waitFor(() => {
+      // Auth state must be cleared even when logout throws
       expect(screen.getByTestId('authenticated').textContent).toBe('false');
+    });
+  });
+
+  it('should dispatch LOGOUT action after successful Firebase signOut', async () => {
+    // authService.logout resolves (Firebase signOut + backend both succeed)
+    authService.logout.mockResolvedValue();
+
+    renderWithAuth();
+    await waitFor(() =>
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    );
+
+    // Simulate already-authenticated state via session restore
+    storage.getStoredToken.mockReturnValue('stored-token');
+    storage.getStoredUser.mockReturnValue(mockUser);
+
+    // Trigger logout
+    await act(async () => {
+      await userEvent.click(screen.getByText('Logout'));
+    });
+
+    await waitFor(() => {
+      // LOGOUT action resets state to initial (unauthenticated)
+      expect(screen.getByTestId('authenticated').textContent).toBe('false');
+      expect(screen.getByTestId('user').textContent).toBe('none');
+      expect(screen.getByTestId('loading').textContent).toBe('false');
     });
   });
 

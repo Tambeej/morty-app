@@ -37,9 +37,11 @@ const mockFirebaseUser = {
 };
 
 const mockSignInWithPopup = vi.fn();
+const mockFirebaseSignOut = vi.fn();
 
 vi.mock('firebase/auth', () => ({
   signInWithPopup: (...args) => mockSignInWithPopup(...args),
+  signOut: (...args) => mockFirebaseSignOut(...args),
   GoogleAuthProvider: vi.fn(),
   getAuth: vi.fn(),
 }));
@@ -154,19 +156,71 @@ describe('authService', () => {
   });
 
   describe('logout', () => {
-    it('should call POST /auth/logout with refresh token and clear tokens', async () => {
+    it('should call Firebase signOut, POST /auth/logout with refresh token, and clear tokens', async () => {
+      mockFirebaseSignOut.mockResolvedValue(undefined);
       api.post.mockResolvedValue({ data: { message: 'Logged out' } });
+
       await authService.logout();
+
+      // Firebase signOut must be called first
+      expect(mockFirebaseSignOut).toHaveBeenCalledTimes(1);
+
+      // Backend logout must be called with the stored refresh token
       expect(api.post).toHaveBeenCalledWith('/auth/logout', {
         refreshToken: 'stored-refresh-token',
       });
+
+      // Local tokens must be cleared
       expect(storage.clearStoredTokens).toHaveBeenCalled();
     });
 
     it('should clear tokens even if API call fails', async () => {
+      mockFirebaseSignOut.mockResolvedValue(undefined);
       api.post.mockRejectedValue(new Error('Network error'));
+
       await authService.logout();
+
       expect(storage.clearStoredTokens).toHaveBeenCalled();
+    });
+
+    it('should still clear tokens and call backend if Firebase signOut fails', async () => {
+      // Firebase signOut fails (e.g. no active session)
+      mockFirebaseSignOut.mockRejectedValue(new Error('Firebase: no current user'));
+      api.post.mockResolvedValue({ data: { message: 'Logged out' } });
+
+      await authService.logout();
+
+      // Firebase signOut was attempted
+      expect(mockFirebaseSignOut).toHaveBeenCalledTimes(1);
+
+      // Backend logout still called despite Firebase failure
+      expect(api.post).toHaveBeenCalledWith('/auth/logout', {
+        refreshToken: 'stored-refresh-token',
+      });
+
+      // Local tokens still cleared
+      expect(storage.clearStoredTokens).toHaveBeenCalled();
+    });
+
+    it('should clear tokens even if both Firebase signOut and API call fail', async () => {
+      mockFirebaseSignOut.mockRejectedValue(new Error('Firebase error'));
+      api.post.mockRejectedValue(new Error('Network error'));
+
+      await authService.logout();
+
+      // Tokens must always be cleared regardless of errors
+      expect(storage.clearStoredTokens).toHaveBeenCalled();
+    });
+
+    it('should call Firebase signOut with the auth instance', async () => {
+      mockFirebaseSignOut.mockResolvedValue(undefined);
+      api.post.mockResolvedValue({ data: { message: 'Logged out' } });
+
+      await authService.logout();
+
+      // Verify Firebase signOut was called with the auth object from firebase.js
+      const { auth } = await import('../../firebase');
+      expect(mockFirebaseSignOut).toHaveBeenCalledWith(auth);
     });
   });
 
