@@ -1,0 +1,1 @@
+const n=(t,r=!0)=>{if(t==null||isNaN(t))return r?"₪0":"0";const e=new Intl.NumberFormat("he-IL",{minimumFractionDigits:0,maximumFractionDigits:0}).format(t);return r?`₪${e}`:e},a=(t,r={})=>{if(!t)return"—";const e={year:"numeric",month:"short",day:"numeric",...r};try{return new Intl.DateTimeFormat("he-IL",e).format(new Date(t))}catch{return"—"}};export{a,n as f};
