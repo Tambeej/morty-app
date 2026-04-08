@@ -141,104 +141,69 @@ const mockAuthPayload = {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('Google Auth Flow — LoginForm', () => {
+describe('Google Auth Flow — redirect-based', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLogoutService.mockResolvedValue(undefined);
+    mockHandleGoogleRedirectResult.mockResolvedValue(null);
   });
 
-  // ── Success state ───────────────────────────────────────────────────────────
+  // ── Button triggers redirect ──────────────────────────────────────────────
 
-  it('navigates to /dashboard on successful Google sign-in', async () => {
-    mockGoogleLoginService.mockResolvedValue(mockAuthPayload);
+  it('calls googleLogin (signInWithRedirect) when Google button is clicked on LoginForm', async () => {
+    mockGoogleLoginService.mockResolvedValue(undefined);
 
     renderLoginFormWithRouter();
 
     const googleButton = screen.getByRole('button', { name: /sign in with google/i });
     await userEvent.click(googleButton);
+
+    await waitFor(() => {
+      expect(mockGoogleLoginService).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('calls googleLogin (signInWithRedirect) when Google button is clicked on RegisterForm', async () => {
+    mockGoogleLoginService.mockResolvedValue(undefined);
+
+    renderRegisterFormWithRouter();
+
+    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
+    await userEvent.click(googleButton);
+
+    await waitFor(() => {
+      expect(mockGoogleLoginService).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── Redirect result on mount ──────────────────────────────────────────────
+
+  it('navigates to /dashboard when redirect result is available on mount', async () => {
+    mockHandleGoogleRedirectResult.mockResolvedValue(mockAuthPayload);
+
+    renderLoginFormWithRouter();
 
     await waitFor(() => {
       expect(screen.getByTestId('dashboard')).toBeInTheDocument();
     });
   });
 
-  it('stores tokens in localStorage on successful Google sign-in', async () => {
-    mockGoogleLoginService.mockResolvedValue(mockAuthPayload);
+  it('stays on login page when no redirect result is pending', async () => {
+    mockHandleGoogleRedirectResult.mockResolvedValue(null);
 
     renderLoginFormWithRouter();
 
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
     await waitFor(() => {
-      expect(mockSetStoredToken).toHaveBeenCalledWith('access-token-google-xyz');
-      expect(mockSetStoredRefreshToken).toHaveBeenCalledWith('refresh-token-google-xyz');
-      expect(mockSetStoredUser).toHaveBeenCalled();
-    });
-  });
-
-  // ── Silent no-op (popup dismissed) ─────────────────────────────────────────
-
-  it('does not navigate when user dismisses the Google popup (null return)', async () => {
-    mockGoogleLoginService.mockResolvedValue(null);
-
-    renderLoginFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      // Should still be on login page, not dashboard
-      expect(screen.queryByTestId('dashboard')).not.toBeInTheDocument();
-      // Google button should be re-enabled
-      expect(googleButton).not.toBeDisabled();
-    });
-  });
-
-  it('does not show error toast when user dismisses the popup', async () => {
-    mockGoogleLoginService.mockResolvedValue(null);
-
-    renderLoginFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    // Wait for async to settle
-    await waitFor(() => {
-      expect(googleButton).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument();
     });
 
-    // No error toast should appear
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard')).not.toBeInTheDocument();
   });
 
   // ── Error states ────────────────────────────────────────────────────────────
 
-  it('shows error toast when Google sign-in returns failure result', async () => {
-    // AuthContext returns { success: false, error: '...' } for non-silent errors
-    mockGoogleLoginService.mockRejectedValue(
-      Object.assign(new Error('Firebase: Error (auth/network-request-failed).'), {
-        code: 'auth/network-request-failed',
-      })
-    );
-
-    renderLoginFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      // Should not navigate to dashboard
-      expect(screen.queryByTestId('dashboard')).not.toBeInTheDocument();
-    });
-  });
-
-  it('shows friendly error for popup-blocked', async () => {
-    mockGoogleLoginService.mockRejectedValue(
-      Object.assign(new Error('Firebase: Error (auth/popup-blocked).'), {
-        code: 'auth/popup-blocked',
-      })
-    );
+  it('does not navigate to dashboard when redirect errors', async () => {
+    mockGoogleLoginService.mockRejectedValue(new Error('Redirect failed'));
 
     renderLoginFormWithRouter();
 
@@ -250,7 +215,7 @@ describe('Google Auth Flow — LoginForm', () => {
     });
   });
 
-  it('re-enables Google button after error', async () => {
+  it('re-enables Google button after error on LoginForm', async () => {
     mockGoogleLoginService.mockRejectedValue(new Error('Network error'));
 
     renderLoginFormWithRouter();
@@ -263,10 +228,22 @@ describe('Google Auth Flow — LoginForm', () => {
     });
   });
 
+  it('re-enables Google button after error on RegisterForm', async () => {
+    mockGoogleLoginService.mockRejectedValue(new Error('Network error'));
+
+    renderRegisterFormWithRouter();
+
+    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
+    await userEvent.click(googleButton);
+
+    await waitFor(() => {
+      expect(googleButton).not.toBeDisabled();
+    });
+  });
+
   // ── Loading state ───────────────────────────────────────────────────────────
 
-  it('shows loading spinner while Google sign-in is in progress', async () => {
-    // Never resolves — keeps button in loading state
+  it('shows loading spinner while redirect is in progress on LoginForm', async () => {
     mockGoogleLoginService.mockImplementation(() => new Promise(() => {}));
 
     renderLoginFormWithRouter();
@@ -279,7 +256,7 @@ describe('Google Auth Flow — LoginForm', () => {
     });
   });
 
-  it('disables Google button while sign-in is in progress', async () => {
+  it('disables Google button while redirect is in progress', async () => {
     mockGoogleLoginService.mockImplementation(() => new Promise(() => {}));
 
     renderLoginFormWithRouter();
@@ -291,138 +268,10 @@ describe('Google Auth Flow — LoginForm', () => {
       expect(googleButton).toBeDisabled();
     });
   });
-});
 
-describe('Google Auth Flow — RegisterForm', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockLogoutService.mockResolvedValue(undefined);
-  });
+  // ── Token storage via redirect result ─────────────────────────────────────
 
-  // ── Success state ───────────────────────────────────────────────────────────
-
-  it('navigates to /dashboard on successful Google sign-up', async () => {
-    mockGoogleLoginService.mockResolvedValue(mockAuthPayload);
-
-    renderRegisterFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('dashboard')).toBeInTheDocument();
-    });
-  });
-
-  it('stores tokens in localStorage on successful Google sign-up', async () => {
-    mockGoogleLoginService.mockResolvedValue(mockAuthPayload);
-
-    renderRegisterFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(mockSetStoredToken).toHaveBeenCalledWith('access-token-google-xyz');
-      expect(mockSetStoredRefreshToken).toHaveBeenCalledWith('refresh-token-google-xyz');
-      expect(mockSetStoredUser).toHaveBeenCalled();
-    });
-  });
-
-  // ── Silent no-op (popup dismissed) ─────────────────────────────────────────
-
-  it('does not navigate when user dismisses the Google popup', async () => {
-    mockGoogleLoginService.mockResolvedValue(null);
-
-    renderRegisterFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('dashboard')).not.toBeInTheDocument();
-      expect(googleButton).not.toBeDisabled();
-    });
-  });
-
-  // ── Error states ────────────────────────────────────────────────────────────
-
-  it('re-enables Google button after error', async () => {
-    mockGoogleLoginService.mockRejectedValue(new Error('Network error'));
-
-    renderRegisterFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(googleButton).not.toBeDisabled();
-    });
-  });
-
-  // ── Loading state ───────────────────────────────────────────────────────────
-
-  it('shows loading spinner while Google sign-up is in progress', async () => {
-    mockGoogleLoginService.mockImplementation(() => new Promise(() => {}));
-
-    renderRegisterFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Connecting...')).toBeInTheDocument();
-    });
-  });
-});
-
-describe('Token Storage — post-auth verification', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockLogoutService.mockResolvedValue(undefined);
-  });
-
-  it('stores access token, refresh token, and user after Google auth', async () => {
-    const payload = {
-      token: 'test-access-token',
-      refreshToken: 'test-refresh-token',
-      user: { id: 'uid-123', email: 'test@morty.co.il', phone: '', verified: true },
-    };
-    mockGoogleLoginService.mockResolvedValue(payload);
-
-    renderLoginFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      // All three storage calls must happen
-      expect(mockSetStoredToken).toHaveBeenCalledWith('test-access-token');
-      expect(mockSetStoredRefreshToken).toHaveBeenCalledWith('test-refresh-token');
-      expect(mockSetStoredUser).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'uid-123', email: 'test@morty.co.il' })
-      );
-    });
-  });
-
-  it('does NOT store tokens when popup is dismissed', async () => {
-    mockGoogleLoginService.mockResolvedValue(null);
-
-    renderLoginFormWithRouter();
-
-    const googleButton = screen.getByRole('button', { name: /sign in with google/i });
-    await userEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(googleButton).not.toBeDisabled();
-    });
-
-    expect(mockSetStoredToken).not.toHaveBeenCalled();
-    expect(mockSetStoredRefreshToken).not.toHaveBeenCalled();
-    expect(mockSetStoredUser).not.toHaveBeenCalled();
-  });
-
-  it('does NOT store tokens when Google auth fails', async () => {
+  it('does NOT store tokens when redirect errors', async () => {
     mockGoogleLoginService.mockRejectedValue(new Error('Auth failed'));
 
     renderLoginFormWithRouter();

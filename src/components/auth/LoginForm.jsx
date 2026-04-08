@@ -22,7 +22,7 @@
  * Shows inline validation errors and toast notifications.
  * Supports password visibility toggle.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../common/Input';
@@ -49,10 +49,24 @@ const OrDivider = () => (
 
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { login, googleLogin } = useAuth();
+  const { login, googleLogin, isAuthenticated, error: authError } = useAuth();
   const { showSuccess, showError } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Navigate to dashboard when authenticated (e.g. after Google redirect completes)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Reset Google loading state when AuthContext reports an error
+  useEffect(() => {
+    if (authError) {
+      setIsGoogleLoading(false);
+    }
+  }, [authError]);
 
   const {
     register,
@@ -90,35 +104,21 @@ const LoginForm = () => {
   };
 
   /**
-   * Handle Google OAuth sign-in via AuthContext.
+   * Handle Google OAuth sign-in via redirect flow.
    *
-   * Uses googleLogin() from useAuth() so that AuthContext state is updated
-   * (isAuthenticated, user, token) upon successful sign-in.
-   *
-   * - null result means user closed the popup → silent no-op.
-   * - { success: true } → toast + navigate /dashboard.
-   * - { success: false, error } → toast with error message.
+   * Calls googleLogin() which triggers signInWithRedirect. The page will
+   * redirect to Google, and on return handleGoogleRedirectResult (in
+   * AuthContext) completes the auth. The isAuthenticated effect above
+   * handles navigation to /dashboard.
    */
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      const result = await googleLogin();
-      // User closed the popup — treat as silent no-op
-      if (result === null) return;
-      if (result.success) {
-        showSuccess('ברוך הבא! Signed in with Google');
-        navigate('/dashboard');
-      } else {
-        showError(result.error || 'Google sign-in failed. Please try again.');
-      }
+      await googleLogin();
+      // Page will redirect to Google — loading state stays on
     } catch (err) {
-      // Unexpected error not caught by AuthContext (should be rare)
-      const message =
-        err?.code === 'auth/popup-blocked'
-          ? 'Enable popups for this site to use Google sign-in'
-          : err?.message || 'Google sign-in failed. Please try again.';
+      const message = err?.message || 'Google sign-in failed. Please try again.';
       showError(message);
-    } finally {
       setIsGoogleLoading(false);
     }
   };

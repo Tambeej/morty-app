@@ -212,55 +212,25 @@ export function AuthProvider({ children }) {
 
   // ── Google Login ──────────────────────────────────────────────────────────
   /**
-   * Sign in / sign up with Google via Firebase popup.
+   * Sign in / sign up with Google via Firebase redirect.
    *
-   * Delegates to authService.googleLogin() which:
-   *   1. Opens the Firebase Google sign-in popup.
-   *   2. Exchanges the Firebase ID token for Morty custom JWTs.
-   *   3. Stores tokens and user in localStorage.
+   * Initiates a redirect to Google sign-in. The actual auth completion
+   * happens on page reload via handleGoogleRedirectResult (called in the
+   * session restore effect).
    *
-   * Return values:
-   *   - `null`  — user dismissed the popup (silent no-op; caller should not
-   *               show an error or navigate).
-   *   - `{ success: true, user }` — authenticated successfully; AuthContext
-   *               state is updated (isAuthenticated = true).
-   *   - `{ success: false, error }` — Firebase or backend error; AuthContext
-   *               error state is set.
-   *
-   * @returns {Promise<null | { success: boolean, user?: object, error?: string }>}
+   * @returns {Promise<void>}
    */
   const googleLoginUser = useCallback(async () => {
     dispatch({ type: AUTH_ACTIONS.AUTH_START });
     try {
-      const result = await authGoogleLogin();
-
-      // User dismissed the popup — treat as a silent no-op.
-      if (result === null) {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-        return null;
-      }
-
-      // Redirecting to Google sign-in page — keep loading state.
-      if (result === 'redirect') {
-        return null;
-      }
-
-      const { token, user } = result;
-      dispatch({
-        type: AUTH_ACTIONS.AUTH_SUCCESS,
-        payload: { user, token },
-      });
-      return { success: true, user };
+      await authGoogleLogin();
     } catch (err) {
       const message =
-        err?.code === 'auth/popup-blocked'
-          ? 'Enable popups for this site to use Google sign-in'
-          : err.response?.data?.message ||
-            err.response?.data?.error ||
-            err.message ||
-            'Google sign-in failed. Please try again.';
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        'Google sign-in failed. Please try again.';
       dispatch({ type: AUTH_ACTIONS.AUTH_FAILURE, payload: message });
-      return { success: false, error: message };
     }
   }, []);
 

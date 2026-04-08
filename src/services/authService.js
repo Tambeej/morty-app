@@ -23,7 +23,6 @@ import {
 } from '../utils/storage';
 import { auth, googleProvider } from '../firebase';
 import {
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut as firebaseSignOut,
@@ -104,46 +103,20 @@ const exchangeFirebaseToken = async (firebaseUser) => {
 };
 
 /**
- * Sign in with Google via Firebase, then exchange the Firebase ID token
- * for custom Morty JWTs from the backend.
+ * Sign in with Google via Firebase redirect flow.
  *
  * Uses signInWithRedirect to avoid Cross-Origin-Opener-Policy issues on
  * GitHub Pages (which sets COOP: same-origin, breaking signInWithPopup).
- * Falls back to signInWithPopup when possible (e.g. localhost).
  *
  * Flow:
- *   1. Try signInWithPopup first (works on localhost / permissive COOP).
- *   2. If popup is blocked by COOP or browser policy, fall back to
- *      signInWithRedirect (the redirect result is handled on page reload
- *      via handleGoogleRedirectResult).
- *   3. Exchange the Firebase ID token for Morty custom JWTs.
- *   4. Store access token, refresh token, and user in localStorage.
+ *   1. Redirect to Google sign-in page via signInWithRedirect.
+ *   2. On return, handleGoogleRedirectResult (called on app init) picks up
+ *      the result and exchanges the Firebase ID token for Morty JWTs.
  *
- * @returns {Promise<{ token: string, refreshToken: string, user: object } | null>}
- *   Resolved auth payload on success, `null` if user dismissed popup,
- *   or `'redirect'` if redirecting to Google sign-in page.
- * @throws {Error} On Firebase auth failure or backend verification error.
+ * @returns {Promise<void>}
  */
 export const googleLogin = async () => {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return await exchangeFirebaseToken(result.user);
-  } catch (err) {
-    // User closed the popup or cancelled — treat as a silent no-op.
-    const silentCodes = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
-    if (silentCodes.includes(err?.code)) {
-      return null;
-    }
-
-    // Popup blocked by COOP or browser — fall back to redirect flow.
-    const redirectCodes = ['auth/popup-blocked', 'auth/unauthorized-domain'];
-    if (redirectCodes.includes(err?.code) || err?.message?.includes('Cross-Origin-Opener-Policy')) {
-      await signInWithRedirect(auth, googleProvider);
-      return 'redirect';
-    }
-
-    throw err;
-  }
+  await signInWithRedirect(auth, googleProvider);
 };
 
 /**
