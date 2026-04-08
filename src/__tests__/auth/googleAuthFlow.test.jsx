@@ -59,9 +59,11 @@ const mockGoogleLoginService = vi.fn();
 const mockLoginService = vi.fn();
 const mockRegisterService = vi.fn();
 const mockLogoutService = vi.fn();
+const mockHandleGoogleRedirectResult = vi.fn().mockResolvedValue(null);
 
 vi.mock('../../services/authService', () => ({
   googleLogin: (...args) => mockGoogleLoginService(...args),
+  handleGoogleRedirectResult: (...args) => mockHandleGoogleRedirectResult(...args),
   login: (...args) => mockLoginService(...args),
   register: (...args) => mockRegisterService(...args),
   logout: (...args) => mockLogoutService(...args),

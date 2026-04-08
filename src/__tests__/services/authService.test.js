@@ -37,10 +37,14 @@ const mockFirebaseUser = {
 };
 
 const mockSignInWithPopup = vi.fn();
+const mockSignInWithRedirect = vi.fn();
+const mockGetRedirectResult = vi.fn();
 const mockFirebaseSignOut = vi.fn();
 
 vi.mock('firebase/auth', () => ({
   signInWithPopup: (...args) => mockSignInWithPopup(...args),
+  signInWithRedirect: (...args) => mockSignInWithRedirect(...args),
+  getRedirectResult: (...args) => mockGetRedirectResult(...args),
   signOut: (...args) => mockFirebaseSignOut(...args),
   GoogleAuthProvider: vi.fn(),
   getAuth: vi.fn(),
@@ -327,6 +331,20 @@ describe('authService', () => {
       mockSignInWithPopup.mockRejectedValue(networkError);
 
       await expect(authService.googleLogin()).rejects.toThrow('Network error');
+      expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to redirect when popup is blocked by COOP', async () => {
+      const popupBlockedError = Object.assign(new Error('Popup blocked'), {
+        code: 'auth/popup-blocked',
+      });
+      mockSignInWithPopup.mockRejectedValue(popupBlockedError);
+      mockSignInWithRedirect.mockResolvedValue(undefined);
+
+      const result = await authService.googleLogin();
+
+      expect(result).toBe('redirect');
+      expect(mockSignInWithRedirect).toHaveBeenCalledTimes(1);
       expect(api.post).not.toHaveBeenCalled();
     });
 

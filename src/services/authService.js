@@ -22,7 +22,12 @@ import {
   getStoredRefreshToken,
 } from '../utils/storage';
 import { auth, googleProvider } from '../firebase';
-import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut as firebaseSignOut,
+} from 'firebase/auth';
 
 /**
  * Normalize user object from backend response.
@@ -79,47 +84,13 @@ export const login = async (data) => {
 };
 
 /**
- * Sign in with Google via Firebase popup, then exchange the Firebase ID token
- * for custom Morty JWTs from the backend.
+ * Exchange a Firebase user's ID token for Morty custom JWTs from the backend.
  *
- * Flow:
- *   1. Open Google sign-in popup via Firebase Auth (signInWithPopup).
- *   2. Obtain the Firebase ID token from the resulting credential.
- *   3. POST the ID token to /auth/google — backend verifies it with Admin SDK,
- *      finds-or-creates the Firestore user, and returns standard JWT payload.
- *   4. Store access token, refresh token, and user in localStorage.
- *
- * Error handling:
- *   - If the user closes the popup (`auth/popup-closed-by-user` or
- *     `auth/cancelled-popup-request`), the function returns `null` silently
- *     so callers can treat it as a no-op.
- *   - All other errors are re-thrown for the caller to handle (e.g. show toast).
- *
- * @returns {Promise<{ token: string, refreshToken: string, user: object } | null>}
- *   Resolved auth payload on success, or `null` if the user dismissed the popup.
- * @throws {Error} On Firebase auth failure or backend verification error.
+ * @param {import('firebase/auth').User} firebaseUser
+ * @returns {Promise<{ token: string, refreshToken: string, user: object }>}
  */
-export const googleLogin = async () => {
-  let firebaseUser;
-
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    firebaseUser = result.user;
-  } catch (err) {
-    // User closed the popup or cancelled — treat as a silent no-op.
-    const silentCodes = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
-    if (silentCodes.includes(err?.code)) {
-      return null;
-    }
-    // Re-throw all other Firebase errors (network, config, etc.).
-    throw err;
-  }
-
-  // Obtain a fresh Firebase ID token (valid for ~1 hour).
+const exchangeFirebaseToken = async (firebaseUser) => {
   const idToken = await firebaseUser.getIdToken();
-
-  // Exchange the Firebase ID token for Morty custom JWTs.
-  // Backend: POST /auth/google { idToken } → { data: { token, refreshToken, user } }
   const response = await api.post('/auth/google', { idToken });
   const payload = response.data?.data || response.data;
   const { token, refreshToken, user } = payload;
@@ -130,6 +101,64 @@ export const googleLogin = async () => {
   setStoredUser(normalizedUser);
 
   return { token, refreshToken, user: normalizedUser };
+};
+
+/**
+ * Sign in with Google via Firebase, then exchange the Firebase ID token
+ * for custom Morty JWTs from the backend.
+ *
+ * Uses signInWithRedirect to avoid Cross-Origin-Opener-Policy issues on
+ * GitHub Pages (which sets COOP: same-origin, breaking signInWithPopup).
+ * Falls back to signInWithPopup when possible (e.g. localhost).
+ *
+ * Flow:
+ *   1. Try signInWithPopup first (works on localhost / permissive COOP).
+ *   2. If popup is blocked by COOP or browser policy, fall back to
+ *      signInWithRedirect (the redirect result is handled on page reload
+ *      via handleGoogleRedirectResult).
+ *   3. Exchange the Firebase ID token for Morty custom JWTs.
+ *   4. Store access token, refresh token, and user in localStorage.
+ *
+ * @returns {Promise<{ token: string, refreshToken: string, user: object } | null>}
+ *   Resolved auth payload on success, `null` if user dismissed popup,
+ *   or `'redirect'` if redirecting to Google sign-in page.
+ * @throws {Error} On Firebase auth failure or backend verification error.
+ */
+export const googleLogin = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return await exchangeFirebaseToken(result.user);
+  } catch (err) {
+    // User closed the popup or cancelled — treat as a silent no-op.
+    const silentCodes = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+    if (silentCodes.includes(err?.code)) {
+      return null;
+    }
+
+    // Popup blocked by COOP or browser — fall back to redirect flow.
+    const redirectCodes = ['auth/popup-blocked', 'auth/unauthorized-domain'];
+    if (redirectCodes.includes(err?.code) || err?.message?.includes('Cross-Origin-Opener-Policy')) {
+      await signInWithRedirect(auth, googleProvider);
+      return 'redirect';
+    }
+
+    throw err;
+  }
+};
+
+/**
+ * Handle the result of a Google sign-in redirect (called on app init).
+ *
+ * After signInWithRedirect, Firebase stores the auth result in session storage.
+ * This function retrieves it and exchanges the token with the backend.
+ *
+ * @returns {Promise<{ token: string, refreshToken: string, user: object } | null>}
+ *   Auth payload if a redirect result was pending, `null` otherwise.
+ */
+export const handleGoogleRedirectResult = async () => {
+  const result = await getRedirectResult(auth);
+  if (!result) return null;
+  return await exchangeFirebaseToken(result.user);
 };
 
 /**
