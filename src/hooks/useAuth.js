@@ -26,3 +26,5 @@
  *   googleLogin     — legacy alias for googleLoginUser
  */
 export { useAuth } from '../context/AuthContext.jsx';
+
+export default useAuth;
