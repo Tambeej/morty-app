@@ -27,4 +27,4 @@
  */
 export { useAuth } from '../context/AuthContext.jsx';
 
-export default useAuth;
+export { useAuth as default } from '../context/AuthContext.jsx';
