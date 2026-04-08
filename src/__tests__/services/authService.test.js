@@ -37,12 +37,12 @@ const mockFirebaseUser = {
 };
 
 const mockSignInWithRedirect = vi.fn();
-const mockGetRedirectResult = vi.fn();
+const mockOnAuthStateChanged = vi.fn();
 const mockFirebaseSignOut = vi.fn();
 
 vi.mock('firebase/auth', () => ({
   signInWithRedirect: (...args) => mockSignInWithRedirect(...args),
-  getRedirectResult: (...args) => mockGetRedirectResult(...args),
+  onAuthStateChanged: (...args) => mockOnAuthStateChanged(...args),
   signOut: (...args) => mockFirebaseSignOut(...args),
   GoogleAuthProvider: vi.fn(),
   getAuth: vi.fn(),
@@ -269,19 +269,23 @@ describe('authService', () => {
     });
   });
 
-  describe('handleGoogleRedirectResult', () => {
-    it('should return null when no redirect result is pending', async () => {
-      mockGetRedirectResult.mockResolvedValue(null);
+  describe('onFirebaseAuthReady', () => {
+    it('should subscribe to onAuthStateChanged and return unsubscribe', () => {
+      const mockUnsubscribe = vi.fn();
+      mockOnAuthStateChanged.mockReturnValue(mockUnsubscribe);
 
-      const result = await authService.handleGoogleRedirectResult();
+      const unsubscribe = authService.onFirebaseAuthReady(vi.fn(), vi.fn());
 
-      expect(result).toBeNull();
-      expect(api.post).not.toHaveBeenCalled();
+      expect(mockOnAuthStateChanged).toHaveBeenCalledWith(expect.anything(), expect.any(Function));
+      expect(unsubscribe).toBe(mockUnsubscribe);
     });
 
-    it('should exchange token and store credentials when redirect result exists', async () => {
+    it('should exchange token and call onSuccess when Firebase user is present', async () => {
       mockGetIdToken.mockResolvedValue('firebase-id-token-abc');
-      mockGetRedirectResult.mockResolvedValue({ user: mockFirebaseUser });
+      mockOnAuthStateChanged.mockImplementation((authInstance, callback) => {
+        callback(mockFirebaseUser);
+        return vi.fn();
+      });
 
       api.post.mockResolvedValue({
         data: {
@@ -293,34 +297,60 @@ describe('authService', () => {
         },
       });
 
-      const result = await authService.handleGoogleRedirectResult();
+      const onSuccess = vi.fn();
+      const onError = vi.fn();
+      authService.onFirebaseAuthReady(onSuccess, onError);
 
-      expect(mockGetIdToken).toHaveBeenCalledTimes(1);
+      // Wait for async exchangeFirebaseToken to complete
+      await vi.waitFor(() => {
+        expect(onSuccess).toHaveBeenCalled();
+      });
+
       expect(api.post).toHaveBeenCalledWith('/auth/google', {
         idToken: 'firebase-id-token-abc',
       });
       expect(storage.setStoredToken).toHaveBeenCalledWith('access-token-google');
-      expect(storage.setStoredRefreshToken).toHaveBeenCalledWith('refresh-token-google');
-      expect(storage.setStoredUser).toHaveBeenCalled();
-      expect(result.user.id).toBe('firestore-google-uid-789');
+      expect(onSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({ token: 'access-token-google' })
+      );
+      expect(onError).not.toHaveBeenCalled();
     });
 
-    it('should normalize user with _id fallback', async () => {
-      mockGetIdToken.mockResolvedValue('firebase-id-token-abc');
-      mockGetRedirectResult.mockResolvedValue({ user: mockFirebaseUser });
-
-      api.post.mockResolvedValue({
-        data: {
-          data: {
-            token: 'tok',
-            refreshToken: 'ref',
-            user: { _id: 'legacy-id', email: 'google@morty.co.il', verified: true },
-          },
-        },
+    it('should not call onSuccess when Firebase user is null', () => {
+      mockOnAuthStateChanged.mockImplementation((authInstance, callback) => {
+        callback(null);
+        return vi.fn();
       });
 
-      const result = await authService.handleGoogleRedirectResult();
-      expect(result.user.id).toBe('legacy-id');
+      const onSuccess = vi.fn();
+      const onError = vi.fn();
+      authService.onFirebaseAuthReady(onSuccess, onError);
+
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('should call onError when token exchange fails', async () => {
+      mockGetIdToken.mockResolvedValue('firebase-id-token-abc');
+      mockOnAuthStateChanged.mockImplementation((authInstance, callback) => {
+        callback(mockFirebaseUser);
+        return vi.fn();
+      });
+
+      const backendError = new Error('Backend verification failed');
+      api.post.mockRejectedValue(backendError);
+
+      const onSuccess = vi.fn();
+      const onError = vi.fn();
+      authService.onFirebaseAuthReady(onSuccess, onError);
+
+      await vi.waitFor(() => {
+        expect(onError).toHaveBeenCalled();
+      });
+
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(backendError);
     });
   });
 });

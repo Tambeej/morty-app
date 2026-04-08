@@ -59,11 +59,12 @@ const mockGoogleLoginService = vi.fn();
 const mockLoginService = vi.fn();
 const mockRegisterService = vi.fn();
 const mockLogoutService = vi.fn();
-const mockHandleGoogleRedirectResult = vi.fn().mockResolvedValue(null);
+// By default, onFirebaseAuthReady does nothing (no Firebase user detected)
+const mockOnFirebaseAuthReady = vi.fn().mockReturnValue(vi.fn());
 
 vi.mock('../../services/authService', () => ({
   googleLogin: (...args) => mockGoogleLoginService(...args),
-  handleGoogleRedirectResult: (...args) => mockHandleGoogleRedirectResult(...args),
+  onFirebaseAuthReady: (...args) => mockOnFirebaseAuthReady(...args),
   login: (...args) => mockLoginService(...args),
   register: (...args) => mockRegisterService(...args),
   logout: (...args) => mockLogoutService(...args),
@@ -145,7 +146,7 @@ describe('Google Auth Flow — redirect-based', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLogoutService.mockResolvedValue(undefined);
-    mockHandleGoogleRedirectResult.mockResolvedValue(null);
+    mockOnFirebaseAuthReady.mockReturnValue(vi.fn());
   });
 
   // ── Button triggers redirect ──────────────────────────────────────────────
@@ -178,8 +179,12 @@ describe('Google Auth Flow — redirect-based', () => {
 
   // ── Redirect result on mount ──────────────────────────────────────────────
 
-  it('navigates to /dashboard when redirect result is available on mount', async () => {
-    mockHandleGoogleRedirectResult.mockResolvedValue(mockAuthPayload);
+  it('navigates to /dashboard when Firebase auth state fires on mount', async () => {
+    // Simulate onFirebaseAuthReady calling onSuccess immediately
+    mockOnFirebaseAuthReady.mockImplementation((onSuccess) => {
+      onSuccess(mockAuthPayload);
+      return vi.fn();
+    });
 
     renderLoginFormWithRouter();
 
@@ -188,8 +193,9 @@ describe('Google Auth Flow — redirect-based', () => {
     });
   });
 
-  it('stays on login page when no redirect result is pending', async () => {
-    mockHandleGoogleRedirectResult.mockResolvedValue(null);
+  it('stays on login page when no Firebase user is detected', async () => {
+    // Default: onFirebaseAuthReady does not call onSuccess
+    mockOnFirebaseAuthReady.mockReturnValue(vi.fn());
 
     renderLoginFormWithRouter();
 

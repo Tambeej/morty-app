@@ -27,7 +27,7 @@ import {
   register as authRegister,
   logout as authLogout,
   googleLogin as authGoogleLogin,
-  handleGoogleRedirectResult,
+  onFirebaseAuthReady,
   normalizeUser,
 } from '../services/authService';
 import {
@@ -122,40 +122,38 @@ function authReducer(state, action) {
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // ── Restore session from localStorage or Google redirect on mount ────────
+  // ── Restore session from localStorage on mount ──────────────────────────
   useEffect(() => {
-    const restoreSession = async () => {
-      // First, check if we're returning from a Google sign-in redirect.
-      try {
-        const redirectResult = await handleGoogleRedirectResult();
-        if (redirectResult) {
-          const { token, user } = redirectResult;
-          dispatch({
-            type: AUTH_ACTIONS.AUTH_SUCCESS,
-            payload: { user, token },
-          });
-          return;
-        }
-      } catch (err) {
-        console.warn('[AuthContext] Google redirect result failed:', err?.message || err);
-      }
+    const storedToken = getStoredToken();
+    const storedUser = getStoredUser();
 
-      // Otherwise, try to restore from localStorage.
-      const storedToken = getStoredToken();
-      const storedUser = getStoredUser();
+    if (storedToken && storedUser) {
+      const normalizedUser = normalizeUser(storedUser);
+      dispatch({
+        type: AUTH_ACTIONS.RESTORE_SESSION,
+        payload: { user: normalizedUser, token: storedToken },
+      });
+    } else {
+      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+    }
+  }, []);
 
-      if (storedToken && storedUser) {
-        const normalizedUser = normalizeUser(storedUser);
+  // ── Listen for Firebase auth state (handles Google redirect completion) ──
+  useEffect(() => {
+    const unsubscribe = onFirebaseAuthReady(
+      ({ token, user }) => {
         dispatch({
-          type: AUTH_ACTIONS.RESTORE_SESSION,
-          payload: { user: normalizedUser, token: storedToken },
+          type: AUTH_ACTIONS.AUTH_SUCCESS,
+          payload: { user, token },
         });
-      } else {
+      },
+      (err) => {
+        console.warn('[AuthContext] Firebase auth token exchange failed:', err?.message || err);
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
-    };
+    );
 
-    restoreSession();
+    return unsubscribe;
   }, []);
 
   // ── Login ─────────────────────────────────────────────────────────────────

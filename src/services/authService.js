@@ -24,7 +24,7 @@ import {
 import { auth, googleProvider } from '../firebase';
 import {
   signInWithRedirect,
-  getRedirectResult,
+  onAuthStateChanged,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
 
@@ -120,18 +120,29 @@ export const googleLogin = async () => {
 };
 
 /**
- * Handle the result of a Google sign-in redirect (called on app init).
+ * Subscribe to Firebase auth state changes.
  *
- * After signInWithRedirect, Firebase stores the auth result in session storage.
- * This function retrieves it and exchanges the token with the backend.
+ * When a Firebase user is detected (e.g. after signInWithRedirect completes),
+ * exchanges the Firebase ID token for Morty custom JWTs via the backend.
  *
- * @returns {Promise<{ token: string, refreshToken: string, user: object } | null>}
- *   Auth payload if a redirect result was pending, `null` otherwise.
+ * More reliable than getRedirectResult which can silently return null when
+ * service workers or cross-origin policies interfere with the redirect flow.
+ *
+ * @param {function} onSuccess - Called with { token, refreshToken, user } on successful exchange
+ * @param {function} onError - Called with the error if token exchange fails
+ * @returns {function} Unsubscribe function
  */
-export const handleGoogleRedirectResult = async () => {
-  const result = await getRedirectResult(auth);
-  if (!result) return null;
-  return await exchangeFirebaseToken(result.user);
+export const onFirebaseAuthReady = (onSuccess, onError) => {
+  return onAuthStateChanged(auth, async (firebaseUser) => {
+    if (!firebaseUser) return;
+
+    try {
+      const result = await exchangeFirebaseToken(firebaseUser);
+      onSuccess(result);
+    } catch (err) {
+      onError(err);
+    }
+  });
 };
 
 /**
