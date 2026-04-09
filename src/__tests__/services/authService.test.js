@@ -36,13 +36,11 @@ const mockFirebaseUser = {
   getIdToken: mockGetIdToken,
 };
 
-const mockSignInWithRedirect = vi.fn();
-const mockOnAuthStateChanged = vi.fn();
+const mockSignInWithPopup = vi.fn();
 const mockFirebaseSignOut = vi.fn();
 
 vi.mock('firebase/auth', () => ({
-  signInWithRedirect: (...args) => mockSignInWithRedirect(...args),
-  onAuthStateChanged: (...args) => mockOnAuthStateChanged(...args),
+  signInWithPopup: (...args) => mockSignInWithPopup(...args),
   signOut: (...args) => mockFirebaseSignOut(...args),
   GoogleAuthProvider: vi.fn(),
   getAuth: vi.fn(),
@@ -253,39 +251,9 @@ describe('authService', () => {
   });
 
   describe('googleLogin', () => {
-    it('should call signInWithRedirect with auth and provider', async () => {
-      mockSignInWithRedirect.mockResolvedValue(undefined);
-
-      await authService.googleLogin();
-
-      const { auth, googleProvider } = await import('../../firebase');
-      expect(mockSignInWithRedirect).toHaveBeenCalledWith(auth, googleProvider);
-    });
-
-    it('should re-throw errors from signInWithRedirect', async () => {
-      mockSignInWithRedirect.mockRejectedValue(new Error('Redirect failed'));
-
-      await expect(authService.googleLogin()).rejects.toThrow('Redirect failed');
-    });
-  });
-
-  describe('onFirebaseAuthReady', () => {
-    it('should subscribe to onAuthStateChanged and return unsubscribe', () => {
-      const mockUnsubscribe = vi.fn();
-      mockOnAuthStateChanged.mockReturnValue(mockUnsubscribe);
-
-      const unsubscribe = authService.onFirebaseAuthReady(vi.fn(), vi.fn());
-
-      expect(mockOnAuthStateChanged).toHaveBeenCalledWith(expect.anything(), expect.any(Function));
-      expect(unsubscribe).toBe(mockUnsubscribe);
-    });
-
-    it('should exchange token and call onSuccess when Firebase user is present', async () => {
+    it('should open Google popup, get ID token, POST to /auth/google, and store tokens', async () => {
       mockGetIdToken.mockResolvedValue('firebase-id-token-abc');
-      mockOnAuthStateChanged.mockImplementation((authInstance, callback) => {
-        callback(mockFirebaseUser);
-        return vi.fn();
-      });
+      mockSignInWithPopup.mockResolvedValue({ user: mockFirebaseUser });
 
       api.post.mockResolvedValue({
         data: {
@@ -297,60 +265,79 @@ describe('authService', () => {
         },
       });
 
-      const onSuccess = vi.fn();
-      const onError = vi.fn();
-      authService.onFirebaseAuthReady(onSuccess, onError);
+      const result = await authService.googleLogin();
 
-      // Wait for async exchangeFirebaseToken to complete
-      await vi.waitFor(() => {
-        expect(onSuccess).toHaveBeenCalled();
-      });
-
+      expect(mockSignInWithPopup).toHaveBeenCalledTimes(1);
+      expect(mockGetIdToken).toHaveBeenCalledTimes(1);
       expect(api.post).toHaveBeenCalledWith('/auth/google', {
         idToken: 'firebase-id-token-abc',
       });
       expect(storage.setStoredToken).toHaveBeenCalledWith('access-token-google');
-      expect(onSuccess).toHaveBeenCalledWith(
-        expect.objectContaining({ token: 'access-token-google' })
-      );
-      expect(onError).not.toHaveBeenCalled();
+      expect(storage.setStoredRefreshToken).toHaveBeenCalledWith('refresh-token-google');
+      expect(storage.setStoredUser).toHaveBeenCalled();
+      expect(result).not.toBeNull();
+      expect(result.token).toBe('access-token-google');
+      expect(result.user.id).toBe('firestore-google-uid-789');
     });
 
-    it('should not call onSuccess when Firebase user is null', () => {
-      mockOnAuthStateChanged.mockImplementation((authInstance, callback) => {
-        callback(null);
-        return vi.fn();
-      });
+    it('should return null when user closes the popup', async () => {
+      mockSignInWithPopup.mockRejectedValue(
+        Object.assign(new Error('Popup closed'), { code: 'auth/popup-closed-by-user' })
+      );
 
-      const onSuccess = vi.fn();
-      const onError = vi.fn();
-      authService.onFirebaseAuthReady(onSuccess, onError);
+      const result = await authService.googleLogin();
 
-      expect(onSuccess).not.toHaveBeenCalled();
-      expect(onError).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(api.post).not.toHaveBeenCalled();
+      expect(storage.setStoredToken).not.toHaveBeenCalled();
+    });
+
+    it('should return null when popup request is cancelled', async () => {
+      mockSignInWithPopup.mockRejectedValue(
+        Object.assign(new Error('Cancelled'), { code: 'auth/cancelled-popup-request' })
+      );
+
+      const result = await authService.googleLogin();
+
+      expect(result).toBeNull();
       expect(api.post).not.toHaveBeenCalled();
     });
 
-    it('should call onError when token exchange fails', async () => {
+    it('should re-throw non-silent Firebase errors', async () => {
+      mockSignInWithPopup.mockRejectedValue(
+        Object.assign(new Error('Network error'), { code: 'auth/network-request-failed' })
+      );
+
+      await expect(authService.googleLogin()).rejects.toThrow('Network error');
+      expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('should re-throw backend errors after successful Firebase auth', async () => {
       mockGetIdToken.mockResolvedValue('firebase-id-token-abc');
-      mockOnAuthStateChanged.mockImplementation((authInstance, callback) => {
-        callback(mockFirebaseUser);
-        return vi.fn();
+      mockSignInWithPopup.mockResolvedValue({ user: mockFirebaseUser });
+
+      api.post.mockRejectedValue(new Error('Backend verification failed'));
+
+      await expect(authService.googleLogin()).rejects.toThrow('Backend verification failed');
+      expect(storage.setStoredToken).not.toHaveBeenCalled();
+    });
+
+    it('should normalize user from backend response (handles _id fallback)', async () => {
+      mockGetIdToken.mockResolvedValue('firebase-id-token-abc');
+      mockSignInWithPopup.mockResolvedValue({ user: mockFirebaseUser });
+
+      api.post.mockResolvedValue({
+        data: {
+          data: {
+            token: 'tok',
+            refreshToken: 'ref',
+            user: { _id: 'legacy-id', email: 'google@morty.co.il', verified: true },
+          },
+        },
       });
 
-      const backendError = new Error('Backend verification failed');
-      api.post.mockRejectedValue(backendError);
-
-      const onSuccess = vi.fn();
-      const onError = vi.fn();
-      authService.onFirebaseAuthReady(onSuccess, onError);
-
-      await vi.waitFor(() => {
-        expect(onError).toHaveBeenCalled();
-      });
-
-      expect(onSuccess).not.toHaveBeenCalled();
-      expect(onError).toHaveBeenCalledWith(backendError);
+      const result = await authService.googleLogin();
+      expect(result.user.id).toBe('legacy-id');
     });
   });
 });

@@ -27,7 +27,6 @@ import {
   register as authRegister,
   logout as authLogout,
   googleLogin as authGoogleLogin,
-  onFirebaseAuthReady,
   normalizeUser,
 } from '../services/authService';
 import {
@@ -138,24 +137,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // ── Listen for Firebase auth state (handles Google redirect completion) ──
-  useEffect(() => {
-    const unsubscribe = onFirebaseAuthReady(
-      ({ token, user }) => {
-        dispatch({
-          type: AUTH_ACTIONS.AUTH_SUCCESS,
-          payload: { user, token },
-        });
-      },
-      (err) => {
-        console.warn('[AuthContext] Firebase auth token exchange failed:', err?.message || err);
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-      }
-    );
-
-    return unsubscribe;
-  }, []);
-
   // ── Login ─────────────────────────────────────────────────────────────────
   /**
    * Log in with email and password.
@@ -210,25 +191,42 @@ export function AuthProvider({ children }) {
 
   // ── Google Login ──────────────────────────────────────────────────────────
   /**
-   * Sign in / sign up with Google via Firebase redirect.
+   * Sign in / sign up with Google via Firebase popup.
    *
-   * Initiates a redirect to Google sign-in. The actual auth completion
-   * happens on page reload via handleGoogleRedirectResult (called in the
-   * session restore effect).
+   * Delegates to authService.googleLogin() which:
+   *   1. Opens the Firebase Google sign-in popup.
+   *   2. Exchanges the Firebase ID token for Morty custom JWTs.
+   *   3. Stores tokens and user in localStorage.
    *
-   * @returns {Promise<void>}
+   * @returns {Promise<null | { success: boolean, user?: object, error?: string }>}
    */
   const googleLoginUser = useCallback(async () => {
     dispatch({ type: AUTH_ACTIONS.AUTH_START });
     try {
-      await authGoogleLogin();
+      const result = await authGoogleLogin();
+
+      // User dismissed the popup — treat as a silent no-op.
+      if (result === null) {
+        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+        return null;
+      }
+
+      const { token, user } = result;
+      dispatch({
+        type: AUTH_ACTIONS.AUTH_SUCCESS,
+        payload: { user, token },
+      });
+      return { success: true, user };
     } catch (err) {
       const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        'Google sign-in failed. Please try again.';
+        err?.code === 'auth/popup-blocked'
+          ? 'Enable popups for this site to use Google sign-in'
+          : err.response?.data?.message ||
+            err.response?.data?.error ||
+            err.message ||
+            'Google sign-in failed. Please try again.';
       dispatch({ type: AUTH_ACTIONS.AUTH_FAILURE, payload: message });
+      return { success: false, error: message };
     }
   }, []);
 

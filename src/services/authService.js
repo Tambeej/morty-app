@@ -22,11 +22,7 @@ import {
   getStoredRefreshToken,
 } from '../utils/storage';
 import { auth, googleProvider } from '../firebase';
-import {
-  signInWithRedirect,
-  onAuthStateChanged,
-  signOut as firebaseSignOut,
-} from 'firebase/auth';
+import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 
 /**
  * Normalize user object from backend response.
@@ -83,13 +79,46 @@ export const login = async (data) => {
 };
 
 /**
- * Exchange a Firebase user's ID token for Morty custom JWTs from the backend.
+ * Sign in with Google via Firebase popup, then exchange the Firebase ID token
+ * for custom Morty JWTs from the backend.
  *
- * @param {import('firebase/auth').User} firebaseUser
- * @returns {Promise<{ token: string, refreshToken: string, user: object }>}
+ * Flow:
+ *   1. Open Google sign-in popup via Firebase Auth (signInWithPopup).
+ *   2. Obtain the Firebase ID token from the resulting credential.
+ *   3. POST the ID token to /auth/google — backend verifies it with Admin SDK,
+ *      finds-or-creates the Firestore user, and returns standard JWT payload.
+ *   4. Store access token, refresh token, and user in localStorage.
+ *
+ * Error handling:
+ *   - If the user closes the popup (`auth/popup-closed-by-user` or
+ *     `auth/cancelled-popup-request`), the function returns `null` silently
+ *     so callers can treat it as a no-op.
+ *   - All other errors are re-thrown for the caller to handle (e.g. show toast).
+ *
+ * @returns {Promise<{ token: string, refreshToken: string, user: object } | null>}
+ *   Resolved auth payload on success, or `null` if the user dismissed the popup.
+ * @throws {Error} On Firebase auth failure or backend verification error.
  */
-const exchangeFirebaseToken = async (firebaseUser) => {
+export const googleLogin = async () => {
+  let firebaseUser;
+
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    firebaseUser = result.user;
+  } catch (err) {
+    // User closed the popup or cancelled — treat as a silent no-op.
+    const silentCodes = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+    if (silentCodes.includes(err?.code)) {
+      return null;
+    }
+    // Re-throw all other Firebase errors (network, config, etc.).
+    throw err;
+  }
+
+  // Obtain a fresh Firebase ID token (valid for ~1 hour).
   const idToken = await firebaseUser.getIdToken();
+
+  // Exchange the Firebase ID token for Morty custom JWTs.
   const response = await api.post('/auth/google', { idToken });
   const payload = response.data?.data || response.data;
   const { token, refreshToken, user } = payload;
@@ -100,49 +129,6 @@ const exchangeFirebaseToken = async (firebaseUser) => {
   setStoredUser(normalizedUser);
 
   return { token, refreshToken, user: normalizedUser };
-};
-
-/**
- * Sign in with Google via Firebase redirect flow.
- *
- * Uses signInWithRedirect to avoid Cross-Origin-Opener-Policy issues on
- * GitHub Pages (which sets COOP: same-origin, breaking signInWithPopup).
- *
- * Flow:
- *   1. Redirect to Google sign-in page via signInWithRedirect.
- *   2. On return, handleGoogleRedirectResult (called on app init) picks up
- *      the result and exchanges the Firebase ID token for Morty JWTs.
- *
- * @returns {Promise<void>}
- */
-export const googleLogin = async () => {
-  await signInWithRedirect(auth, googleProvider);
-};
-
-/**
- * Subscribe to Firebase auth state changes.
- *
- * When a Firebase user is detected (e.g. after signInWithRedirect completes),
- * exchanges the Firebase ID token for Morty custom JWTs via the backend.
- *
- * More reliable than getRedirectResult which can silently return null when
- * service workers or cross-origin policies interfere with the redirect flow.
- *
- * @param {function} onSuccess - Called with { token, refreshToken, user } on successful exchange
- * @param {function} onError - Called with the error if token exchange fails
- * @returns {function} Unsubscribe function
- */
-export const onFirebaseAuthReady = (onSuccess, onError) => {
-  return onAuthStateChanged(auth, async (firebaseUser) => {
-    if (!firebaseUser) return;
-
-    try {
-      const result = await exchangeFirebaseToken(firebaseUser);
-      onSuccess(result);
-    } catch (err) {
-      onError(err);
-    }
-  });
 };
 
 /**
