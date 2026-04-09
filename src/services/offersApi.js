@@ -14,7 +14,7 @@ import axios from 'axios';
  * Uses VITE_API_URL env var (Vite projects) with fallback to production URL.
  */
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'https://morty-backend.onrender.com/api/v1';
+  import.meta.env.VITE_API_URL || 'https://morty-backend-h9sb.onrender.com/api/v1';
 
 /**
  * Get the stored JWT access token.

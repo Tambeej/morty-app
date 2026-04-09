@@ -23,7 +23,7 @@ import {
  * Defaults to the Render deployment; override with VITE_API_URL in .env.
  */
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'https://morty-backend.onrender.com/api/v1';
+  import.meta.env.VITE_API_URL || 'https://morty-backend-h9sb.onrender.com/api/v1';
 
 /**
  * Axios instance pre-configured for the Morty backend.

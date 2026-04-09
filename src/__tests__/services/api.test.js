@@ -27,7 +27,7 @@ vi.mock('axios', () => {
       request: { use: vi.fn() },
       response: { use: vi.fn() },
     },
-    defaults: { baseURL: 'https://morty-backend.onrender.com/api/v1', headers: { common: {} } },
+    defaults: { baseURL: 'https://morty-backend-h9sb.onrender.com/api/v1', headers: { common: {} } },
   };
   return {
     default: {

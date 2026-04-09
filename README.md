@@ -37,7 +37,7 @@ npm test
 Copy `.env.example` to `.env` and fill in the values:
 
 ```
-VITE_API_URL=https://morty-backend.onrender.com/api/v1
+VITE_API_URL=https://morty-backend-h9sb.onrender.com/api/v1
 ```
 
 ## Project Structure
