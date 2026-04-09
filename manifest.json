@@ -1,0 +1,28 @@
+{
+  "name": "Morty - AI Mortgage Analysis",
+  "short_name": "Morty",
+  "description": "AI-powered mortgage analysis for Israeli users",
+  "start_url": "/morty-app/",
+  "display": "standalone",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/morty-app/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/morty-app/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/morty-app/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
