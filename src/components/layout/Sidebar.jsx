@@ -28,7 +28,7 @@ export default function Sidebar({ collapsed = false }) {
       await logout();
       navigate('/login');
     } catch {
-      toast.error('Logout failed. Please try again.');
+      toast.error(t('sidebar.logoutError'));
     } finally {
       setLoggingOut(false);
     }

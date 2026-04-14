@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePWA } from '../../hooks/usePWA';
 
 const DISMISSED_KEY = 'morty_install_prompt_dismissed';
@@ -23,6 +24,7 @@ const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
  * @returns {JSX.Element|null} The install prompt or null
  */
 function InstallPrompt() {
+  const { t } = useTranslation();
   const { isInstallable, isInstalled, promptInstall } = usePWA();
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -66,7 +68,7 @@ function InstallPrompt() {
   return (
     <div
       role="dialog"
-      aria-label="התקן את Morty"
+      aria-label={t('install.title')}
       aria-modal="false"
       style={{
         position: 'fixed',
@@ -112,7 +114,7 @@ function InstallPrompt() {
               fill="#0f172a"
               aria-hidden="true"
             >
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <polyline
                 points="9 22 9 12 15 12 15 22"
                 fill="none"
@@ -131,7 +133,7 @@ function InstallPrompt() {
                 color: '#f8fafc',
               }}
             >
-              התקן את Morty
+              {t('install.title')}
             </p>
             <p
               style={{
@@ -140,7 +142,7 @@ function InstallPrompt() {
                 color: '#94a3b8',
               }}
             >
-              גישה מהירה מהמסך הראשי
+              {t('install.subtitle')}
             </p>
           </div>
         </div>
@@ -148,7 +150,7 @@ function InstallPrompt() {
         {/* Close button */}
         <button
           onClick={handleDismiss}
-          aria-label="סגור"
+          aria-label={t('install.close')}
           style={{
             backgroundColor: 'transparent',
             border: 'none',
@@ -192,13 +194,9 @@ function InstallPrompt() {
           gap: '8px',
         }}
       >
-        {[
-          'גישה מהירה ללא דפדפן',
-          'עבודה במצב לא מקוון',
-          'התראות על ניתוחים חדשים',
-        ].map((benefit) => (
+        {t('install.benefits', { returnObjects: true }).map((benefit, index) => (
           <li
-            key={benefit}
+            key={index}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -272,12 +270,14 @@ function InstallPrompt() {
               <line x1="12" y1="18" x2="12" y2="22" />
               <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
               <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
+              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
               <line x1="2" y1="12" x2="6" y2="12" />
               <line x1="18" y1="12" x2="22" y2="12" />
               <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
               <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
             </svg>
-            מתקין...
+            {t('install.installing')}
           </>
         ) : (
           <>
@@ -296,7 +296,7 @@ function InstallPrompt() {
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            התקן עכשיו
+            {t('install.installNow')}
           </>
         )}
       </button>

@@ -1,261 +1,85 @@
 {
   "nav": {
+    "toggleMenu": "החלף תפריט",
     "search": {
       "placeholder": "חפש..."
     },
-    "toggleMenu": "החלף תפריט",
     "toggleLanguage": "החלף שפה",
-    "notifications": "התראות",
-    "userLabel": "משתמש: {{label}}",
     "language": {
-      "en": "EN",
-      "he": "עברית"
-    }
-  },
-  "login": {
-    "title": "היכנס למורטי",
-    "footer": "בהתחברות, אתה מסכים ל{{terms}} ול{{privacy}} שלנו.",
-    "terms": "תנאי השימוש",
-    "privacy": "מדיניות הפרטיות",
-    "email": "כתובת אימייל",
-    "emailPlaceholder": "you@example.com",
-    "password": "סיסמה",
-    "passwordPlaceholder": "הכנס את הסיסמה שלך",
-    "hidePassword": "הסתר סיסמה",
-    "showPassword": "הצג סיסמה",
-    "forgotPassword": "שכחת סיסמה?",
-    "signIn": "היכנס",
-    "or": "או",
-    "noAccount": "אין לך חשבון?",
-    "register": "הירשם",
-    "success": "ברוך הבא! ברוך שובך למורטי!",
-    "googleSuccess": "ברוך הבא! נכנסת עם גוגל",
-    "invalidCredentials": "אימייל או סיסמה לא תקינים. אנא נסה שוב.",
-    "popupError": "אפשר חלונות קופצים באתר זה כדי להשתמש בכניסה עם גוגל",
-    "googleError": "כניסה עם גוגל נכשלה. אנא נסה שוב."
-  },
-  "register": {
-    "title": "צור את החשבון שלך",
-    "registerFooter": "ביצירת חשבון, אתה מסכים ל{{terms}} ול{{privacy}} שלנו.",
-    "terms": "תנאי השימוש",
-    "privacy": "מדיניות הפרטיות",
-    "google": "הירשם עם גוגל",
-    "or": "או",
-    "fullName": "שם מלא",
-    "fullNamePlaceholder": "יואב כהן",
-    "phone": "מספר טלפון",
-    "phonePlaceholder": "050-1234567",
-    "phoneHelper": "פורמט ישראלי: 050-1234567 או +972-50-1234567",
-    "email": "כתובת אימייל",
-    "password": "סיסמה",
-    "passwordPlaceholder": "מינימום 8 תווים עם אותיות ומספרים",
-    "passwordHelper": "לפחות 8 תווים עם אותיות ומספרים",
-    "confirmPassword": "אשר סיסמה",
-    "confirmPasswordPlaceholder": "חזור על הסיסמה",
-    "createAccount": "צור חשבון",
-    "hasAccount": "כבר יש לך חשבון?",
-    "signIn": "היכנס",
-    "fullNameRequired": "שם מלא נדרש",
-    "fullNameMin": "שם מלא חייב להיות לפחות 2 תווים",
-    "phoneRequired": "מספר טלפון נדרש",
-    "phoneInvalid": "הכנס מספר טלפון ישראלי תקין (לדוגמה 050-1234567 או +972501234567)",
-    "emailRequired": "אימייל נדרש",
-    "emailInvalid": "אנא הכנס כתובת אימייל תקינה",
-    "passwordRequired": "סיסמה נדרשת",
-    "passwordMin": "סיסמה חייבת להיות לפחות 8 תווים",
-    "confirmRequired": "אנא אשר את הסיסמה",
-    "passwordMismatch": "הסיסמאות לא תואמות",
-    "success": "החשבון שלך נוצר! ברוך הבא למורטי",
-    "googleSuccess": "ברוך הבא! נרשמת עם גוגל",
-    "failed": "הרשמה נכשלה. אנא נסה שוב.",
-    "popupError": "אפשר חלונות קופצים באתר זה כדי להשתמש בהרשמה עם גוגל",
-    "googleError": "הרשמה עם גוגל נכשלה. אנא נסה שוב."
-  },
-  "google": {
-    "continue": "המשך עם גוגל",
-    "signIn": "היכנס עם גוגל",
-    "connecting": "מתחבר..."
-  },
-  "dashboard": {
-    "welcome": "ברוך שובך, {{name}} 👋",
-    "subtitle": "הנה סיכום ניתוח המשכנתא שלך",
-    "bestRate": "השיעור הריבית הטוב ביותר",
-    "bestRateEmpty": "—%",
-    "bestRateVsMarket": "{{rate}}% לעומת השוק",
-    "noData": "אין נתונים עדיין",
-    "savings": "חיסכון פוטנציאלי",
-    "savingsSubtitle": "חיסכון לכל החיים",
-    "offers": "הצעות פעילות",
-    "offersSubtitle": "הצעות שהועלו",
-    "chart": {
-      "title": "השוואת תשלומים חודשיים",
-      "yourOffer": "ההצעה שלך",
-      "recommended": "מומלץ"
+      "he": "עברית",
+      "en": "English"
     },
-    "table": {
-      "title": "ההצעות שלך",
-      "upload": "+ העלה הצעה חדשה",
-      "empty": "לא הועלו הצעות עדיין.",
-      "emptyLink": "העלה את ההצעה הראשונה שלך →",
-      "bank": "בנק",
-      "rate": "שיעור ריבית",
-      "term": "תקופה",
-      "date": "תאריך",
-      "status": "סטטוס",
-      "view": "צפה בתוצאות →",
-      "analyzed": "✓ נותח",
-      "error": "✗ שגיאה",
-      "pending": "⏳ ממתין"
-    },
-    "error": "נכשל בטעינת נתוני הדאשבורד."
-  },
-  "profile": {
-    "title": "פרופיל פיננסי",
-    "subtitle": "שמור על זה מעודכן לניתוח מדויק",
-    "completion": "השלמת פרופיל: {{completion}}%",
-    "saved": "✓ נשמר",
-    "income": "הכנסה",
-    "monthlyIncome": "הכנסה חודשית נטו",
-    "additionalIncome": "הכנסה נוספת",
-    "expenses": "הוצאות חודשיות",
-    "housing": "הוצאות דיור (שכירות/משכנתא)",
-    "loans": "הלוואות קיימות",
-    "otherExpenses": "הוצאות קבועות אחרות",
-    "assets": "נכסים וחיסכון",
-    "savings": "חיסכון / מזומן",
-    "investments": "השקעות",
-    "save": "שמור פרופיל",
-    "success": "הפרופיל הפיננסי נשמר!",
-    "error": "נכשל בשמירת הפרופיל.",
-    "minZero": "חייב להיות 0 או יותר"
-  },
-  "upload": {
-    "title": "העלה הצעת משכנתא",
-    "subtitle": "העלה את הצעת המשכנתא של הבנק שלך לניתוח AI",
-    "drag": "גרור ושחרר את הצעת המשכנתא שלך",
-    "types": "PDF, PNG, JPG — מקסימום {{max}}MB",
-    "browse": "עיין בקבצים",
-    "select": "בחר קובץ",
-    "remove": "הסר קובץ",
-    "uploading": "{{progress}}% מעלה...",
-    "analyze": "נתח עם AI",
-    "recent": "העלאות אחרונות",
-    "empty": "אין העלאות עדיין.",
-    "defaultName": "offer.pdf",
-    "analyzed": "נותח",
-    "error": "שגיאה",
-    "pending": "ממתין",
-    "view": "צפה בתוצאות →",
-    "invalidType": "רק קבצי PDF, PNG, ו-JPG מתקבלים.",
-    "tooLarge": "הקובץ חייב להיות קטן מ-{{max}}MB.",
-    "success": "ההצעה הועלתה! ניתוח AI התחיל.",
-    "failed": "העלאה נכשלה. אנא נסה שוב.",
-    "dropzone": {
-      "ariaLabel": "העלה קובץ הצעת משכנתא",
-      "dropHere": "גרור ושחרר את קובץ הצעת המשכנתא שלך כאן, או לחץ Enter כדי לעיין",
-      "dropFile": "שחרר את הקובץ שלך כאן",
-      "dragDrop": "גרור ושחרר את הצעת המשכנתא שלך",
-      "types": "PDF, PNG, JPG — מקסימום 5 MB",
-      "browse": "עיין בקבצים",
-      "uploading": "מעלה...",
-      "complete": "העלאה הושלמה",
-      "remove": "הסר {{fileName}}",
-      "invalidType": "סוג קובץ לא תקין. אנא העלה קובץ PDF, PNG או JPG.",
-      "tooLarge": "הקובץ גדול מדי ({{size}}). הגודל המקסימלי הוא 5 MB."
-    },
-    "recentUploads": {
-      "title": "העלאות אחרונות",
-      "empty": "אין העלאות עדיין. העלה את הצעת המשכנתא הראשונה שלך למעלה.",
-      "status": {
-        "pending": "ממתין",
-        "processing": "מעבד",
-        "analyzed": "נותח",
-        "error": "שגיאה"
-      },
-      "viewResults": "צפה בתוצאות",
-      "delete": "מחק {{filename}}"
-    }
-  },
-  "analysis": {
-    "title": "תוצאות ניתוח",
-    "analyzed": "נותח {{date}}",
-    "polling": "ניתוח בתהליך — מתרענן אוטומטית...",
-    "loading": "טוען תוצאות ניתוח",
-    "tryAgain": "נסה שוב",
-    "waiting": {
-      "title": "ממתין לניתוח",
-      "subtitle": "הצעת המשכנתא שלך מנותחת על ידי AI. זה עשוי לקחת כמה דקות."
-    },
-    "failed": {
-      "title": "ניתוח נכשל",
-      "subtitle": "אירעה שגיאה בניתוח הצעת המשכנתא שלך. אנא נסה שוב."
-    },
-    "retry": "נסה שוב ניתוח",
-    "aiSummary": "סיכום AI",
-    "terms": "תנאים שחולצו",
-    "bank": "בנק",
-    "amount": "סכום",
-    "rate": "שיעור ריבית",
-    "term": "תקופה",
-    "monthly": "תשלום חודשי",
-    "recommended": "מומלץ",
-    "savings": "חיסכון פוטנציאלי",
-    "savingsSubtitle": "על פני חיי ההלוואה",
-    "chart": {
-      "title": "השוואת תשלומים",
-      "month": "חודש",
-      "yourOffer": "ההצעה שלך",
-      "recommended": "מומלץ",
-      "market": "ממוצע שוק",
-      "morty": "המלצת מורטי",
-      "year": "שנה",
-      "cumulativeTitle": "השוואת תשלומים מצטברת"
-    },
-    "recommendations": "המלצות",
-    "download": "הורד דוח PDF",
-    "uploadAnother": "העלה עוד אחת",
-    "notFound": "ניתוח לא נמצא",
-    "retryFailed": "נכשל בנסיון חזרה על הניתוח.",
-    "potentialSaving": "חיסכון פוטנציאלי:"
+    "notifications": "התראות",
+    "userLabel": "משתמש {{label}}"
   },
   "sidebar": {
     "home": "בית",
     "financialData": "נתונים פיננסיים",
     "offers": "הצעות",
-    "analyze": "נתח",
+    "analyze": "ניתוח",
     "logOut": "התנתק",
-    "loggingOut": "מתנתק..."
+    "loggingOut": "מתנתק...",
+    "logoutError": "ההתנתקות נכשלה. אנא נסה שוב."
   },
-  "help": {
-    "title": "עזרה ותמיכה",
-    "subtitle": "שאלות נפוצות והנחיות",
-    "faq": [
-      {
-        "q": "איך מורטי מנתח את הצעת המשכנתא שלי?",
-        "a": "מורטי משתמש ב-OCR מופעל AI כדי לחלץ תנאים מה-PDF או התמונה שהועלו, ולאחר מכן משווה אותם לשיעורי השוק הנוכחיים ולפרופיל הפיננסי שלך כדי לספק המלצות מותאמות אישית."
-      },
-      {
-        "q": "האם הנתונים הפיננסיים שלי מאובטחים?",
-        "a": "כן. כל הנתונים מוצפנים במהלך ההעברה (HTTPS) ובמנוחה. אנו עוקבים אחר הנחיות GDPR ותקנות הפרטיות הישראליות. הנתונים שלך אף פעם לא משותפים עם צדדים שלישיים."
-      },
-      {
-        "q": "אילו פורמטי קבצים נתמכים?",
-        "a": "אנו תומכים בקבצי PDF, PNG ו-JPG עד 5MB. לתוצאות הטובות ביותר, העלה סריקה או תמונה ברורה של מסמך הצעת המשכנתא."
-      },
-      {
-        "q": "כמה זמן לוקח הניתוח?",
-        "a": "רוב הניתוחים מסתיימים תוך 1-2 דקות. תראה את עדכון הסטטוס בזמן אמת בדאשבורד שלך."
-      }
+  "analysisList": {
+    "title": "ניתוחי משכנתאות",
+    "subtitle": "ניתוח מבוסס AI של הצעות המשכנתאות שהועלו",
+    "uploadNew": "+ העלה הצעה חדשה",
+    "filter": "סנן:",
+    "statusOptions": {
+      "all": "כל הסטטוסים",
+      "pending": "ממתין",
+      "processing": "מעבד",
+      "analyzed": "נונח",
+      "error": "שגיאה"
+    },
+    "tableHeaders": {
+      "bank": "בנק",
+      "amount": "סכום",
+      "rate": "ריבית",
+      "term": "תקופה",
+      "savings": "חיסכון פוטנציאלי",
+      "status": "סטטוס",
+      "actions": ""
+    },
+    "empty": {
+      "title": "אין ניתוחים עדיין",
+      "description": "העלה את הצעת המשכנתה הראשונה שלך כדי לקבל ניתוח והמלצות מבוססי AI.",
+      "button": "העלה הצעת משכנתה"
+    },
+    "error": {
+      "tryAgain": "נסה שוב"
+    },
+    "pagination": {
+      "showing": "מציג {{start}}–{{end}} מתוך {{total}} תוצאות",
+      "prev": "← קודם",
+      "next": "הבא →"
+    },
+    "viewResults": "צפה בתוצאות →",
+    "unknownBank": "בנק לא ידוע",
+    "yr": "שנים"
+  },
+  "common": {
+    "loading": "טוען...",
+    "offline": "אין חיבור לאינטרנט — מצב לא מקוון",
+    "restored": "החיבור חזר! ✓"
+  },
+  "install": {
+    "title": "התקן את Morty",
+    "subtitle": "גישה מהירה מהמסך הראשי",
+    "close": "סגור",
+    "benefits": [
+      "גישה מהירה ללא דפדפן",
+      "עבודה במצב לא מקוון",
+      "התראות על ניתוחים חדשים"
     ],
-    "contact": {
-      "title": "צור קשר עם התמיכה",
-      "text": "זקוק לעזרה? שלח אימייל אלינו ב",
-      "email": "support@morty.co.il"
-    }
+    "installing": "מתקין...",
+    "installNow": "התקן עכשיו"
   },
-  "notFound": {
-    "title": "הדף לא נמצא",
-    "message": "הדף שאתה מחפש לא קיים או הועבר.",
-    "back": "חזור לדאשבורד"
+  "update": {
+    "available": "עדכון חדש זמין",
+    "description": "גרסה חדשה של Morty זמינה. עדכן כדי לקבל את התכונות האחרונות.",
+    "updateNow": "עדכן עכשיו",
+    "close": "סגור התראת עדכון"
   }
 }
