@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import FileIcon from '../common/FileIcon';
 import { formatDate } from '../../utils/formatters';
 
@@ -12,21 +13,22 @@ import { formatDate } from '../../utils/formatters';
  * - processing → blue
  */
 const StatusBadge = ({ status }) => {
+  const { t } = useTranslation();
   const config = {
     pending: {
-      label: 'Pending',
+      label: t('upload.recentUploads.status.pending'),
       classes: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
     },
     processing: {
-      label: 'Processing',
+      label: t('upload.recentUploads.status.processing'),
       classes: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
     },
     analyzed: {
-      label: 'Analyzed',
+      label: t('upload.recentUploads.status.analyzed'),
       classes: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
     },
     error: {
-      label: 'Error',
+      label: t('upload.recentUploads.status.error'),
       classes: 'bg-red-500/15 text-red-400 border-red-500/30',
     },
   };
@@ -62,6 +64,7 @@ const StatusBadge = ({ status }) => {
  * @param {Function} onDelete - Callback to delete an offer by id
  */
 const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   /**
@@ -75,7 +78,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
     return (
       <div className="mt-8">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-400">
-          Recent Uploads
+          {t('upload.recentUploads.title')}
         </h3>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -94,9 +97,9 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
     return (
       <div className="mt-8">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-400">
-          Recent Uploads
+          {t('upload.recentUploads.title')}
         </h3>
-        <p className="text-sm text-slate-500">No uploads yet. Upload your first mortgage offer above.</p>
+        <p className="text-sm text-slate-500">{t('upload.recentUploads.empty')}</p>
       </div>
     );
   }
@@ -104,7 +107,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
   return (
     <div className="mt-8">
       <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-400">
-        Recent Uploads
+        {t('upload.recentUploads.title')}
       </h3>
       <ul className="space-y-3" role="list" aria-label="Recent mortgage offer uploads">
         {offers.map((offer) => {
@@ -162,7 +165,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
                       focus:outline-none focus:ring-2 focus:ring-amber-500
                     "
                   >
-                    View Results
+                    {t('upload.recentUploads.viewResults')}
                   </button>
                 )}
 
@@ -170,7 +173,7 @@ const RecentUploads = ({ offers = [], isLoading, onDelete }) => {
                   <button
                     type="button"
                     onClick={() => onDelete && onDelete(offerId)}
-                    aria-label={`Delete ${filename}`}
+                    aria-label={t('upload.recentUploads.delete', { filename })}
                     className="
                       rounded-md p-1.5 text-slate-500
                       transition-colors duration-150
