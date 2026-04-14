@@ -149,7 +149,32 @@
     "invalidType": "Only PDF, PNG, and JPG files are accepted.",
     "tooLarge": "File must be smaller than {{max}}MB.",
     "success": "Offer uploaded! AI analysis started.",
-    "failed": "Upload failed. Please try again."
+    "failed": "Upload failed. Please try again.",
+    "dropzone": {
+      "ariaLabel": "Upload mortgage offer file",
+      "dropHere": "Drag and drop your mortgage offer file here, or press Enter to browse",
+      "dropFile": "Drop your file here",
+      "dragDrop": "Drag & drop your mortgage offer",
+      "types": "PDF, PNG, JPG — max 5 MB",
+      "browse": "Browse Files",
+      "uploading": "Uploading...",
+      "complete": "Upload complete",
+      "remove": "Remove {{fileName}}",
+      "invalidType": "Invalid file type. Please upload a PDF, PNG, or JPG file.",
+      "tooLarge": "File is too large ({{size}}). Maximum size is 5 MB."
+    },
+    "recentUploads": {
+      "title": "Recent Uploads",
+      "empty": "No uploads yet. Upload your first mortgage offer above.",
+      "status": {
+        "pending": "Pending",
+        "processing": "Processing",
+        "analyzed": "Analyzed",
+        "error": "Error"
+      },
+      "viewResults": "View Results",
+      "delete": "Delete {{filename}}"
+    }
   },
   "analysis": {
     "title": "Analysis Results",
@@ -180,12 +205,57 @@
       "title": "Payment Comparison",
       "month": "Month",
       "yourOffer": "Your Offer",
-      "recommended": "Recommended"
+      "recommended": "Recommended",
+      "market": "Market Average",
+      "morty": "Morty Recommendation",
+      "year": "Year",
+      "cumulativeTitle": "Cumulative Payment Comparison"
     },
     "recommendations": "Recommendations",
     "download": "Download Report PDF",
     "uploadAnother": "Upload Another",
     "notFound": "Analysis not found",
-    "retryFailed": "Failed to retry analysis."
+    "retryFailed": "Failed to retry analysis.",
+    "potentialSaving": "Potential saving:"
+  },
+  "sidebar": {
+    "home": "Home",
+    "financialData": "Financial Data",
+    "offers": "Offers",
+    "analyze": "Analyze",
+    "logOut": "Log out",
+    "loggingOut": "Logging out..."
+  },
+  "help": {
+    "title": "Help & Support",
+    "subtitle": "Frequently asked questions and guidance",
+    "faq": [
+      {
+        "q": "How does Morty analyze my mortgage offer?",
+        "a": "Morty uses AI-powered OCR to extract terms from your uploaded PDF or image, then compares them against current market rates and your financial profile to provide personalized recommendations."
+      },
+      {
+        "q": "Is my financial data secure?",
+        "a": "Yes. All data is encrypted in transit (HTTPS) and at rest. We follow GDPR guidelines and Israeli privacy regulations. Your data is never shared with third parties."
+      },
+      {
+        "q": "What file formats are supported?",
+        "a": "We support PDF, PNG, and JPG files up to 5MB. For best results, upload a clear scan or photo of your mortgage offer document."
+      },
+      {
+        "q": "How long does analysis take?",
+        "a": "Most analyses complete within 1-2 minutes. You will see the status update in real-time on your dashboard."
+      }
+    ],
+    "contact": {
+      "title": "Contact Support",
+      "text": "Need help? Email us at",
+      "email": "support@morty.co.il"
+    }
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "message": "The page you're looking for doesn't exist or has been moved.",
+    "back": "Back to Dashboard"
   }
 }
