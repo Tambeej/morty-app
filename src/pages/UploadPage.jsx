@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { apiService } from '../services/api.js';
 import { formatDate } from '../utils/formatters.js';
@@ -17,6 +18,7 @@ const MAX_SIZE_MB = 5;
  * Uses offer.id (Firestore string ID) for keys and navigation links.
  */
 export default function UploadPage() {
+  const { t } = useTranslation();
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -34,11 +36,11 @@ export default function UploadPage() {
 
   function validateFile(f) {
     if (!ACCEPTED_TYPES.includes(f.type)) {
-      toast.error('Only PDF, PNG, and JPG files are accepted.');
+      toast.error(t('upload.invalidType'));
       return false;
     }
     if (f.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`File must be smaller than ${MAX_SIZE_MB}MB.`);
+      toast.error(t('upload.tooLarge', { max: MAX_SIZE_MB }));
       return false;
     }
     return true;
@@ -69,12 +71,12 @@ export default function UploadPage() {
     setUploadProgress(0);
     try {
       const result = await apiService.uploadOffer(file, setUploadProgress);
-      toast.success('Offer uploaded! AI analysis started.');
+      toast.success(t('upload.success'));
       setFile(null);
       setUploadProgress(0);
       setRecentOffers((prev) => [result, ...prev]);
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Upload failed. Please try again.');
+      toast.error(err?.response?.data?.message || t('upload.failed'));
     } finally {
       setUploading(false);
     }
@@ -97,8 +99,8 @@ export default function UploadPage() {
     <PageLayout>
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#f8fafc]">Upload Mortgage Offer</h1>
-          <p className="text-[#94a3b8] mt-1">Upload your bank&apos;s mortgage offer for AI analysis</p>
+          <h1 className="text-2xl font-bold text-[#f8fafc]">{t('upload.title')}</h1>
+          <p className="text-[#94a3b8] mt-1">{t('upload.subtitle')}</p>
         </div>
 
         {/* Dropzone */}
@@ -109,24 +111,24 @@ export default function UploadPage() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             role="region"
-            aria-label="File upload dropzone"
+            aria-label={t('upload.dropzone.ariaLabel')}
           >
             <div className="flex flex-col items-center gap-4">
               <span className="text-5xl" aria-hidden="true">📤</span>
               <div className="text-center">
-                <p className="text-[#f8fafc] font-medium">Drag &amp; drop your mortgage offer</p>
-                <p className="text-[#64748b] text-sm mt-1">PDF, PNG, JPG — max {MAX_SIZE_MB}MB</p>
+                <p className="text-[#f8fafc] font-medium">{t('upload.drag')}</p>
+                <p className="text-[#64748b] text-sm mt-1">{t('upload.types', { max: MAX_SIZE_MB })}</p>
               </div>
               <label className="cursor-pointer">
                 <span className="inline-flex items-center gap-2 border border-border text-[#94a3b8] hover:border-gold hover:text-[#f8fafc] px-5 py-2.5 rounded-input text-sm font-medium transition-all duration-150">
-                  Browse Files
+                  {t('upload.browse')}
                 </span>
                 <input
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg"
                   className="sr-only"
                   onChange={(e) => handleFileSelect(e.target.files[0])}
-                  aria-label="Select file"
+                  aria-label={t('upload.select')}
                 />
               </label>
             </div>
@@ -148,7 +150,7 @@ export default function UploadPage() {
                 <button
                   onClick={() => { setFile(null); setUploadProgress(0); }}
                   className="text-[#64748b] hover:text-red-400 transition-colors"
-                  aria-label="Remove file"
+                  aria-label={t('upload.remove')}
                 >
                   ✕
                 </button>
@@ -156,8 +158,8 @@ export default function UploadPage() {
 
               {uploading && (
                 <div>
-                  <ProgressBar value={uploadProgress} label="Upload progress" />
-                  <p className="text-xs text-[#64748b] mt-1 text-right">{uploadProgress}% Uploading...</p>
+                  <ProgressBar value={uploadProgress} label={t('upload.uploading', { progress: uploadProgress })} />
+                  <p className="text-xs text-[#64748b] mt-1 text-right">{t('upload.uploading', { progress: uploadProgress })}</p>
                 </div>
               )}
             </div>
@@ -171,18 +173,18 @@ export default function UploadPage() {
           loading={uploading}
           className="w-full mb-8"
         >
-          Analyze with AI
+          {t('upload.analyze')}
         </Button>
 
         {/* Recent uploads */}
         <Card>
-          <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Recent Uploads</h2>
+          <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">{t('upload.recent')}</h2>
           {loadingOffers ? (
             <div className="flex justify-center py-4">
               <Spinner />
             </div>
           ) : recentOffers.length === 0 ? (
-            <p className="text-[#64748b] text-sm text-center py-4">No uploads yet.</p>
+            <p className="text-[#64748b] text-sm text-center py-4">{t('upload.empty')}</p>
           ) : (
             <div className="flex flex-col gap-3">
               {recentOffers.map((offer) => {
@@ -196,7 +198,7 @@ export default function UploadPage() {
                       <span aria-hidden="true">📄</span>
                       <div>
                         <p className="text-sm text-[#f8fafc]">
-                          {offer.originalFile?.url?.split('/').pop() || 'offer.pdf'}
+                          {offer.originalFile?.url?.split('/').pop() || t('upload.defaultName')}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className={`text-xs px-2 py-0.5 rounded-full border ${
@@ -206,8 +208,8 @@ export default function UploadPage() {
                               ? 'bg-red-100/10 text-red-400 border-red-200/20'
                               : 'bg-yellow-100/10 text-yellow-400 border-yellow-200/20'
                           }`}>
-                            {offer.status === 'analyzed' ? 'Analyzed' :
-                             offer.status === 'error'    ? 'Error' : 'Pending'}
+                            {offer.status === 'analyzed' ? t('upload.analyzed') :
+                             offer.status === 'error'    ? t('upload.error') : t('upload.pending')}
                           </span>
                           {offer.createdAt && (
                             <span className="text-xs text-[#64748b]">
@@ -222,7 +224,7 @@ export default function UploadPage() {
                         to={`/analysis/${offerId}`}
                         className="text-gold hover:text-gold-light text-xs font-medium"
                       >
-                        View Results →
+                        {t('upload.view')}
                       </Link>
                     )}
                   </div>
