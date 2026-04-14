@@ -14,8 +14,9 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import api from '../services/api.js';
 import { formatCurrency, formatDate } from '../utils/formatters.js';
@@ -48,6 +49,7 @@ function generatePaymentData(principal, annualRate, termYears) {
  * Analysis results page for a specific mortgage offer.
  */
 export default function AnalysisPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [offer, setOffer] = useState(null);
@@ -67,11 +69,11 @@ export default function AnalysisPage() {
       const msg =
         err.response?.data?.error ||
         err.response?.data?.message ||
-        'Analysis not found';
+        t('analysis.notFound');
       setError(msg);
       return null;
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     let interval;
@@ -118,7 +120,7 @@ export default function AnalysisPage() {
       setError(
         err.response?.data?.error ||
         err.response?.data?.message ||
-        'Failed to retry analysis.'
+        t('analysis.retryFailed')
       );
     } finally {
       setRetrying(false);
@@ -150,17 +152,17 @@ export default function AnalysisPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-[#f8fafc]">
-            Analysis Results{extracted.bank ? ` — ${extracted.bank}` : ''}
+            {t('analysis.title')}{extracted.bank ? ` — ${extracted.bank}` : ''}
           </h1>
           {offer?.updatedAt && (
             <p className="text-[#94a3b8] mt-1 text-sm">
-              Analyzed {formatDate(offer.updatedAt)}
+              {t('analysis.analyzed', { date: formatDate(offer.updatedAt) })}
             </p>
           )}
           {polling && (
             <p className="text-yellow-400 text-sm mt-1 flex items-center gap-2">
               <span className="inline-block w-3 h-3 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin" />
-              Analysis in progress — refreshing automatically...
+              {t('analysis.polling')}
             </p>
           )}
         </div>
@@ -169,7 +171,7 @@ export default function AnalysisPage() {
         {loading ? (
           <div
             className="flex flex-col gap-4"
-            aria-label="Loading analysis results"
+            aria-label={t('analysis.loading')}
             aria-busy="true"
           >
             <Skeleton height="120px" className="rounded-card" />
@@ -188,7 +190,7 @@ export default function AnalysisPage() {
                   fetchOffer().then(() => setLoading(false));
                 }}
               >
-                Try Again
+                {t('analysis.tryAgain')}
               </Button>
             </div>
           </Card>
@@ -198,10 +200,10 @@ export default function AnalysisPage() {
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Spinner size="lg" className="mb-4" />
               <h2 className="text-lg font-semibold text-[#f8fafc] mb-2">
-                Waiting for analysis
+                {t('analysis.waiting.title')}
               </h2>
               <p className="text-[#94a3b8] text-sm">
-                Your mortgage offer is being analyzed by AI. This may take a few minutes.
+                {t('analysis.waiting.subtitle')}
               </p>
             </div>
           </Card>
@@ -210,17 +212,17 @@ export default function AnalysisPage() {
           <Card>
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <span className="text-5xl mb-4" aria-hidden="true">❌</span>
-              <h2 className="text-lg font-semibold text-red-400 mb-2">Analysis Failed</h2>
+              <h2 className="text-lg font-semibold text-red-400 mb-2">{t('analysis.failed.title')}</h2>
               <p className="text-[#94a3b8] text-sm mb-6">
-                There was an error analyzing your mortgage offer. Please try again.
+                {t('analysis.failed.subtitle')}
               </p>
               <Button
                 variant="primary"
                 onClick={handleRetry}
                 loading={retrying}
-                aria-label="Retry analysis"
+                aria-label={t('analysis.retry')}
               >
-                Retry Analysis
+                {t('analysis.retry')}
               </Button>
             </div>
           </Card>
@@ -230,22 +232,22 @@ export default function AnalysisPage() {
             {/* AI Summary */}
             {result.aiReasoning && (
               <Card goldTop className="mb-6">
-                <p className="text-xs font-medium uppercase tracking-widest text-gold mb-3">AI Summary</p>
+                <p className="text-xs font-medium uppercase tracking-widest text-gold mb-3">{t('analysis.aiSummary')}</p>
                 <p className="text-[#f8fafc] leading-relaxed">{result.aiReasoning}</p>
               </Card>
             )}
 
             {/* Extracted terms */}
             <Card className="mb-6">
-              <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Extracted Terms</h2>
+              <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">{t('analysis.terms')}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[
-                  { label: 'Bank',          value: extracted.bank },
-                  { label: 'Amount',        value: extracted.amount ? formatCurrency(extracted.amount) : undefined },
-                  { label: 'Interest Rate', value: extracted.rate ? `${Number(extracted.rate).toFixed(2)}%` : undefined },
-                  { label: 'Term',          value: extracted.term ? `${extracted.term} years` : undefined },
-                  { label: 'Monthly Pmt',   value: extracted.monthlyPayment ? formatCurrency(extracted.monthlyPayment) : undefined },
-                  { label: 'Recommended',   value: result.recommendedRate ? `${result.recommendedRate}%` : undefined }
+                  { label: t('analysis.bank'),          value: extracted.bank },
+                  { label: t('analysis.amount'),        value: extracted.amount ? formatCurrency(extracted.amount) : undefined },
+                  { label: t('analysis.rate'), value: extracted.rate ? `${Number(extracted.rate).toFixed(2)}%` : undefined },
+                  { label: t('analysis.term'),          value: extracted.term ? `${extracted.term} years` : undefined },
+                  { label: t('analysis.monthly'),   value: extracted.monthlyPayment ? formatCurrency(extracted.monthlyPayment) : undefined },
+                  { label: t('analysis.recommended'),   value: result.recommendedRate ? `${result.recommendedRate}%` : undefined }
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p className="text-xs text-[#64748b] mb-1">{label}</p>
@@ -258,16 +260,16 @@ export default function AnalysisPage() {
             {/* Savings highlight */}
             {(result.savings ?? 0) > 0 && (
               <Card className="mb-6 border-green-800">
-                <p className="text-xs font-medium uppercase tracking-widest text-green-400 mb-1">Potential Savings</p>
+                <p className="text-xs font-medium uppercase tracking-widest text-green-400 mb-1">{t('analysis.savings')}</p>
                 <p className="text-3xl font-bold text-green-400">{formatCurrency(result.savings)}</p>
-                <p className="text-[#94a3b8] text-sm mt-1">over the life of the loan</p>
+                <p className="text-[#94a3b8] text-sm mt-1">{t('analysis.savingsSubtitle')}</p>
               </Card>
             )}
 
             {/* Comparison chart */}
             {chartData.length > 0 && (
               <Card className="mb-6">
-                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Payment Comparison</h2>
+                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">{t('analysis.chart.title')}</h2>
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -275,7 +277,7 @@ export default function AnalysisPage() {
                       dataKey="month"
                       stroke="#94a3b8"
                       tick={{ fontSize: 11 }}
-                      label={{ value: 'Month', position: 'insideBottom', offset: -2, fill: '#94a3b8', fontSize: 11 }}
+                      label={{ value: t('analysis.chart.month'), position: 'insideBottom', offset: -2, fill: '#94a3b8', fontSize: 11 }}
                     />
                     <YAxis
                       stroke="#94a3b8"
@@ -291,7 +293,7 @@ export default function AnalysisPage() {
                     <Line
                       type="monotone"
                       dataKey="yourOffer"
-                      name="Your Offer"
+                      name={t('analysis.chart.yourOffer')}
                       stroke="#f59e0b"
                       strokeWidth={2}
                       dot={false}
@@ -300,7 +302,7 @@ export default function AnalysisPage() {
                       <Line
                         type="monotone"
                         dataKey="recommended"
-                        name="Recommended"
+                        name={t('analysis.chart.recommended')}
                         stroke="#10b981"
                         strokeWidth={2}
                         dot={false}
@@ -314,7 +316,7 @@ export default function AnalysisPage() {
             {/* Recommendations */}
             {result.recommendations && result.recommendations.length > 0 && (
               <Card className="mb-6">
-                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Recommendations</h2>
+                <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">{t('analysis.recommendations')}</h2>
                 <ol className="flex flex-col gap-3">
                   {result.recommendations.map((rec, i) => (
                     <li key={i} className="flex items-start gap-3">
@@ -333,12 +335,12 @@ export default function AnalysisPage() {
               <Button
                 variant="ghost"
                 onClick={() => window.print()}
-                aria-label="Download analysis report as PDF"
+                aria-label={t('analysis.download')}
               >
-                Download Report PDF
+                {t('analysis.download')}
               </Button>
               <Link to="/upload">
-                <Button aria-label="Upload another mortgage offer">Upload Another</Button>
+                <Button aria-label={t('analysis.uploadAnother')}>{t('analysis.uploadAnother')}</Button>
               </Link>
             </div>
           </>
