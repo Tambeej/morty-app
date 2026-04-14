@@ -6,6 +6,7 @@
 
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import {
   LineChart,
   Line,
@@ -50,6 +51,7 @@ const buildYearlySeries = (principal, annualRate, termYears) => {
 // ─── Custom Tooltip ──────────────────────────────────────────────────────────
 
 const CustomTooltip = ({ active, payload, label }) => {
+  const { t } = useTranslation();
   if (!active || !payload || payload.length === 0) return null;
 
   const formatILS = (val) =>
@@ -64,7 +66,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       className="bg-navy-surface border border-border rounded-lg p-3 shadow-card text-sm"
       role="tooltip"
     >
-      <p className="text-text-secondary font-medium mb-2">Year {label}</p>
+      <p className="text-text-secondary font-medium mb-2">{t('analysis.chart.year')} {label}</p>
       {payload.map((entry) => (
         <div key={entry.dataKey} className="flex items-center gap-2 mb-1">
           <span
@@ -101,6 +103,7 @@ const PaymentComparisonChart = ({
   termYears,
   height,
 }) => {
+  const { t } = useTranslation();
   const chartData = useMemo(() => {
     const yourSeries   = buildYearlySeries(principal, yourRate, termYears);
     const marketSeries = buildYearlySeries(principal, marketRate, termYears);
@@ -125,10 +128,10 @@ const PaymentComparisonChart = ({
     <div
       className="rounded-card bg-navy-surface border border-border p-6"
       role="region"
-      aria-label="Cumulative payment comparison chart"
+      aria-label={t('analysis.chart.cumulativeTitle')}
     >
       <h3 className="text-sm font-label uppercase tracking-widest text-text-secondary mb-4">
-        Cumulative Payment Comparison
+        {t('analysis.chart.cumulativeTitle')}
       </h3>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart
@@ -141,7 +144,7 @@ const PaymentComparisonChart = ({
             stroke="#64748b"
             tick={{ fill: '#94a3b8', fontSize: 12 }}
             label={{
-              value: 'Year',
+              value: t('analysis.chart.year'),
               position: 'insideBottom',
               offset: -10,
               fill: '#64748b',
@@ -166,7 +169,7 @@ const PaymentComparisonChart = ({
           <Line
             type="monotone"
             dataKey="yourOffer"
-            name="Your Offer"
+            name={t('analysis.chart.yourOffer')}
             stroke="#ef4444"
             strokeWidth={2}
             dot={false}
@@ -175,7 +178,7 @@ const PaymentComparisonChart = ({
           <Line
             type="monotone"
             dataKey="market"
-            name="Market Average"
+            name={t('analysis.chart.market')}
             stroke="#94a3b8"
             strokeWidth={2}
             strokeDasharray="6 3"
@@ -185,7 +188,7 @@ const PaymentComparisonChart = ({
           <Line
             type="monotone"
             dataKey="morty"
-            name="Morty Recommendation"
+            name={t('analysis.chart.morty')}
             stroke="#f59e0b"
             strokeWidth={2.5}
             dot={false}
