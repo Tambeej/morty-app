@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 /**
@@ -11,13 +12,12 @@ import { useAuth } from '../../context/AuthContext.jsx';
  */
 export default function Navbar({ onMenuToggle }) {
   const { user } = useAuth();
-  const [lang, setLang] = useState('EN');
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language;
 
   function toggleLang() {
-    const next = lang === 'EN' ? 'HE' : 'EN';
-    setLang(next);
-    document.documentElement.dir = next === 'HE' ? 'rtl' : 'ltr';
-    document.documentElement.lang = next === 'HE' ? 'he' : 'en';
+    const next = currentLang === 'en' ? 'he' : 'en';
+    i18n.changeLanguage(next);
   }
 
   /**
@@ -92,7 +92,7 @@ export default function Navbar({ onMenuToggle }) {
           className="text-xs font-medium text-[#94a3b8] hover:text-gold transition-colors"
           aria-label="Toggle language"
         >
-          {lang === 'EN' ? 'עברית' : 'EN'}
+          {currentLang === 'en' ? 'עברית' : 'EN'}
         </button>
 
         {/* Notification bell */}
