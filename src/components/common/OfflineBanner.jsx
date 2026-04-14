@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePWA } from '../../hooks/usePWA';
 
 /**
@@ -19,6 +20,7 @@ import { usePWA } from '../../hooks/usePWA';
  * @returns {JSX.Element|null} The offline banner or null if online
  */
 function OfflineBanner() {
+  const { t } = useTranslation();
   const { isOnline } = usePWA();
   const [wasOffline, setWasOffline] = useState(false);
   const [showRestored, setShowRestored] = useState(false);
@@ -109,7 +111,7 @@ function OfflineBanner() {
           color: isRestored ? 'white' : '#f8fafc',
         }}
       >
-        {isRestored ? 'החיבור חזר! ✓' : 'אין חיבור לאינטרנט — מצב לא מקוון'}
+        {isRestored ? t('common.restored') : t('common.offline')}
       </span>
 
       <style>{`

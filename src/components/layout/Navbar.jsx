@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 /**
@@ -11,13 +12,12 @@ import { useAuth } from '../../context/AuthContext.jsx';
  */
 export default function Navbar({ onMenuToggle }) {
   const { user } = useAuth();
-  const [lang, setLang] = useState('EN');
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
 
   function toggleLang() {
-    const next = lang === 'EN' ? 'HE' : 'EN';
-    setLang(next);
-    document.documentElement.dir = next === 'HE' ? 'rtl' : 'ltr';
-    document.documentElement.lang = next === 'HE' ? 'he' : 'en';
+    const next = currentLang === 'en' ? 'he' : 'en';
+    i18n.changeLanguage(next);
   }
 
   /**
@@ -57,8 +57,8 @@ export default function Navbar({ onMenuToggle }) {
    * Uses email when name is absent (Firestore shape).
    */
   function getUserLabel() {
-    if (!user) return 'Unknown';
-    return user.name || user.displayName || user.email || 'Unknown';
+    if (!user) return t('nav.userLabel', { label: 'Unknown' });
+    return t('nav.userLabel', { label: user.name || user.displayName || user.email || 'Unknown' });
   }
 
   const initials = getInitials();
@@ -69,7 +69,7 @@ export default function Navbar({ onMenuToggle }) {
       <button
         onClick={onMenuToggle}
         className="md:hidden text-[#94a3b8] hover:text-[#f8fafc] p-1"
-        aria-label="Toggle menu"
+        aria-label={t('nav.toggleMenu')}
       >
         ☰
       </button>
@@ -78,9 +78,9 @@ export default function Navbar({ onMenuToggle }) {
       <div className="hidden md:flex flex-1 max-w-sm">
         <input
           type="search"
-          placeholder="Search..."
+          placeholder={t('nav.search.placeholder')}
           className="w-full h-9 rounded-input bg-navy-elevated border border-border px-4 text-sm text-[#f8fafc] placeholder-[#64748b] focus:outline-none focus:border-gold"
-          aria-label="Search"
+          aria-label={t('nav.search.placeholder')}
         />
       </div>
 
@@ -90,15 +90,15 @@ export default function Navbar({ onMenuToggle }) {
         <button
           onClick={toggleLang}
           className="text-xs font-medium text-[#94a3b8] hover:text-gold transition-colors"
-          aria-label="Toggle language"
+          aria-label={t('nav.toggleLanguage')}
         >
-          {lang === 'EN' ? 'עברית' : 'EN'}
+          {currentLang === 'en' ? t('nav.language.he') : t('nav.language.en')}
         </button>
 
         {/* Notification bell */}
         <button
           className="relative text-[#94a3b8] hover:text-[#f8fafc] transition-colors"
-          aria-label="Notifications"
+          aria-label={t('nav.notifications')}
         >
           🔔
         </button>
@@ -106,7 +106,7 @@ export default function Navbar({ onMenuToggle }) {
         {/* Avatar */}
         <div
           className="w-8 h-8 rounded-full bg-gold flex items-center justify-center text-navy text-xs font-bold cursor-pointer"
-          aria-label={`User: ${getUserLabel()}`}
+          aria-label={getUserLabel()}
           title={getUserLabel()}
         >
           {initials}

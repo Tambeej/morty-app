@@ -1,0 +1,85 @@
+{
+  "nav": {
+    "toggleMenu": "Toggle menu",
+    "search": {
+      "placeholder": "Search..."
+    },
+    "toggleLanguage": "Toggle language",
+    "language": {
+      "he": "עברית",
+      "en": "English"
+    },
+    "notifications": "Notifications",
+    "userLabel": "User {{label}}"
+  },
+  "sidebar": {
+    "home": "Home",
+    "financialData": "Financial Data",
+    "offers": "Offers",
+    "analyze": "Analyze",
+    "logOut": "Log Out",
+    "loggingOut": "Logging Out...",
+    "logoutError": "Logout failed. Please try again."
+  },
+  "analysisList": {
+    "title": "Mortgage Analyses",
+    "subtitle": "AI-powered analysis of your uploaded mortgage offers",
+    "uploadNew": "+ Upload New Offer",
+    "filter": "Filter:",
+    "statusOptions": {
+      "all": "All Statuses",
+      "pending": "Pending",
+      "processing": "Processing",
+      "analyzed": "Analyzed",
+      "error": "Error"
+    },
+    "tableHeaders": {
+      "bank": "Bank",
+      "amount": "Amount",
+      "rate": "Rate",
+      "term": "Term",
+      "savings": "Potential Savings",
+      "status": "Status",
+      "actions": ""
+    },
+    "empty": {
+      "title": "No analyses yet",
+      "description": "Upload your first mortgage offer to get AI-powered analysis and recommendations.",
+      "button": "Upload Mortgage Offer"
+    },
+    "error": {
+      "tryAgain": "Try Again"
+    },
+    "pagination": {
+      "showing": "Showing {{start}}–{{end}} of {{total}} results",
+      "prev": "← Prev",
+      "next": "Next →"
+    },
+    "viewResults": "View Results →",
+    "unknownBank": "Unknown Bank",
+    "yr": "yr"
+  },
+  "common": {
+    "loading": "Loading...",
+    "offline": "No internet connection — offline mode",
+    "restored": "Connection restored! ✓"
+  },
+  "install": {
+    "title": "Install Morty",
+    "subtitle": "Quick access from home screen",
+    "close": "Close",
+    "benefits": [
+      "Quick access without browser",
+      "Work offline",
+      "Notifications on new analyses"
+    ],
+    "installing": "Installing...",
+    "installNow": "Install Now"
+  },
+  "update": {
+    "available": "New update available",
+    "description": "A new version of Morty is available. Update to get the latest features.",
+    "updateNow": "Update Now",
+    "close": "Close update notification"
+  }
+}

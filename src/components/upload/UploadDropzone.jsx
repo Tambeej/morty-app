@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import FileIcon from '../common/FileIcon';
 import ProgressBar from '../common/ProgressBar';
 
@@ -45,6 +46,7 @@ const UploadDropzone = ({
   isUploading,
   error,
 }) => {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef(null);
 
@@ -54,21 +56,21 @@ const UploadDropzone = ({
       if (!selectedFile) return;
 
       if (!ACCEPTED_TYPES.includes(selectedFile.type)) {
-        onFileSelect(null, 'Invalid file type. Please upload a PDF, PNG, or JPG file.');
+        onFileSelect(null, t('upload.dropzone.invalidType'));
         return;
       }
 
       if (selectedFile.size > MAX_SIZE_BYTES) {
         onFileSelect(
           null,
-          `File is too large (${formatBytes(selectedFile.size)}). Maximum size is 5 MB.`
+          t('upload.dropzone.tooLarge', { size: formatBytes(selectedFile.size) })
         );
         return;
       }
 
       onFileSelect(selectedFile, null);
     },
-    [onFileSelect]
+    [onFileSelect, t]
   );
 
   const handleDragOver = useCallback((e) => {
@@ -125,7 +127,7 @@ const UploadDropzone = ({
         accept={ACCEPTED_EXTENSIONS}
         onChange={handleInputChange}
         className="sr-only"
-        aria-label="Upload mortgage offer file"
+        aria-label={t('upload.dropzone.ariaLabel')}
         disabled={isUploading}
       />
 
@@ -139,7 +141,7 @@ const UploadDropzone = ({
           onDrop={handleDrop}
           onClick={handleBrowseClick}
           onKeyDown={handleKeyDown}
-          aria-label="Drag and drop your mortgage offer file here, or press Enter to browse"
+          aria-label={t('upload.dropzone.dropHere')}
           className={`
             relative flex flex-col items-center justify-center
             rounded-xl border-2 border-dashed
@@ -183,10 +185,10 @@ const UploadDropzone = ({
           </div>
 
           <p className="mb-1 text-base font-semibold text-slate-200">
-            {isDragOver ? 'Drop your file here' : 'Drag & drop your mortgage offer'}
+            {isDragOver ? t('upload.dropzone.dropFile') : t('upload.dropzone.dragDrop')}
           </p>
           <p className="mb-5 text-sm text-slate-400">
-            PDF, PNG, JPG &mdash; max 5 MB
+            {t('upload.dropzone.types')}
           </p>
 
           <button
@@ -203,7 +205,7 @@ const UploadDropzone = ({
               focus:outline-none focus:ring-2 focus:ring-amber-500
             "
           >
-            Browse Files
+            {t('upload.dropzone.browse')}
           </button>
         </div>
       ) : (
@@ -236,7 +238,7 @@ const UploadDropzone = ({
                 <div className="mt-3">
                   <ProgressBar
                     value={uploadProgress}
-                    label="Uploading..."
+                    label={t('upload.dropzone.uploading')}
                     size="md"
                     color="gold"
                   />
@@ -258,7 +260,7 @@ const UploadDropzone = ({
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  Upload complete
+                  {t('upload.dropzone.complete')}
                 </div>
               )}
             </div>
@@ -268,7 +270,7 @@ const UploadDropzone = ({
               <button
                 type="button"
                 onClick={onFileRemove}
-                aria-label={`Remove ${file.name}`}
+                aria-label={t('upload.dropzone.remove', { fileName: file.name })}
                 className="
                   flex-shrink-0 rounded-md p-1.5
                   text-slate-400 transition-colors duration-150

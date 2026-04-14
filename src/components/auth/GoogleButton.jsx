@@ -19,6 +19,7 @@
  */
 import React from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Google multi-color SVG icon (official brand colors).
@@ -59,35 +60,41 @@ const GoogleButton = ({
   onClick,
   loading = false,
   disabled = false,
-  label = 'Continue with Google',
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={loading || disabled}
-    aria-label="Sign in with Google"
-    aria-busy={loading}
-    className="
-      w-full flex items-center justify-center gap-3
-      bg-white text-gray-700 font-medium text-sm
-      border border-gray-300 rounded-lg px-4 py-2.5
-      hover:bg-gray-50 hover:border-gray-400
-      focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 focus:ring-offset-surface
-      disabled:opacity-50 disabled:cursor-not-allowed
-      transition-all duration-150 shadow-sm
-    "
-  >
-    {loading ? (
-      <span
-        className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
-        aria-hidden="true"
-      />
-    ) : (
-      <GoogleIcon />
-    )}
-    <span>{loading ? 'Connecting...' : label}</span>
-  </button>
-);
+  label,
+}) => {
+  const { t } = useTranslation();
+  const buttonLabel = label || t('google.continue');
+  const loadingText = t('google.connecting');
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading || disabled}
+      aria-label={buttonLabel}
+      aria-busy={loading}
+      className="
+        w-full flex items-center justify-center gap-3
+        bg-white text-gray-700 font-medium text-sm
+        border border-gray-300 rounded-lg px-4 py-2.5
+        hover:bg-gray-50 hover:border-gray-400
+        focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 focus:ring-offset-surface
+        disabled:opacity-50 disabled:cursor-not-allowed
+        transition-all duration-150 shadow-sm
+      "
+    >
+      {loading ? (
+        <span
+          className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
+          aria-hidden="true"
+        />
+      ) : (
+        <GoogleIcon />
+      )}
+      <span>{loading ? loadingText : buttonLabel}</span>
+    </button>
+  );
+};
 
 GoogleButton.propTypes = {
   /** Click handler invoked when the button is pressed */

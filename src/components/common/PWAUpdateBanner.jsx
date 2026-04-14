@@ -8,6 +8,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePWA } from '../../hooks/usePWA';
 
 /**
@@ -19,6 +20,7 @@ import { usePWA } from '../../hooks/usePWA';
  * @returns {JSX.Element|null} The update banner or null if no update available
  */
 function PWAUpdateBanner() {
+  const { t } = useTranslation();
   const { hasUpdate, applyUpdate, dismissUpdate } = usePWA();
 
   if (!hasUpdate) return null;
@@ -84,7 +86,7 @@ function PWAUpdateBanner() {
               color: '#f8fafc',
             }}
           >
-            עדכון חדש זמין
+            {t('update.available')}
           </p>
           <p
             style={{
@@ -93,7 +95,7 @@ function PWAUpdateBanner() {
               color: '#94a3b8',
             }}
           >
-            גרסה חדשה של Morty זמינה. עדכן כדי לקבל את התכונות האחרונות.
+            {t('update.description')}
           </p>
         </div>
       </div>
@@ -117,12 +119,12 @@ function PWAUpdateBanner() {
           onMouseEnter={(e) => (e.target.style.backgroundColor = '#fbbf24')}
           onMouseLeave={(e) => (e.target.style.backgroundColor = '#f59e0b')}
         >
-          עדכן עכשיו
+          {t('update.updateNow')}
         </button>
 
         <button
           onClick={dismissUpdate}
-          aria-label="סגור התראת עדכון"
+          aria-label={t('update.close')}
           style={{
             backgroundColor: 'transparent',
             border: '1px solid #334155',

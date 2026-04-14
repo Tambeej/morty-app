@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
@@ -18,6 +19,7 @@ import Button from '../components/common/Button.jsx';
  */
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [dashboard, setDashboard] = useState(null);
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export default function DashboardPage() {
         // Use recentOffers from dashboard response
         setOffers(dashData?.recentOffers || []);
       } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load dashboard data.');
+        setError(err?.response?.data?.message || t('dashboard.error'));
       } finally {
         setLoading(false);
       }
@@ -82,9 +84,9 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-[#f8fafc]">
-          Welcome back, {getUserDisplayName()} 👋
+          {t('dashboard.welcome', { name: getUserDisplayName() })}
         </h1>
-        <p className="text-[#94a3b8] mt-1">Here&apos;s your mortgage analysis summary</p>
+        <p className="text-[#94a3b8] mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Stat cards */}
@@ -99,27 +101,27 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card interactive>
-            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Best Rate</p>
-            <p className="text-3xl font-bold text-gold">{dashboard?.bestRate ?? '—'}%</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">{t('dashboard.bestRate')}</p>
+            <p className="text-3xl font-bold text-gold">{dashboard?.bestRate ?? t('dashboard.bestRateEmpty')}</p>
             <p className="text-sm text-[#64748b] mt-1">
               {dashboard?.rateVsMarket
-                ? `${dashboard.rateVsMarket > 0 ? '+' : ''}${dashboard.rateVsMarket}% vs market`
-                : 'No data yet'}
+                ? t('dashboard.bestRateVsMarket', { rate: dashboard.rateVsMarket })
+                : t('dashboard.noData')}
             </p>
           </Card>
 
           <Card interactive>
-            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Potential Savings</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">{t('dashboard.savings')}</p>
             <p className="text-3xl font-bold text-gold">
               {savingsTotal ? formatCurrency(savingsTotal) : '—'}
             </p>
-            <p className="text-sm text-[#64748b] mt-1">lifetime savings</p>
+            <p className="text-sm text-[#64748b] mt-1">{t('dashboard.savingsSubtitle')}</p>
           </Card>
 
           <Card interactive>
-            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">Active Offers</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#94a3b8] mb-2">{t('dashboard.offers')}</p>
             <p className="text-3xl font-bold text-gold">{totalOffers}</p>
-            <p className="text-sm text-[#64748b] mt-1">uploaded offers</p>
+            <p className="text-sm text-[#64748b] mt-1">{t('dashboard.offersSubtitle')}</p>
           </Card>
         </div>
       )}
@@ -127,7 +129,7 @@ export default function DashboardPage() {
       {/* Chart */}
       {!loading && chartData.length > 0 && (
         <Card className="mb-8">
-          <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">Monthly Payment Comparison</h2>
+          <h2 className="text-lg font-semibold text-[#f8fafc] mb-4">{t('dashboard.chart.title')}</h2>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -139,8 +141,8 @@ export default function DashboardPage() {
                 formatter={(v) => [`₪${v.toLocaleString()}`, '']}
               />
               <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
-              <Bar dataKey="monthly" name="Your Offer" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="recommended" name="Recommended" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="monthly" name={t('dashboard.chart.yourOffer')} fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="recommended" name={t('dashboard.chart.recommended')} fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -149,9 +151,9 @@ export default function DashboardPage() {
       {/* Offers table */}
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#f8fafc]">Your Offers</h2>
+          <h2 className="text-lg font-semibold text-[#f8fafc]">{t('dashboard.table.title')}</h2>
           <Link to="/upload">
-            <Button variant="ghost" className="text-sm py-2 px-4">+ Upload New Offer</Button>
+            <Button variant="ghost" className="text-sm py-2 px-4">{t('dashboard.table.upload')}</Button>
           </Link>
         </div>
 
@@ -161,19 +163,19 @@ export default function DashboardPage() {
           </div>
         ) : offers.length === 0 ? (
           <p className="text-[#64748b] text-sm py-4 text-center">
-            No offers uploaded yet.{' '}
-            <Link to="/upload" className="text-gold hover:underline">Upload your first offer →</Link>
+            {t('dashboard.table.empty')}{' '}
+            <Link to="/upload" className="text-gold hover:underline">{t('dashboard.table.emptyLink')}</Link>
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-[#64748b] text-left">
-                  <th className="pb-3 font-medium">Bank</th>
-                  <th className="pb-3 font-medium">Rate</th>
-                  <th className="pb-3 font-medium">Term</th>
-                  <th className="pb-3 font-medium">Date</th>
-                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">{t('dashboard.table.bank')}</th>
+                  <th className="pb-3 font-medium">{t('dashboard.table.rate')}</th>
+                  <th className="pb-3 font-medium">{t('dashboard.table.term')}</th>
+                  <th className="pb-3 font-medium">{t('dashboard.table.date')}</th>
+                  <th className="pb-3 font-medium">{t('dashboard.table.status')}</th>
                   <th className="pb-3 font-medium"></th>
                 </tr>
               </thead>
@@ -198,8 +200,8 @@ export default function DashboardPage() {
                           offer.status === 'error'    ? 'bg-red-900/40 text-red-400' :
                           'bg-yellow-900/40 text-yellow-400'
                         }`}>
-                          {offer.status === 'analyzed' ? '✓ Analyzed' :
-                           offer.status === 'error'    ? '✗ Error' : '⏳ Pending'}
+                          {offer.status === 'analyzed' ? t('dashboard.table.analyzed') :
+                           offer.status === 'error'    ? t('dashboard.table.error') : t('dashboard.table.pending')}
                         </span>
                       </td>
                       <td className="py-3">
@@ -208,7 +210,7 @@ export default function DashboardPage() {
                             to={`/analysis/${offerId}`}
                             className="text-gold hover:text-gold-light text-xs font-medium"
                           >
-                            View Results →
+                            {t('dashboard.table.view')}
                           </Link>
                         )}
                       </td>

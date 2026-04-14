@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 
 /**
@@ -17,6 +18,7 @@ import PropTypes from 'prop-types';
  * @param {string}  [props.savings]   - Optional formatted savings string (e.g. "₪32,000")
  */
 const RecommendationCard = ({ index, text, type, savings }) => {
+  const { t } = useTranslation();
   const iconMap = {
     rate:    '📉',
     term:    '📅',
@@ -47,7 +49,7 @@ const RecommendationCard = ({ index, text, type, savings }) => {
         </div>
         {savings && (
           <p className="text-gold text-xs font-semibold mt-1 ml-7">
-            Potential saving: {savings}
+            {t('analysis.potentialSaving')} {savings}
           </p>
         )}
       </div>

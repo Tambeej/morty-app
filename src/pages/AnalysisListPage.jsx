@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import Spinner from '../components/common/Spinner';
 import Button from '../components/common/Button';
@@ -32,13 +33,15 @@ const formatPercent = (value) => {
  * Status values: 'pending' | 'analyzed' | 'error' | 'processing'
  */
 const StatusBadge = ({ status }) => {
+  const { t } = useTranslation();
+  const label = t(`analysisList.statusOptions.${status || 'pending'}`);
   const map = {
-    pending:    { label: 'Pending',    cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-    processing: { label: 'Processing', cls: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-    analyzed:   { label: 'Analyzed',   cls: 'bg-green-500/20 text-green-400 border-green-500/30' },
-    error:      { label: 'Error',      cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
+    pending:    { cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+    processing: { cls: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+    analyzed:   { cls: 'bg-green-500/20 text-green-400 border-green-500/30' },
+    error:      { cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
   };
-  const { label, cls } = map[status] || map.pending;
+  const { cls } = map[status] || map.pending;
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cls}`}
@@ -51,6 +54,7 @@ const StatusBadge = ({ status }) => {
 // ─── OfferRow ─────────────────────────────────────────────────────────────────
 
 const OfferRow = ({ offer }) => {
+  const { t } = useTranslation();
   // Use Firestore string id (normalizeOfferDoc ensures this)
   const offerId = offer.id;
   const { status, extractedData, analysis, createdAt } = offer;
@@ -59,7 +63,7 @@ const OfferRow = ({ offer }) => {
     <tr className="border-b border-border hover:bg-navy-elevated/40 transition-colors">
       <td className="px-4 py-4">
         <div className="font-medium text-text-primary">
-          {extractedData?.bank || 'Unknown Bank'}
+          {extractedData?.bank || t('analysisList.unknownBank')}
         </div>
         {/* formatDate handles ISO strings from Firestore */}
         <div className="text-xs text-text-muted mt-0.5">{formatDate(createdAt)}</div>
@@ -71,10 +75,10 @@ const OfferRow = ({ offer }) => {
         {formatPercent(extractedData?.rate)}
       </td>
       <td className="px-4 py-4 text-text-secondary text-sm">
-        {extractedData?.term ? `${extractedData.term} yr` : '—'}
+        {/* Null-guard: analysis may be null for pending offers */}
+        {extractedData?.term ? `${extractedData.term} ${t('analysisList.yr')}` : '—'}
       </td>
       <td className="px-4 py-4 text-text-secondary text-sm">
-        {/* Null-guard: analysis may be null for pending offers */}
         {formatCurrency(analysis?.savings ?? 0)}
       </td>
       <td className="px-4 py-4">
@@ -84,9 +88,9 @@ const OfferRow = ({ offer }) => {
         <Link
           to={`/analysis/${offerId}`}
           className="text-gold hover:text-gold-light text-sm font-medium transition-colors"
-          aria-label={`View analysis for ${extractedData?.bank || 'offer'}`}
+          aria-label={t('analysisList.viewResults')}
         >
-          View Results →
+          {t('analysisList.viewResults')}
         </Link>
       </td>
     </tr>
@@ -95,18 +99,21 @@ const OfferRow = ({ offer }) => {
 
 // ─── EmptyState ───────────────────────────────────────────────────────────────
 
-const EmptyState = ({ onUpload }) => (
-  <div className="flex flex-col items-center justify-center py-20 text-center">
-    <span className="text-5xl mb-4" aria-hidden="true">📋</span>
-    <h2 className="text-xl font-semibold text-text-primary mb-2">No analyses yet</h2>
-    <p className="text-text-secondary text-sm mb-6 max-w-sm">
-      Upload your first mortgage offer to get AI-powered analysis and recommendations.
-    </p>
-    <Button variant="primary" onClick={onUpload} aria-label="Upload a mortgage offer">
-      Upload Mortgage Offer
-    </Button>
-  </div>
-);
+const EmptyState = ({ onUpload }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <span className="text-5xl mb-4" aria-hidden="true">📋</span>
+      <h2 className="text-xl font-semibold text-text-primary mb-2">{t('analysisList.empty.title')}</h2>
+      <p className="text-text-secondary text-sm mb-6 max-w-sm">
+        {t('analysisList.empty.description')}
+      </p>
+      <Button variant="primary" onClick={onUpload} aria-label={t('analysisList.empty.button')}>
+        {t('analysisList.empty.button')}
+      </Button>
+    </div>
+  );
+};
 
 // ─── SkeletonTable ────────────────────────────────────────────────────────────
 
@@ -128,6 +135,7 @@ const SkeletonTable = () => (
  * Each offer uses Firestore string `id` and ISO timestamp strings.
  */
 const AnalysisListPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -163,24 +171,34 @@ const AnalysisListPage = () => {
         setPagination(null);
       }
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to load analyses.';
+      const msg = err.response?.data?.error || err.response?.data?.message || t('analysisList.error.tryAgain');
       setError(msg);
       showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, showToast]);
+  }, [page, statusFilter, showToast, t]);
 
   useEffect(() => {
     fetchAnalyses();
   }, [fetchAnalyses]);
 
   const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'processing', label: 'Processing' },
-    { value: 'analyzed', label: 'Analyzed' },
-    { value: 'error', label: 'Error' },
+    { value: '', label: t('analysisList.statusOptions.all') },
+    { value: 'pending', label: t('analysisList.statusOptions.pending') },
+    { value: 'processing', label: t('analysisList.statusOptions.processing') },
+    { value: 'analyzed', label: t('analysisList.statusOptions.analyzed') },
+    { value: 'error', label: t('analysisList.statusOptions.error') },
+  ];
+
+  const tableHeaders = [
+    t('analysisList.tableHeaders.bank'),
+    t('analysisList.tableHeaders.amount'),
+    t('analysisList.tableHeaders.rate'),
+    t('analysisList.tableHeaders.term'),
+    t('analysisList.tableHeaders.savings'),
+    t('analysisList.tableHeaders.status'),
+    t('analysisList.tableHeaders.actions')
   ];
 
   return (
@@ -188,31 +206,31 @@ const AnalysisListPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Mortgage Analyses</h1>
+          <h1 className="text-2xl font-bold text-text-primary">{t('analysisList.title')}</h1>
           <p className="text-text-secondary text-sm mt-1">
-            AI-powered analysis of your uploaded mortgage offers
+            {t('analysisList.subtitle')}
           </p>
         </div>
         <Button
           variant="primary"
           onClick={() => navigate('/upload')}
-          aria-label="Upload a new mortgage offer"
+          aria-label={t('analysisList.uploadNew')}
         >
-          + Upload New Offer
+          {t('analysisList.uploadNew')}
         </Button>
       </div>
 
       {/* Filter bar */}
       <div className="flex items-center gap-3 mb-6">
         <label htmlFor="status-filter" className="text-text-secondary text-sm font-medium">
-          Filter:
+          {t('analysisList.filter')}
         </label>
         <select
           id="status-filter"
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="bg-navy-surface border border-border text-text-primary text-sm rounded-input px-3 py-2 focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-          aria-label="Filter analyses by status"
+          aria-label={t('analysisList.filter')}
         >
           {statusOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -232,7 +250,7 @@ const AnalysisListPage = () => {
         >
           <p className="text-red-400 font-medium mb-4">{error}</p>
           <Button variant="ghost" onClick={fetchAnalyses}>
-            Try Again
+            {t('analysisList.error.tryAgain')}
           </Button>
         </div>
       )}
@@ -245,13 +263,13 @@ const AnalysisListPage = () => {
         <>
           <div className="rounded-card bg-navy-surface border border-border overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full" aria-label="Mortgage analyses table">
+              <table className="w-full" aria-label={t('analysisList.title')}>
                 <thead>
                   <tr className="border-b border-border">
-                    {['Bank', 'Amount', 'Rate', 'Term', 'Potential Savings', 'Status', ''].map(
-                      (col) => (
+                    {tableHeaders.map(
+                      (col, index) => (
                         <th
-                          key={col}
+                          key={index}
                           className="px-4 py-3 text-left text-xs font-label uppercase tracking-widest text-text-secondary"
                         >
                           {col}
@@ -281,26 +299,28 @@ const AnalysisListPage = () => {
               aria-label="Pagination"
             >
               <p className="text-text-secondary text-sm">
-                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total} results
+                {t('analysisList.pagination.showing', {
+                  start: (pagination.page - 1) * pagination.limit + 1,
+                  end: Math.min(pagination.page * pagination.limit, pagination.total),
+                  total: pagination.total
+                })}
               </p>
               <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={!pagination.hasPrev}
-                  aria-label="Previous page"
+                  aria-label={t('analysisList.pagination.prev')}
                 >
-                  ← Prev
+                  {t('analysisList.pagination.prev')}
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => setPage((p) => p + 1)}
                   disabled={!pagination.hasNext}
-                  aria-label="Next page"
+                  aria-label={t('analysisList.pagination.next')}
                 >
-                  Next →
+                  {t('analysisList.pagination.next')}
                 </Button>
               </div>
             </div>

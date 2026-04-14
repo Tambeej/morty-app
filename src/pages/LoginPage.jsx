@@ -16,6 +16,7 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LoginForm from '../components/auth/LoginForm';
 
 /**
@@ -23,6 +24,8 @@ import LoginForm from '../components/auth/LoginForm';
  * Renders the full-page login UI with email/password and Google sign-in.
  */
 export default function LoginPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-navy flex flex-col items-center justify-center px-4">
       {/* Header / Logo */}
@@ -36,7 +39,7 @@ export default function LoginPage() {
         className="w-full max-w-md bg-navy-surface border border-border rounded-card p-8 shadow-card"
         style={{ animation: 'pageEnter 200ms ease-out forwards' }}
       >
-        <h2 className="text-xl font-semibold text-[#f8fafc] mb-6">Sign In to Morty</h2>
+        <h2 className="text-xl font-semibold text-[#f8fafc] mb-6">{t('login.title')}</h2>
 
         {/*
           LoginForm handles:
@@ -51,10 +54,7 @@ export default function LoginPage() {
 
       {/* Footer note */}
       <p className="mt-6 text-xs text-[#64748b] text-center">
-        By signing in, you agree to our{' '}
-        <span className="text-[#94a3b8]">Terms of Service</span>
-        {' '}and{' '}
-        <span className="text-[#94a3b8]">Privacy Policy</span>.
+        {t('login.footer', { terms: t('login.terms'), privacy: t('login.privacy') })}
       </p>
     </div>
   );

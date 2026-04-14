@@ -19,7 +19,7 @@
  *   - AuthContext calls authService.googleLogin() → Firebase popup → backend.
  *   - Null return = user closed popup → silent no-op.
  *   - { success: true } → toast + navigate /dashboard.
- *   - { success: false, error } → toast with message.
+ *   - { success: false, error } → toast with error message.
  *
  * Shows inline validation errors and toast notifications.
  * Validation messages aligned with test expectations.
@@ -27,6 +27,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Input from '../common/Input';
 import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
@@ -36,14 +37,14 @@ import { useToast } from '../../context/ToastContext.jsx';
 /**
  * Inline "or" divider between OAuth and email/password sign-up options.
  */
-const OrDivider = () => (
+const OrDivider = ({ t }) => (
   <div
     className="flex items-center gap-3 my-1"
     role="separator"
-    aria-label="or"
+    aria-label={t('register.or')}
   >
     <div className="flex-1 h-px bg-gray-700" />
-    <span className="text-xs text-text-secondary uppercase tracking-wider">or</span>
+    <span className="text-xs text-text-secondary uppercase tracking-wider">{t('register.or')}</span>
     <div className="flex-1 h-px bg-gray-700" />
   </div>
 );
@@ -52,7 +53,38 @@ const RegisterForm = () => {
   const navigate = useNavigate();
   const { register: registerUser, googleLogin } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { t } = useTranslation();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const validationRules = {
+    fullName: {
+      required: t('register.fullNameRequired'),
+      minLength: { value: 2, message: t('register.fullNameMin') },
+    },
+    phone: {
+      required: t('register.phoneRequired'),
+      pattern: {
+        value: /^(\+972|0)[0-9]{8,9}$/,
+        message: t('register.phoneInvalid'),
+      },
+    },
+    email: {
+      required: t('register.emailRequired'),
+      pattern: {
+        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        message: t('register.emailInvalid'),
+      },
+    },
+    password: {
+      required: t('register.passwordRequired'),
+      minLength: { value: 8, message: t('register.passwordMin') },
+    },
+    confirmPassword: {
+      required: t('register.confirmRequired'),
+      validate: (value) =>
+        value === getValues('password') || t('register.passwordMismatch'),
+    },
+  };
 
   const {
     register,
@@ -70,36 +102,6 @@ const RegisterForm = () => {
     },
   });
 
-  const validationRules = {
-    fullName: {
-      required: 'Full name is required',
-      minLength: { value: 2, message: 'Full name must be at least 2 characters' },
-    },
-    phone: {
-      required: 'Phone number is required',
-      pattern: {
-        value: /^(\+972|0)[0-9]{8,9}$/,
-        message: 'Enter a valid Israeli phone number (e.g. 050-1234567 or +972501234567)',
-      },
-    },
-    email: {
-      required: 'Email is required',
-      pattern: {
-        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        message: 'Please enter a valid email address',
-      },
-    },
-    password: {
-      required: 'Password is required',
-      minLength: { value: 8, message: 'Password must be at least 8 characters' },
-    },
-    confirmPassword: {
-      required: 'Please confirm your password',
-      validate: (value) =>
-        value === getValues('password') || 'Passwords do not match',
-    },
-  };
-
   /**
    * Handle email/password registration.
    * @param {{ fullName: string, phone: string, email: string, password: string, confirmPassword: string }} data
@@ -109,17 +111,17 @@ const RegisterForm = () => {
       const { confirmPassword, ...userData } = data;
       const result = await registerUser(userData);
       if (result && result.success === false) {
-        showError(result.error || 'Registration failed. Please try again.');
+        showError(result.error || t('register.failed'));
         return;
       }
-      showSuccess('Your account has been created! Welcome to Morty');
+      showSuccess(t('register.success'));
       navigate('/dashboard');
     } catch (err) {
       const message =
         err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
-        'Registration failed. Please try again.';
+        t('register.failed');
       showError(message);
     }
   };
@@ -141,16 +143,16 @@ const RegisterForm = () => {
       // User closed the popup — treat as silent no-op
       if (result === null) return;
       if (result.success) {
-        showSuccess('ברוך הבא! Signed up with Google');
+        showSuccess(t('register.googleSuccess'));
         navigate('/dashboard');
       } else {
-        showError(result.error || 'Google sign-up failed. Please try again.');
+        showError(result.error || t('register.googleError'));
       }
     } catch (err) {
       const message =
         err?.code === 'auth/popup-blocked'
-          ? 'Enable popups for this site to use Google sign-up'
-          : err?.message || 'Google sign-up failed. Please try again.';
+          ? t('register.popupError')
+          : err?.message || t('register.googleError');
       showError(message);
     } finally {
       setIsGoogleLoading(false);
@@ -161,7 +163,7 @@ const RegisterForm = () => {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      aria-label="Registration form"
+      aria-label={t('register.title')}
       className="flex flex-col gap-5"
     >
       {/* Google sign-up — placed first to reduce friction for new users */}
@@ -169,17 +171,17 @@ const RegisterForm = () => {
         onClick={handleGoogleRegister}
         loading={isGoogleLoading}
         disabled={isSubmitting}
-        label="Sign up with Google"
+        label={t('register.google')}
       />
 
       {/* Divider */}
-      <OrDivider />
+      <OrDivider t={t} />
 
       {/* Full Name */}
       <Input
-        label="Full Name"
+        label={t('register.fullName')}
         type="text"
-        placeholder="Yoav Cohen"
+        placeholder={t('register.fullNamePlaceholder')}
         error={errors.fullName?.message}
         autoComplete="name"
         leftIcon={
@@ -196,12 +198,12 @@ const RegisterForm = () => {
 
       {/* Phone */}
       <Input
-        label="Phone Number"
+        label={t('register.phone')}
         type="tel"
-        placeholder="050-1234567"
+        placeholder={t('register.phonePlaceholder')}
         error={errors.phone?.message}
         autoComplete="tel"
-        helperText="Israeli format: 050-1234567 or +972-50-1234567"
+        helperText={t('register.phoneHelper')}
         leftIcon={
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
@@ -212,9 +214,9 @@ const RegisterForm = () => {
 
       {/* Email */}
       <Input
-        label="Email Address"
+        label={t('register.email')}
         type="email"
-        placeholder="you@example.com"
+        placeholder={t('register.emailPlaceholder')}
         error={errors.email?.message}
         autoComplete="email"
         leftIcon={
@@ -228,12 +230,12 @@ const RegisterForm = () => {
 
       {/* Password */}
       <Input
-        label="Password"
+        label={t('register.password')}
         type="password"
-        placeholder="Min. 8 characters with letters and numbers"
+        placeholder={t('register.passwordPlaceholder')}
         error={errors.password?.message}
         autoComplete="new-password"
-        helperText="At least 8 characters with letters and numbers"
+        helperText={t('register.passwordHelper')}
         leftIcon={
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path
@@ -248,9 +250,9 @@ const RegisterForm = () => {
 
       {/* Confirm Password */}
       <Input
-        label="Confirm Password"
+        label={t('register.confirmPassword')}
         type="password"
-        placeholder="Repeat your password"
+        placeholder={t('register.confirmPasswordPlaceholder')}
         error={errors.confirmPassword?.message}
         autoComplete="new-password"
         leftIcon={
@@ -272,17 +274,17 @@ const RegisterForm = () => {
         loading={isSubmitting}
         className="w-full mt-1"
       >
-        Create Account
+        {t('register.createAccount')}
       </Button>
 
       {/* Sign in link */}
       <p className="text-center text-sm text-text-secondary">
-        Already have an account?{' '}
+        {t('register.hasAccount')}{' '}
         <Link
           to="/login"
           className="text-gold hover:text-gold-light font-medium transition-colors"
         >
-          Sign In
+          {t('register.signIn')}
         </Link>
       </p>
     </form>

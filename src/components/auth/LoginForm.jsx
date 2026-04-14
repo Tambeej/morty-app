@@ -25,6 +25,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Input from '../common/Input';
 import Button from '../common/Button';
 import GoogleButton from './GoogleButton';
@@ -35,14 +36,14 @@ import { useToast } from '../../context/ToastContext.jsx';
 /**
  * Inline "or" divider between primary and OAuth sign-in options.
  */
-const OrDivider = () => (
+const OrDivider = ({ t }) => (
   <div
     className="flex items-center gap-3 my-1"
     role="separator"
-    aria-label="or"
+    aria-label={t('login.or')}
   >
     <div className="flex-1 h-px bg-gray-700" />
-    <span className="text-xs text-text-secondary uppercase tracking-wider">or</span>
+    <span className="text-xs text-text-secondary uppercase tracking-wider">{t('login.or')}</span>
     <div className="flex-1 h-px bg-gray-700" />
   </div>
 );
@@ -51,6 +52,7 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -74,17 +76,17 @@ const LoginForm = () => {
     try {
       const result = await login(data.email, data.password);
       if (result && result.success === false) {
-        showError(result.error || 'Invalid email or password. Please try again.');
+        showError(t('login.invalidCredentials'));
         return;
       }
-      showSuccess('ברוך הבא! Welcome back to Morty!');
+      showSuccess(t('login.success'));
       navigate('/dashboard');
     } catch (err) {
       const message =
         err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
-        'Invalid email or password. Please try again.';
+        t('login.invalidCredentials');
       showError(message);
     }
   };
@@ -106,16 +108,16 @@ const LoginForm = () => {
       // User closed the popup — treat as silent no-op
       if (result === null) return;
       if (result.success) {
-        showSuccess('ברוך הבא! Signed in with Google');
+        showSuccess(t('login.googleSuccess'));
         navigate('/dashboard');
       } else {
-        showError(result.error || 'Google sign-in failed. Please try again.');
+        showError(result.error || t('login.googleError'));
       }
     } catch (err) {
       const message =
         err?.code === 'auth/popup-blocked'
-          ? 'Enable popups for this site to use Google sign-in'
-          : err?.message || 'Google sign-in failed. Please try again.';
+          ? t('login.popupError')
+          : err?.message || t('login.googleError');
       showError(message);
     } finally {
       setIsGoogleLoading(false);
@@ -126,14 +128,14 @@ const LoginForm = () => {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      aria-label="Sign in form"
+      aria-label={t('login.title')}
       className="flex flex-col gap-5"
     >
       {/* Email */}
       <Input
-        label="Email Address"
+        label={t('login.email')}
         type="email"
-        placeholder="you@example.com"
+        placeholder={t('login.emailPlaceholder')}
         error={errors.email?.message}
         autoComplete="email"
         leftIcon={
@@ -148,9 +150,9 @@ const LoginForm = () => {
       {/* Password with visibility toggle */}
       <div className="relative">
         <Input
-          label="Password"
+          label={t('login.password')}
           type={showPassword ? 'text' : 'password'}
-          placeholder="Enter your password"
+          placeholder={t('login.passwordPlaceholder')}
           error={errors.password?.message}
           autoComplete="current-password"
           leftIcon={
@@ -168,7 +170,7 @@ const LoginForm = () => {
           type="button"
           onClick={() => setShowPassword((v) => !v)}
           className="absolute right-3 top-8 text-text-secondary hover:text-text-primary text-sm transition-colors"
-          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
         >
           {showPassword ? '🙈' : '👁️'}
         </button>
@@ -180,7 +182,7 @@ const LoginForm = () => {
           to="/forgot-password"
           className="text-sm text-text-secondary hover:text-gold transition-colors"
         >
-          Forgot password?
+          {t('login.forgotPassword')}
         </Link>
       </div>
 
@@ -191,11 +193,11 @@ const LoginForm = () => {
         loading={isSubmitting}
         className="w-full"
       >
-        Sign In
+        {t('login.signIn')}
       </Button>
 
       {/* Divider */}
-      <OrDivider />
+      <OrDivider t={t} />
 
       {/* Google sign-in */}
       <GoogleButton
@@ -206,12 +208,12 @@ const LoginForm = () => {
 
       {/* Register link */}
       <p className="text-center text-sm text-text-secondary">
-        Don't have an account?{' '}
+        {t('login.noAccount')}{' '}
         <Link
           to="/register"
           className="text-gold hover:text-gold-light font-medium transition-colors"
         >
-          Register
+          {t('login.register')}
         </Link>
       </p>
     </form>

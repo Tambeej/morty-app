@@ -11,6 +11,7 @@
  *   - RegisterForm (Google button first, then email/pass fields)
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import RegisterForm from '../components/auth/RegisterForm';
 
 /**
@@ -18,6 +19,8 @@ import RegisterForm from '../components/auth/RegisterForm';
  * Renders the full-page registration UI with Google sign-up and email/password form.
  */
 export default function RegisterPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-navy flex flex-col items-center justify-center px-4 py-8">
       {/* Header / Logo */}
@@ -31,7 +34,7 @@ export default function RegisterPage() {
         className="w-full max-w-md bg-navy-surface border border-border rounded-card p-8 shadow-card"
         style={{ animation: 'pageEnter 200ms ease-out forwards' }}
       >
-        <h2 className="text-xl font-semibold text-[#f8fafc] mb-6">Create your account</h2>
+        <h2 className="text-xl font-semibold text-[#f8fafc] mb-6">{t('register.title')}</h2>
 
         {/*
           RegisterForm handles:
@@ -46,10 +49,7 @@ export default function RegisterPage() {
 
       {/* Footer note */}
       <p className="mt-6 text-xs text-[#64748b] text-center">
-        By creating an account, you agree to our{' '}
-        <span className="text-[#94a3b8]">Terms of Service</span>
-        {' '}and{' '}
-        <span className="text-[#94a3b8]">Privacy Policy</span>.
+        {t('register.registerFooter', { terms: t('register.terms'), privacy: t('register.privacy') })}
       </p>
     </div>
   );

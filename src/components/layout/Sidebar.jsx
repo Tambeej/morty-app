@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import { useAuth } from '../../context/AuthContext.jsx';
 import toast from 'react-hot-toast';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', icon: '🏠', label: 'Home' },
-  { to: '/profile',   icon: '📊', label: 'Financial Data' },
-  { to: '/upload',    icon: '📄', label: 'Offers' },
-  { to: '/analysis',  icon: '🔍', label: 'Analyze' }
+  { to: '/dashboard', icon: '🏠', labelKey: 'sidebar.home' },
+  { to: '/profile',   icon: '📊', labelKey: 'sidebar.financialData' },
+  { to: '/upload',    icon: '📄', labelKey: 'sidebar.offers' },
+  { to: '/analysis',  icon: '🔍', labelKey: 'sidebar.analyze' }
 ];
 
 /**
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
  * Collapses to icon-only on mobile.
  */
 export default function Sidebar({ collapsed = false }) {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -26,7 +28,7 @@ export default function Sidebar({ collapsed = false }) {
       await logout();
       navigate('/login');
     } catch {
-      toast.error('Logout failed. Please try again.');
+      toast.error(t('sidebar.logoutError'));
     } finally {
       setLoggingOut(false);
     }
@@ -50,7 +52,7 @@ export default function Sidebar({ collapsed = false }) {
 
       {/* Nav links */}
       <nav className="flex-1 py-4 overflow-y-auto">
-        {NAV_ITEMS.map(({ to, icon, label }) => (
+        {NAV_ITEMS.map(({ to, icon, labelKey }) => (
           <NavLink
             key={to}
             to={to}
@@ -62,10 +64,10 @@ export default function Sidebar({ collapsed = false }) {
                   : 'text-[#94a3b8] hover:text-[#f8fafc] hover:bg-navy-elevated'
               ].join(' ')
             }
-            aria-label={label}
+            aria-label={t(labelKey)}
           >
             <span className="text-lg" aria-hidden="true">{icon}</span>
-            {!collapsed && <span>{label}</span>}
+            {!collapsed && <span>{t(labelKey)}</span>}
           </NavLink>
         ))}
       </nav>
@@ -79,10 +81,10 @@ export default function Sidebar({ collapsed = false }) {
           onClick={handleLogout}
           disabled={loggingOut}
           className="flex items-center gap-2 text-sm text-[#94a3b8] hover:text-red-400 transition-colors w-full"
-          aria-label="Log out"
+          aria-label={t('sidebar.logOut')}
         >
           <span aria-hidden="true">🚪</span>
-          {!collapsed && <span>{loggingOut ? 'Logging out...' : 'Log out'}</span>}
+          {!collapsed && <span>{loggingOut ? t('sidebar.loggingOut') : t('sidebar.logOut')}</span>}
         </button>
       </div>
     </aside>
