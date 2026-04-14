@@ -6,7 +6,11 @@
     "toggleMenu": "החלף תפריט",
     "toggleLanguage": "החלף שפה",
     "notifications": "התראות",
-    "userLabel": "משתמש: {{label}}"
+    "userLabel": "משתמש: {{label}}",
+    "language": {
+      "en": "EN",
+      "he": "עברית"
+    }
   },
   "login": {
     "title": "היכנס למורטי",
@@ -90,14 +94,14 @@
       "empty": "לא הועלו הצעות עדיין.",
       "emptyLink": "העלה את ההצעה הראשונה שלך →",
       "bank": "בנק",
-      "rate": "ריבית",
-      "term": "תקופה",
-      "date": "תאריך",
-      "status": "סטטוס",
-      "view": "צפה בתוצאות →",
-      "analyzed": "✓ נותח",
-      "error": "✗ שגיאה",
-      "pending": "⏳ ממתין"
+    "rate": "ריבית",
+    "term": "תקופה",
+    "date": "תאריך",
+    "status": "סטטוס",
+    "view": "צפה בתוצאות →",
+    "analyzed": "✓ נותח",
+    "error": "✗ שגיאה",
+    "pending": "⏳ ממתין"
     },
     "error": "נכשל בטעינת נתוני הדאשבורד."
   },

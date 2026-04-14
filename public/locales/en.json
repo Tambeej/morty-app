@@ -6,7 +6,11 @@
     "toggleMenu": "Toggle menu",
     "toggleLanguage": "Toggle language",
     "notifications": "Notifications",
-    "userLabel": "User: {{label}}"
+    "userLabel": "User: {{label}}",
+    "language": {
+      "en": "EN",
+      "he": "עברית"
+    }
   },
   "login": {
     "title": "Sign In to Morty",
@@ -31,6 +35,8 @@
   },
   "register": {
     "title": "Create your account",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
     "google": "Sign up with Google",
     "or": "or",
     "fullName": "Full Name",
