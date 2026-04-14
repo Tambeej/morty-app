@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../services/api.js';
 import PageLayout from '../components/layout/PageLayout.jsx';
@@ -11,35 +12,27 @@ import Button from '../components/common/Button.jsx';
 import ProgressBar from '../components/common/ProgressBar.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 
-const schema = z.object({
-  income:           z.coerce.number().min(0, 'Must be 0 or more'),
-  additionalIncome: z.coerce.number().min(0).optional().default(0),
-  housing:          z.coerce.number().min(0).optional().default(0),
-  loans:            z.coerce.number().min(0).optional().default(0),
-  otherExpenses:    z.coerce.number().min(0).optional().default(0),
-  savings:          z.coerce.number().min(0).optional().default(0),
-  investments:      z.coerce.number().min(0).optional().default(0)
-});
-
-/**
- * Calculates profile completion percentage based on filled fields.
- */
-function calcCompletion(values) {
-  const fields = Object.values(values);
-  const filled = fields.filter((v) => v && Number(v) > 0).length;
-  return Math.round((filled / fields.length) * 100);
-}
-
 /**
  * Financial profile form page.
  * Loads existing profile from GET /profile and saves via PUT /profile.
  * Supports auto-save with debounce and manual save.
  */
 export default function FinancialProfilePage() {
+  const { t } = useTranslation();
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedIndicator, setSavedIndicator] = useState(false);
   const autoSaveTimer = useRef(null);
+
+  const schema = z.object({
+    income:           z.coerce.number().min(0, t('profile.minZero')),
+    additionalIncome: z.coerce.number().min(0).optional().default(0),
+    housing:          z.coerce.number().min(0).optional().default(0),
+    loans:            z.coerce.number().min(0).optional().default(0),
+    otherExpenses:    z.coerce.number().min(0).optional().default(0),
+    savings:          z.coerce.number().min(0).optional().default(0),
+    investments:      z.coerce.number().min(0).optional().default(0)
+  });
 
   const {
     register,
@@ -116,9 +109,9 @@ export default function FinancialProfilePage() {
     setSaving(true);
     try {
       await api.put('/profile', buildPayload(values));
-      toast.success('Financial profile saved!');
+      toast.success(t('profile.success'));
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to save profile.');
+      toast.error(err?.response?.data?.message || t('profile.error'));
     } finally {
       setSaving(false);
     }
@@ -139,15 +132,15 @@ export default function FinancialProfilePage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#f8fafc]">Financial Profile</h1>
-          <p className="text-[#94a3b8] mt-1">Keep this updated for accurate analysis</p>
+          <h1 className="text-2xl font-bold text-[#f8fafc]">{t('profile.title')}</h1>
+          <p className="text-[#94a3b8] mt-1">{t('profile.subtitle')}</p>
         </div>
 
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-sm text-[#94a3b8] mb-2">
-            <span>Profile Completion: {completion}%</span>
-            {savedIndicator && <span className="text-green-400 text-xs">✓ Saved</span>}
+            <span>{t('profile.completion', { completion })}</span>
+            {savedIndicator && <span className="text-green-400 text-xs">{t('profile.saved')}</span>}
           </div>
           <ProgressBar value={completion} label="Profile completion" />
         </div>
@@ -155,10 +148,10 @@ export default function FinancialProfilePage() {
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
           {/* Income */}
           <Card>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Income</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">{t('profile.income')}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Monthly Net Income"
+                label={t('profile.monthlyIncome')}
                 type="number"
                 min="0"
                 prefix="₪"
@@ -166,7 +159,7 @@ export default function FinancialProfilePage() {
                 {...register('income')}
               />
               <Input
-                label="Additional Income"
+                label={t('profile.additionalIncome')}
                 type="number"
                 min="0"
                 prefix="₪"
@@ -178,10 +171,10 @@ export default function FinancialProfilePage() {
 
           {/* Expenses */}
           <Card>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Monthly Expenses</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">{t('profile.expenses')}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Housing (rent/mortgage)"
+                label={t('profile.housing')}
                 type="number"
                 min="0"
                 prefix="₪"
@@ -189,7 +182,7 @@ export default function FinancialProfilePage() {
                 {...register('housing')}
               />
               <Input
-                label="Existing Loans"
+                label={t('profile.loans')}
                 type="number"
                 min="0"
                 prefix="₪"
@@ -197,7 +190,7 @@ export default function FinancialProfilePage() {
                 {...register('loans')}
               />
               <Input
-                label="Other Fixed Expenses"
+                label={t('profile.otherExpenses')}
                 type="number"
                 min="0"
                 prefix="₪"
@@ -209,10 +202,10 @@ export default function FinancialProfilePage() {
 
           {/* Assets */}
           <Card>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">Assets &amp; Savings</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-[#94a3b8] mb-4">{t('profile.assets')}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Savings / Cash"
+                label={t('profile.savings')}
                 type="number"
                 min="0"
                 prefix="₪"
@@ -220,7 +213,7 @@ export default function FinancialProfilePage() {
                 {...register('savings')}
               />
               <Input
-                label="Investments"
+                label={t('profile.investments')}
                 type="number"
                 min="0"
                 prefix="₪"
@@ -231,12 +224,21 @@ export default function FinancialProfilePage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button type="submit" loading={saving} aria-label="Save profile">
-              Save Profile
+            <Button type="submit" loading={saving} aria-label={t('profile.save')}>
+              {t('profile.save')}
             </Button>
           </div>
         </form>
       </div>
     </PageLayout>
   );
+}
+
+/**
+ * Calculates profile completion percentage based on filled fields.
+ */
+function calcCompletion(values) {
+  const fields = Object.values(values);
+  const filled = fields.filter((v) => v && Number(v) > 0).length;
+  return Math.round((filled / fields.length) * 100);
 }
