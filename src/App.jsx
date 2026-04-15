@@ -1,57 +1,61 @@
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { ToastProvider } from './context/ToastContext.jsx';
-import { AuthProvider } from './context/AuthContext.jsx';
-import { ProtectedRoute } from './components/common/ProtectedRoute.jsx';
-import Spinner from './components/common/Spinner.jsx';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import './styles/globals.css';
+import './styles/wizard.css';
 
-// Lazy-loaded pages
-const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
-const FinancialProfilePage = lazy(() => import('./pages/FinancialProfilePage.jsx'));
-const UploadPage = lazy(() => import('./pages/UploadPage.jsx'));
-const AnalysisPage = lazy(() => import('./pages/AnalysisPage.jsx'));
+// Lazy-loaded pages for code splitting
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const FinancialProfilePage = lazy(() => import('./pages/FinancialProfilePage'));
+const UploadPage = lazy(() => import('./pages/UploadPage'));
+const AnalysisPage = lazy(() => import('./pages/AnalysisPage'));
+const AnalysisListPage = lazy(() => import('./pages/AnalysisListPage'));
+const HelpPage = lazy(() => import('./pages/HelpPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const WizardPage = lazy(() => import('./pages/WizardPage'));
 
-/**
- * Full-page loading fallback shown during lazy-load
- */
+// Full-page loading fallback
 function PageLoader() {
   return (
-    <div className="min-h-screen bg-navy flex items-center justify-center">
-      <Spinner size="lg" />
+    <div className="min-h-screen flex items-center justify-center bg-surface">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center animate-pulse">
+          <span className="text-white font-bold">M</span>
+        </div>
+        <p className="text-text3 text-sm">טוען...</p>
+      </div>
     </div>
   );
 }
 
-/**
- * Root application component.
- * Provides auth context, routing, and global toast notifications.
- */
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-  
-            {/* Protected routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/profile" element={<FinancialProfilePage />} />
-              <Route path="/upload" element={<UploadPage />} />
-              <Route path="/analysis/:id" element={<AnalysisPage />} />
-            </Route>
-  
-            {/* Default redirect */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Suspense>
-      </ToastProvider>
-    </AuthProvider>
+    <Router>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public wizard routes - no auth required */}
+          <Route path="/wizard" element={<WizardPage />} />
+
+          {/* Auth routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Protected app routes */}
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/profile" element={<FinancialProfilePage />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/analysis" element={<AnalysisListPage />} />
+          <Route path="/analysis/:id" element={<AnalysisPage />} />
+          <Route path="/help" element={<HelpPage />} />
+
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/wizard" replace />} />
+
+          {/* 404 */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </Router>
   );
 }
