@@ -1,0 +1,103 @@
+/**
+ * portfolio.css - Styles for the portfolio comparison page.
+ * Card animations, selection states, and floating bar transitions.
+ */
+
+/* ===== Portfolio Card Hover ===== */
+.portfolio-card {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.portfolio-card:hover {
+  transform: translateY(-4px);
+}
+
+.portfolio-card.selected {
+  transform: scale(1.02);
+}
+
+/* ===== Floating Bottom Bar ===== */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.portfolio-selector-enter {
+  animation: slideUp 300ms ease-out forwards;
+}
+
+/* ===== Pulse Ring for Selected Card ===== */
+@keyframes pulseRing {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 200, 150, 0);
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulseRing 1.5s ease-in-out infinite;
+}
+
+/* ===== Track Bar Animation ===== */
+.track-bar-fill {
+  transition: width 500ms ease-out;
+}
+
+/* ===== Stagger fade-in for cards ===== */
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.portfolio-card-enter {
+  animation: cardFadeIn 300ms ease forwards;
+}
+
+.portfolio-card-enter:nth-child(1) { animation-delay: 0ms; }
+.portfolio-card-enter:nth-child(2) { animation-delay: 100ms; }
+.portfolio-card-enter:nth-child(3) { animation-delay: 200ms; }
+.portfolio-card-enter:nth-child(4) { animation-delay: 300ms; }
+
+/* ===== Skeleton pulse ===== */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.skeleton-pulse {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* ===== Fitness score bar ===== */
+.fitness-bar-fill {
+  transition: width 600ms ease-out 200ms;
+}
+
+/* ===== Community tip banner ===== */
+.community-tip-banner {
+  background: linear-gradient(90deg, #ECFDF5, #D1FAE5);
+  border-left: 4px solid #00C896;
+}
+
+/* ===== RTL adjustments ===== */
+[dir="rtl"] .portfolio-selector {
+  text-align: right;
+}
+
+[dir="rtl"] .track-label {
+  text-align: right;
+}

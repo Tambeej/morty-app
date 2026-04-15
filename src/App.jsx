@@ -14,6 +14,7 @@ const AnalysisListPage = lazy(() => import('./pages/AnalysisListPage'));
 const HelpPage = lazy(() => import('./pages/HelpPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const WizardPage = lazy(() => import('./pages/WizardPage'));
+const PortfolioComparePage = lazy(() => import('./pages/PortfolioComparePage'));
 
 // Full-page loading fallback
 function PageLoader() {
@@ -36,6 +37,7 @@ export default function App() {
         <Routes>
           {/* Public wizard routes - no auth required */}
           <Route path="/wizard" element={<WizardPage />} />
+          <Route path="/wizard/compare" element={<PortfolioComparePage />} />
 
           {/* Auth routes */}
           <Route path="/login" element={<LoginPage />} />
