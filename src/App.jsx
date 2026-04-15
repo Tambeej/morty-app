@@ -1,8 +1,10 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import './styles/globals.css';
 import './styles/wizard.css';
 import './styles/portfolio.css';
+import './styles/paywall.css';
 
 // Lazy-loaded pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -16,6 +18,8 @@ const HelpPage = lazy(() => import('./pages/HelpPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const WizardPage = lazy(() => import('./pages/WizardPage'));
 const PortfolioComparePage = lazy(() => import('./pages/PortfolioComparePage'));
+const PaywallPage = lazy(() => import('./pages/PaywallPage'));
+const PaywallSuccessPage = lazy(() => import('./pages/PaywallSuccessPage'));
 
 // Full-page loading fallback
 function PageLoader() {
@@ -33,32 +37,38 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <Router>
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          {/* Public wizard routes - no auth required */}
-          <Route path="/wizard" element={<WizardPage />} />
-          <Route path="/wizard/compare" element={<PortfolioComparePage />} />
+    <AuthProvider>
+      <Router>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Public wizard routes - no auth required */}
+            <Route path="/wizard" element={<WizardPage />} />
+            <Route path="/wizard/compare" element={<PortfolioComparePage />} />
 
-          {/* Auth routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+            {/* Paywall routes - accessible after portfolio selection */}
+            <Route path="/paywall" element={<PaywallPage />} />
+            <Route path="/paywall/success" element={<PaywallSuccessPage />} />
 
-          {/* Protected app routes */}
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/profile" element={<FinancialProfilePage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/analysis" element={<AnalysisListPage />} />
-          <Route path="/analysis/:id" element={<AnalysisPage />} />
-          <Route path="/help" element={<HelpPage />} />
+            {/* Auth routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/wizard" replace />} />
+            {/* Protected app routes */}
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<FinancialProfilePage />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route path="/analysis" element={<AnalysisListPage />} />
+            <Route path="/analysis/:id" element={<AnalysisPage />} />
+            <Route path="/help" element={<HelpPage />} />
 
-          {/* 404 */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
-    </Router>
+            {/* Default redirect */}
+            <Route path="/" element={<Navigate to="/wizard" replace />} />
+
+            {/* 404 */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+      </Router>
+    </AuthProvider>
   );
 }

@@ -12,6 +12,7 @@
     "lint": "eslint src --ext .js,.jsx"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^4.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"
@@ -36,8 +37,6 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "setupFilesAfterFramework": [],
-    "setupFilesAfterFramework": [],
     "setupFiles": ["./src/test/setup.js"],
     "moduleNameMapper": {
       "\\.(css|less|scss|sass)$": "identity-obj-proxy",
