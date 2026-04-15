@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './styles/globals.css';
 import './styles/wizard.css';
+import './styles/portfolio.css';
 
 // Lazy-loaded pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
