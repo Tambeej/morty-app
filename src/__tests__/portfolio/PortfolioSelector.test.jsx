@@ -1,85 +1,136 @@
 /**
- * Tests for PortfolioSelector component.
+ * PortfolioSelector.test.jsx
+ * Tests for the PortfolioSelector floating bottom bar component.
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import PortfolioSelector from '../../components/portfolio/PortfolioSelector';
-
-// Mock formatters
-jest.mock('../../utils/formatters', () => ({
-  formatCurrency: (amount) => `₪${amount?.toLocaleString() || '0'}`,
-}));
 
 const mockPortfolio = {
   id: 'portfolio-1',
   name: 'Market Standard',
   nameHe: 'שוק סטנדרטי',
-  monthlyRepayment: 7500,
+  monthlyRepayment: 5500,
 };
 
 describe('PortfolioSelector', () => {
-  const mockOnProceed = jest.fn();
+  describe('Rendering', () => {
+    it('renders nothing when selectedPortfolio is null', () => {
+      const { container } = render(
+        <PortfolioSelector
+          selectedPortfolio={null}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(container.firstChild).toBeNull();
+    });
 
-  beforeEach(() => {
-    mockOnProceed.mockClear();
+    it('renders the floating bar when a portfolio is selected', () => {
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(screen.getByRole('region')).toBeInTheDocument();
+    });
+
+    it('displays the selected portfolio name', () => {
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(screen.getByText('שוק סטנדרטי')).toBeInTheDocument();
+    });
+
+    it('displays the monthly repayment', () => {
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(screen.getByText(/החזר חודשי/)).toBeInTheDocument();
+    });
+
+    it('shows the proceed button', () => {
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(screen.getByLabelText('המשך לניתוח מקצועי')).toBeInTheDocument();
+    });
+
+    it('shows the clear selection button', () => {
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(screen.getByLabelText('בטל בחירה')).toBeInTheDocument();
+    });
   });
 
-  it('renders nothing when no portfolio is selected', () => {
-    const { container } = render(
-      <PortfolioSelector selectedPortfolio={null} onProceed={mockOnProceed} />
-    );
-    expect(container.firstChild).toBeNull();
+  describe('Interactions', () => {
+    it('calls onProceed when proceed button is clicked', () => {
+      const onProceed = jest.fn();
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={onProceed}
+          onClearSelection={jest.fn()}
+        />
+      );
+      fireEvent.click(screen.getByLabelText('המשך לניתוח מקצועי'));
+      expect(onProceed).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onClearSelection when deselect button is clicked', () => {
+      const onClearSelection = jest.fn();
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={onClearSelection}
+        />
+      );
+      fireEvent.click(screen.getByLabelText('בטל בחירה'));
+      expect(onClearSelection).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('renders selected portfolio name', () => {
-    render(
-      <PortfolioSelector selectedPortfolio={mockPortfolio} onProceed={mockOnProceed} />
-    );
-    expect(screen.getByText('שוק סטנדרטי')).toBeInTheDocument();
-  });
+  describe('Accessibility', () => {
+    it('has correct ARIA region label', () => {
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(screen.getByRole('region', { name: 'תיק נבחר - המשך לניתוח' })).toBeInTheDocument();
+    });
 
-  it('renders "תיק נבחר" label', () => {
-    render(
-      <PortfolioSelector selectedPortfolio={mockPortfolio} onProceed={mockOnProceed} />
-    );
-    expect(screen.getByText('תיק נבחר')).toBeInTheDocument();
-  });
-
-  it('renders proceed button', () => {
-    render(
-      <PortfolioSelector selectedPortfolio={mockPortfolio} onProceed={mockOnProceed} />
-    );
-    expect(screen.getByText('המשך לניתוח מקצועי')).toBeInTheDocument();
-  });
-
-  it('calls onProceed when proceed button is clicked', () => {
-    render(
-      <PortfolioSelector selectedPortfolio={mockPortfolio} onProceed={mockOnProceed} />
-    );
-    const btn = screen.getByText('המשך לניתוח מקצועי');
-    fireEvent.click(btn);
-    expect(mockOnProceed).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders monthly repayment when provided', () => {
-    render(
-      <PortfolioSelector selectedPortfolio={mockPortfolio} onProceed={mockOnProceed} />
-    );
-    expect(screen.getByText('החזר חודשי:')).toBeInTheDocument();
-  });
-
-  it('has correct aria region label', () => {
-    render(
-      <PortfolioSelector selectedPortfolio={mockPortfolio} onProceed={mockOnProceed} />
-    );
-    expect(screen.getByRole('region', { name: 'תיק נבחר - המשך לניתוח' })).toBeInTheDocument();
-  });
-
-  it('renders secondary CTA text', () => {
-    render(
-      <PortfolioSelector selectedPortfolio={mockPortfolio} onProceed={mockOnProceed} />
-    );
-    expect(screen.getByText('שמור ובצע השוואה עם ההצעה הבנקאית')).toBeInTheDocument();
+    it('has aria-live polite for dynamic content', () => {
+      render(
+        <PortfolioSelector
+          selectedPortfolio={mockPortfolio}
+          onProceed={jest.fn()}
+          onClearSelection={jest.fn()}
+        />
+      );
+      expect(screen.getByRole('region')).toHaveAttribute('aria-live', 'polite');
+    });
   });
 });

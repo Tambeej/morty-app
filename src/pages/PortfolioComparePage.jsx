@@ -2,14 +2,23 @@
  * PortfolioComparePage.jsx
  * Displays up to 4 AI-generated mortgage portfolio scenarios for comparison.
  * Route: /wizard/compare (public, no auth required)
+ *
+ * User flow:
+ *   1. User views portfolio cards
+ *   2. User selects a portfolio (card highlights, floating bar appears)
+ *   3. User clicks "Proceed" → SavePortfolioModal opens
+ *   4. Modal handles auth check:
+ *      - Authenticated: save via API → navigate to /paywall
+ *      - Unauthenticated: navigate to /register with portfolio context
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardProvider, useWizard } from '../context/WizardContext';
 import PortfolioCard from '../components/portfolio/PortfolioCard';
 import CommunityTipBanner from '../components/portfolio/CommunityTipBanner';
 import PortfolioSelector from '../components/portfolio/PortfolioSelector';
 import PortfolioSkeleton from '../components/portfolio/PortfolioSkeleton';
+import SavePortfolioModal from '../components/portfolio/SavePortfolioModal';
 
 /**
  * Inner content component that consumes WizardContext.
@@ -21,10 +30,9 @@ function PortfolioCompareContent() {
     communityTips,
     selectedPortfolioId,
     setSelectedPortfolioId,
-    inputs,
   } = useWizard();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // If no portfolios in context, redirect back to wizard
   useEffect(() => {
@@ -39,18 +47,33 @@ function PortfolioCompareContent() {
     }
   }, [portfolios, navigate]);
 
-  const handleSelectPortfolio = (portfolioId) => {
-    setSelectedPortfolioId(portfolioId);
-  };
+  const handleSelectPortfolio = useCallback(
+    (portfolioId) => {
+      setSelectedPortfolioId(portfolioId);
+    },
+    [setSelectedPortfolioId]
+  );
 
-  const handleProceed = () => {
-    // Navigate to paywall/signup with selected portfolio
-    navigate('/paywall');
-  };
+  const handleClearSelection = useCallback(() => {
+    setSelectedPortfolioId(null);
+  }, [setSelectedPortfolioId]);
 
-  const handleBackToWizard = () => {
+  /**
+   * Open the save/proceed modal when user clicks the floating CTA.
+   */
+  const handleProceed = useCallback(() => {
+    if (selectedPortfolioId) {
+      setIsModalOpen(true);
+    }
+  }, [selectedPortfolioId]);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleBackToWizard = useCallback(() => {
     navigate('/wizard');
-  };
+  }, [navigate]);
 
   // Show skeleton while portfolios are loading or context is hydrating
   if (!portfolios || portfolios.length === 0) {
@@ -66,7 +89,7 @@ function PortfolioCompareContent() {
     );
   }
 
-  const selectedPortfolio = portfolios.find(p => p.id === selectedPortfolioId);
+  const selectedPortfolio = portfolios.find((p) => p.id === selectedPortfolioId) || null;
 
   return (
     <div className="min-h-screen bg-surface" dir="rtl">
@@ -89,6 +112,19 @@ function PortfolioCompareContent() {
           </div>
         )}
 
+        {/* Selection instruction */}
+        {!selectedPortfolioId && (
+          <div
+            className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/10 text-center"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-sm text-primary font-medium">
+              בחר את התיק המתאים לך ביותר כדי להמשיך לניתוח מקצועי
+            </p>
+          </div>
+        )}
+
         {/* Portfolio Grid */}
         <section aria-label="תיקי משכנתא">
           <div
@@ -108,27 +144,22 @@ function PortfolioCompareContent() {
           </div>
         </section>
 
-        {/* Empty state */}
-        {portfolios.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-text3 text-lg">לא נמצאו תיקי משכנתא. נסה שוב.</p>
-            <button
-              onClick={handleBackToWizard}
-              className="mt-4 btn-primary"
-            >
-              חזור לאשף
-            </button>
-          </div>
-        )}
-
         {/* Bottom spacer for floating bar */}
-        {selectedPortfolioId && <div className="h-24" aria-hidden="true" />}
+        {selectedPortfolioId && <div className="h-28" aria-hidden="true" />}
       </main>
 
       {/* Floating Selection CTA */}
       <PortfolioSelector
         selectedPortfolio={selectedPortfolio}
         onProceed={handleProceed}
+        onClearSelection={handleClearSelection}
+      />
+
+      {/* Save Portfolio Modal */}
+      <SavePortfolioModal
+        portfolio={selectedPortfolio}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
       />
 
       {/* Legal Disclaimer Footer */}

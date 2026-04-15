@@ -3,9 +3,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 /**
  * WizardContext - manages state for the 6-step public mortgage wizard.
  * Persists to sessionStorage so users don't lose progress on refresh.
+ * Also persists the selected portfolio for cross-page access.
  */
 
 const STORAGE_KEY = 'morty_wizard_state';
+const SELECTED_PORTFOLIO_KEY = 'morty_selected_portfolio';
 
 const defaultInputs = {
   propertyPrice: '',
@@ -35,27 +37,86 @@ export function WizardProvider({ children }) {
     }
     return defaultInputs;
   });
-  const [portfolios, setPortfolios] = useState(null);
+  const [portfolios, setPortfolios] = useState(() => {
+    // Restore portfolios from sessionStorage on mount
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.portfolios || null;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const [communityTips, setCommunityTips] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState(null);
+  const [selectedPortfolioId, setSelectedPortfolioIdState] = useState(() => {
+    // Restore selected portfolio ID from sessionStorage
+    try {
+      const raw = sessionStorage.getItem(SELECTED_PORTFOLIO_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return parsed?.id || null;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
-  // Persist inputs to sessionStorage whenever they change
+  // Persist inputs and portfolios to sessionStorage whenever they change
   useEffect(() => {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ inputs, currentStep }));
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ inputs, currentStep, portfolios })
+      );
     } catch {
       // ignore storage errors
     }
-  }, [inputs, currentStep]);
+  }, [inputs, currentStep, portfolios]);
+
+  /**
+   * Set the selected portfolio ID and persist the full portfolio object
+   * to sessionStorage for cross-page access (e.g., paywall page).
+   *
+   * @param {string|null} portfolioId
+   */
+  const setSelectedPortfolioId = useCallback(
+    (portfolioId) => {
+      setSelectedPortfolioIdState(portfolioId);
+      if (portfolioId && portfolios) {
+        const portfolio = portfolios.find((p) => p.id === portfolioId);
+        if (portfolio) {
+          try {
+            sessionStorage.setItem(
+              SELECTED_PORTFOLIO_KEY,
+              JSON.stringify(portfolio)
+            );
+          } catch {
+            // ignore
+          }
+        }
+      } else if (!portfolioId) {
+        try {
+          sessionStorage.removeItem(SELECTED_PORTFOLIO_KEY);
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [portfolios]
+  );
 
   const updateInput = useCallback((field, value) => {
-    setInputs(prev => ({ ...prev, [field]: value }));
+    setInputs((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const updateInputs = useCallback((updates) => {
-    setInputs(prev => ({ ...prev, ...updates }));
+    setInputs((prev) => ({ ...prev, ...updates }));
   }, []);
 
   const goToStep = useCallback((step) => {
@@ -63,11 +124,11 @@ export function WizardProvider({ children }) {
   }, []);
 
   const nextStep = useCallback(() => {
-    setCurrentStep(prev => Math.min(prev + 1, 5));
+    setCurrentStep((prev) => Math.min(prev + 1, 5));
   }, []);
 
   const prevStep = useCallback(() => {
-    setCurrentStep(prev => Math.max(prev - 1, 0));
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
   }, []);
 
   const resetWizard = useCallback(() => {
@@ -76,9 +137,10 @@ export function WizardProvider({ children }) {
     setPortfolios(null);
     setCommunityTips([]);
     setSubmitError(null);
-    setSelectedPortfolioId(null);
+    setSelectedPortfolioIdState(null);
     try {
       sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(SELECTED_PORTFOLIO_KEY);
     } catch {
       // ignore
     }

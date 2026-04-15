@@ -2,6 +2,7 @@
  * PortfolioSelector.jsx
  * Floating bottom bar that appears when a portfolio is selected.
  * Shows the selected portfolio name and CTA to proceed to analysis/paywall.
+ * Triggers the SavePortfolioModal on proceed.
  */
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
@@ -11,9 +12,10 @@ import { formatCurrency } from '../../utils/formatters';
  * PortfolioSelector - floating bottom action bar.
  *
  * @param {Object|null} selectedPortfolio - The currently selected portfolio object
- * @param {Function} onProceed - Callback when user clicks proceed
+ * @param {Function} onProceed - Callback when user clicks proceed (opens modal)
+ * @param {Function} onClearSelection - Callback to deselect the portfolio
  */
-export default function PortfolioSelector({ selectedPortfolio, onProceed }) {
+export default function PortfolioSelector({ selectedPortfolio, onProceed, onClearSelection }) {
   const [isVisible, setIsVisible] = useState(false);
 
   // Animate in/out when selection changes
@@ -49,6 +51,34 @@ export default function PortfolioSelector({ selectedPortfolio, onProceed }) {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             {/* Selected portfolio info */}
             <div className="flex items-center gap-3 text-right">
+              {/* Deselect button */}
+              <button
+                onClick={onClearSelection}
+                className="
+                  w-8 h-8 rounded-lg flex items-center justify-center
+                  text-text3 hover:text-text1 hover:bg-surface
+                  transition-colors focus:outline-none focus:ring-2 focus:ring-border
+                  flex-shrink-0
+                "
+                aria-label="בטל בחירה"
+                title="בטל בחירה"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+
               <div
                 className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0"
                 aria-hidden="true"
@@ -85,7 +115,12 @@ export default function PortfolioSelector({ selectedPortfolio, onProceed }) {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              {/* Secondary info text */}
+              <p className="text-xs text-text3 text-center sm:text-right order-2 sm:order-1">
+                שמור ובצע השוואה עם ההצעה הבנקאית
+              </p>
+
               {/* Primary CTA */}
               <button
                 onClick={onProceed}
@@ -94,7 +129,7 @@ export default function PortfolioSelector({ selectedPortfolio, onProceed }) {
                   hover:bg-accent/90 active:scale-[0.98] transition-all duration-150
                   focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-2
                   flex items-center justify-center gap-2
-                  w-full sm:w-auto
+                  w-full sm:w-auto order-1 sm:order-2
                 "
                 aria-label="המשך לניתוח מקצועי"
               >
@@ -114,11 +149,6 @@ export default function PortfolioSelector({ selectedPortfolio, onProceed }) {
                   />
                 </svg>
               </button>
-
-              {/* Secondary info text */}
-              <p className="text-xs text-text3 text-center sm:text-right self-center">
-                שמור ובצע השוואה עם ההצעה הבנקאית
-              </p>
             </div>
           </div>
         </div>
@@ -135,8 +165,10 @@ PortfolioSelector.propTypes = {
     monthlyRepayment: PropTypes.number,
   }),
   onProceed: PropTypes.func.isRequired,
+  onClearSelection: PropTypes.func,
 };
 
 PortfolioSelector.defaultProps = {
   selectedPortfolio: null,
+  onClearSelection: () => {},
 };
