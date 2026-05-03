@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { WizardProvider, useWizard } from '../context/WizardContext';
+import { useWizard } from '../context/WizardContext';
 import WizardStepper from '../components/wizard/WizardStepper';
 import StepPropertyPrice from '../components/wizard/StepPropertyPrice';
 import StepLoanAmount from '../components/wizard/StepLoanAmount';
@@ -10,6 +10,7 @@ import StepFutureFunds from '../components/wizard/StepFutureFunds';
 import StepStability from '../components/wizard/StepStability';
 import ConsentCheckbox from '../components/wizard/ConsentCheckbox';
 import { submitWizard } from '../services/wizardService';
+import { Link } from 'react-router-dom';
 
 /**
  * WizardPage - 6-step public mortgage wizard shell.
@@ -40,7 +41,7 @@ function WizardContent() {
 
   const handleSubmit = async () => {
     if (!inputs.consent) {
-      setSubmitError('יש לאשר את תנאי השימוש לפני השליחה');
+      setSubmitError('Terms of use most be approved.');
       return;
     }
 
@@ -51,14 +52,17 @@ function WizardContent() {
       const { inputs: wizardInputs, consent } = inputs;
       const result = await submitWizard(
         {
-          propertyPrice: inputs.propertyPrice,
-          loanAmount: inputs.loanAmount,
-          primaryIncome: inputs.primaryIncome,
-          additionalIncome: inputs.additionalIncome,
-          targetRepayment: inputs.targetRepayment,
-          futureFunds: inputs.futureFunds,
-          futureFundsAmount: inputs.futureFundsAmount,
-          stabilityPreference: inputs.stabilityPreference,
+          propertyPrice: Number(inputs.propertyPrice),
+          loanAmount: Number(inputs.loanAmount),
+          monthlyIncome: Number(inputs.primaryIncome),
+          additionalIncome: Number(inputs.additionalIncome || 0),
+          targetRepayment: Number(inputs.targetRepayment),
+          futureFunds: {
+            timeframe: inputs.futureFunds || 'none',
+            amount: Number(inputs.futureFundsAmount || 0),
+          },
+
+          stabilityPreference: Number(inputs.stabilityPreference),
         },
         inputs.consent
       );
@@ -120,21 +124,20 @@ function WizardContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary/40 rounded">
+            <Link to="/" className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary/40 rounded">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center">
                 <span className="text-white font-bold text-sm">M</span>
               </div>
               <span className="font-bold text-xl text-text1">Morty</span>
-            </a>
+            </Link>
             {/* Login button */}
-            <a
-              href="/login"
+            <Link to="/login"
               className="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg
                 hover:bg-primary hover:text-white transition-colors duration-150
                 focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               כניסה
-            </a>
+            </Link>
           </div>
         </div>
       </nav>
@@ -214,9 +217,5 @@ function WizardContent() {
 }
 
 export default function WizardPage() {
-  return (
-    <WizardProvider>
-      <WizardContent />
-    </WizardProvider>
-  );
+  return <WizardContent />;
 }

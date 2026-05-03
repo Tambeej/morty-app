@@ -11,21 +11,45 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morty-backend
  * @param {boolean} consent - User consent for anonymous data storage
  * @returns {Promise<{portfolios: Array, communityTips: Array}>}
  */
+// export async function submitWizard(inputs, consent) {
+//   const response = await fetch(`${API_BASE_URL}/api/v1/public/wizard/submit`, {
+//     method: 'POST',
+//     headers: {
+//       'Content-Type': 'application/json',
+//     },
+//     body: JSON.stringify({ inputs, consent }),
+//   });
+//
+//
+//   if (!response.ok) {
+//     const errorData = await response.json().catch(() => ({}));
+//     throw new Error(errorData.message || `server error (${response.status})`);
+//   }
+//
+//   return response.json();
+// }
+
 export async function submitWizard(inputs, consent) {
+  const payload = { inputs, consent };
+
+  console.log('SENDING TO BACKEND:', JSON.stringify(payload, null, 2));
+
   const response = await fetch(`${API_BASE_URL}/api/v1/public/wizard/submit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ inputs, consent }),
+    body: JSON.stringify(payload),
   });
 
+  const json = await response.json();
+  console.log('BACKEND RESPONSE:', json);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `שגיאה בשרת (${response.status})`);
+    throw new Error(json.message || `שגיאה בשרת (${response.status})`);
   }
 
-  return response.json();
+  return json.data; // ⭐ THIS IS IMPORTANT
 }
 
 /**

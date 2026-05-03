@@ -173,7 +173,7 @@ export default function PortfolioCard({ portfolio, isSelected, onSelect }) {
             value={formatCurrency(portfolio.totalCost)}
           />
           <FinancialRow
-            label="סה\"כ ריבית"
+            label="סה״כ ריבית"
             value={formatCurrency(portfolio.totalInterest)}
             valueClass="text-text2"
           />

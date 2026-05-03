@@ -67,6 +67,10 @@ export function WizardProvider({ children }) {
     return null;
   });
 
+  useEffect(() => {
+    console.log('WIZARD CONTEXT PORTFOLIOS:', portfolios);
+  }, [portfolios]);
+
   // Persist inputs and portfolios to sessionStorage whenever they change
   useEffect(() => {
     try {

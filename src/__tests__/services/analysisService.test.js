@@ -10,7 +10,8 @@ vi.mock('../../services/api', () => ({
   default: {
     get: vi.fn(),
   },
-  API_BASE_URL: 'https://morty-backend-h9sb.onrender.com/api/v1',
+  API_BASE_URL : import.meta.env.VITE_API_BASE_URL || 'https://morty-backend.onrender.com',
+  //API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://morty-backend-h9sb.onrender.com/api/v1'
 }));
 
 // Mock storage utilities

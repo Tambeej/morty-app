@@ -7,10 +7,10 @@ import { useWizard } from '../../context/WizardContext';
  */
 
 const FUND_OPTIONS = [
-  { value: 'none', label: 'אין כספים' },
-  { value: '5years', label: 'בתוך 5 שנים' },
-  { value: '10years', label: 'בתוך 10 שנים' },
-  { value: '10plus', label: '10+ שנים' },
+  { label: 'אין כספים עתידיים', value: 'none' },
+  { label: 'בתוך 5 שנים', value: 'within_5_years' },
+  { label: 'בתוך 10 שנים', value: 'within_10_years' },
+  { label: 'מעל 10 שנים', value: 'over_10_years' },
 ];
 
 function formatCurrency(value) {
