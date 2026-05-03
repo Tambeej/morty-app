@@ -1,0 +1,122 @@
+/**
+ * wizard.css - Styles for the 6-step mortgage wizard.
+ * RTL animations, slider styling, and step transitions.
+ */
+
+/* ===== RTL Slide Transitions ===== */
+@keyframes wizardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes wizardSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+.wizard-step-enter {
+  animation: wizardSlideIn 200ms ease forwards;
+}
+
+/* ===== Fade In ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 200ms ease forwards;
+}
+
+/* ===== Custom Range Slider ===== */
+.wizard-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  border-radius: 9999px;
+}
+
+.wizard-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1A3C5E;
+  border: 3px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(26, 60, 94, 0.3);
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.wizard-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(26, 60, 94, 0.4);
+}
+
+.wizard-slider::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+}
+
+.wizard-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1A3C5E;
+  border: 3px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(26, 60, 94, 0.3);
+  cursor: pointer;
+  transition: transform 150ms ease;
+}
+
+.wizard-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.wizard-slider:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(26, 60, 94, 0.2), 0 1px 4px rgba(26, 60, 94, 0.3);
+}
+
+/* ===== RTL Direction Helpers ===== */
+[dir="rtl"] .wizard-slide-enter {
+  transform: translateX(-100%);
+}
+
+[dir="rtl"] .wizard-slide-exit {
+  transform: translateX(100%);
+}
+
+/* ===== Hebrew Content ===== */
+.hebrew-content {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Rubik', 'Inter', sans-serif;
+}
+
+/* ===== Currency Values (keep LTR inside RTL) ===== */
+.currency-value {
+  direction: ltr;
+  display: inline-block;
+}
+
+/* ===== Safe area for mobile bottom nav ===== */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+}
+
+/* ===== Checkbox custom styling ===== */
+input[type="checkbox"] {
+  accent-color: #1A3C5E;
+}

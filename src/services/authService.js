@@ -106,7 +106,7 @@ export const googleLogin = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     firebaseUser = result.user;
   } catch (err) {
-    // User closed the popup or cancelled — treat as a silent no-op.
+    // User closed the popup or canceled — treat as a silent no-op.
     const silentCodes = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
     if (silentCodes.includes(err?.code)) {
       return null;
@@ -119,7 +119,9 @@ export const googleLogin = async () => {
   const idToken = await firebaseUser.getIdToken();
 
   // Exchange the Firebase ID token for Morty custom JWTs.
-  const response = await api.post('/auth/google', { idToken });
+  const response = await api.post('/auth/google', {
+    idToken: idToken,
+  });
   const payload = response.data?.data || response.data;
   const { token, refreshToken, user } = payload;
 

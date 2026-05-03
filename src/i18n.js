@@ -14,7 +14,7 @@ i18n
       escapeValue: false,
     },
     backend: {
-      loadPath: import.meta.env.BASE_URL + 'locales/{{lng}}.json',
+        loadPath: import.meta.env.BASE_URL + 'locales/{{lng}}.json',
     },
     detection: {
       order: ['localStorage', 'navigator'],

@@ -1,160 +1,134 @@
+/**
+ * globals.css - Global styles for Morty app.
+ * Design system: Inter (Latin) + Rubik (Hebrew RTL)
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ===== CSS Custom Properties ===== */
-:root {
-  --color-bg-primary:    #0f172a;
-  --color-bg-surface:    #1e293b;
-  --color-bg-elevated:   #273549;
-  --color-accent-gold:   #f59e0b;
-  --color-accent-light:  #fbbf24;
-  --color-text-primary:  #f8fafc;
-  --color-text-secondary:#94a3b8;
-  --color-text-muted:    #64748b;
-  --color-success:       #10b981;
-  --color-warning:       #f59e0b;
-  --color-error:         #ef4444;
-  --color-border:        #334155;
+/* ===== Base Reset & Typography ===== */
+@layer base {
+  html {
+    font-family: 'Inter', 'Rubik', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-surface text-text1;
+    direction: rtl;
+  }
+
+  /* Hebrew content uses Rubik */
+  :lang(he),
+  [dir="rtl"] {
+    font-family: 'Rubik', 'Inter', system-ui, sans-serif;
+  }
+
+  /* Headings */
+  h1 { @apply text-3xl font-bold text-text1; }
+  h2 { @apply text-2xl font-semibold text-text1; }
+  h3 { @apply text-xl font-semibold text-text1; }
+
+  /* Focus visible for accessibility */
+  :focus-visible {
+    outline: 2px solid #1A3C5E;
+    outline-offset: 2px;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
-/* ===== Base Reset ===== */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ===== Component Layer ===== */
+@layer components {
+  /* Card base */
+  .card {
+    @apply bg-white rounded-2xl;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 32px rgba(26,60,94,.10);
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply px-6 py-3 bg-primary text-white rounded-lg font-semibold
+      hover:bg-primary/90 active:scale-[0.98] transition-all duration-150
+      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2
+      disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 border border-border text-text2 rounded-lg font-medium
+      hover:bg-surface active:scale-[0.98] transition-all duration-150
+      focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-2;
+  }
+
+  .btn-accent {
+    @apply px-6 py-3 bg-accent text-white rounded-lg font-semibold
+      hover:bg-accent/90 active:scale-[0.98] transition-all duration-150
+      focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-2
+      disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  /* Input base */
+  .input-base {
+    @apply w-full px-4 py-3 rounded-md border border-border bg-white
+      focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
+      transition-colors placeholder:text-text3;
+  }
+
+  /* Hebrew content block */
+  .hebrew-content {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Rubik', 'Inter', sans-serif;
+  }
+
+  /* Currency value (keep LTR inside RTL) */
+  .currency-value {
+    direction: ltr;
+    display: inline-block;
+  }
 }
 
-html {
-  scroll-behavior: smooth;
+/* ===== RTL Utilities ===== */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }
 
-body {
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-family: 'Inter', 'Rubik', system-ui, sans-serif;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ===== Toast RTL positioning ===== */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  left: 1rem; /* RTL: top-left */
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 360px;
 }
 
-/* ===== RTL Support ===== */
-html[dir='rtl'] {
-  font-family: 'Rubik', 'Inter', system-ui, sans-serif;
-}
-
-html[dir='rtl'] .sidebar {
-  right: 0;
-  left: auto;
-}
-
-html[dir='rtl'] .toast-container {
-  left: 16px;
-  right: auto;
-}
-
-/* ===== Scrollbar ===== */
+/* ===== Scrollbar styling ===== */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-primary);
+  background: #F8FAFC;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: #CBD5E1;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
-}
-
-/* ===== Utility Classes ===== */
-@layer components {
-  .stat-card {
-    @apply bg-navy-surface border border-border rounded-card p-6 transition-all duration-200;
-  }
-
-  .stat-card:hover {
-    @apply -translate-y-0.5;
-    border-color: var(--color-accent-gold);
-  }
-
-  .analysis-card {
-    border-top: 3px solid var(--color-accent-gold);
-  }
-
-  .dropzone {
-    border: 2px dashed var(--color-border);
-    border-radius: 12px;
-    padding: 48px;
-    text-align: center;
-    transition: all 200ms;
-  }
-
-  .dropzone.active {
-    border-color: var(--color-accent-gold);
-    background: var(--color-bg-elevated);
-  }
-
-  .progress-bar {
-    height: 4px;
-    background: var(--color-border);
-    border-radius: 2px;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
-    border-radius: 2px;
-    transition: width 300ms ease;
-  }
-
-  /* Shimmer skeleton animation */
-  .skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--color-bg-elevated) 25%,
-      #2d3f55 50%,
-      var(--color-bg-elevated) 75%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-  }
-
-  /* Page enter animation */
-  .page-enter {
-    animation: pageEnter 250ms ease-out forwards;
-  }
-}
-
-/* ===== Keyframes ===== */
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
-
-@keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes pulse-border {
-  0%, 100% { border-color: var(--color-border); }
-  50%       { border-color: var(--color-accent-gold); }
+  background: #94A3B8;
 }

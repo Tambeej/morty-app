@@ -1,0 +1,157 @@
+/**
+ * paywall.css - Styles for the paywall and payment pages.
+ * Animations, split layout, and trust badge styles.
+ */
+
+/* ===== Paywall page entrance animation ===== */
+@keyframes paywallFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.paywall-enter {
+  animation: paywallFadeIn 300ms ease forwards;
+}
+
+/* ===== Left panel gradient overlay ===== */
+.paywall-left-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.paywall-left-panel::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at 70% 30%,
+    rgba(0, 200, 150, 0.08) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* ===== Payment button pulse on hover ===== */
+@keyframes payBtnPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 200, 150, 0);
+  }
+}
+
+.pay-btn-pulse:hover {
+  animation: payBtnPulse 1.5s ease-in-out infinite;
+}
+
+/* ===== Success page checkmark animation ===== */
+@keyframes checkmarkDraw {
+  from {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.checkmark-path {
+  stroke-dasharray: 100;
+  animation: checkmarkDraw 600ms ease forwards 200ms;
+}
+
+/* ===== Trust badges ===== */
+.trust-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #94A3B8;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+/* ===== Stripe card element container ===== */
+.stripe-element-container {
+  padding: 12px 16px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  background: white;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.stripe-element-container:focus-within {
+  border-color: #1A3C5E;
+  box-shadow: 0 0 0 3px rgba(26, 60, 94, 0.1);
+}
+
+.stripe-element-container.error {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* ===== Loading spinner (border-3 utility) ===== */
+.border-3 {
+  border-width: 3px;
+}
+
+/* ===== Stagger animation for feature items ===== */
+@keyframes featureItemIn {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.feature-item-enter {
+  animation: featureItemIn 300ms ease forwards;
+}
+
+.feature-item-enter:nth-child(1) { animation-delay: 0ms; }
+.feature-item-enter:nth-child(2) { animation-delay: 80ms; }
+.feature-item-enter:nth-child(3) { animation-delay: 160ms; }
+.feature-item-enter:nth-child(4) { animation-delay: 240ms; }
+
+/* ===== Mobile responsive adjustments ===== */
+@media (max-width: 640px) {
+  .paywall-left-panel {
+    padding: 1.5rem;
+  }
+}
+
+/* ===== RTL adjustments ===== */
+[dir="rtl"] .paywall-left-panel {
+  text-align: right;
+}
+
+[dir="rtl"] .feature-item-enter {
+  animation-name: featureItemInRTL;
+}
+
+@keyframes featureItemInRTL {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
