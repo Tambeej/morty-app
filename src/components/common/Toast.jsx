@@ -12,8 +12,8 @@
 import React from 'react';
 import { useToast, ToastProvider } from '../../context/ToastContext.jsx';
 
-// Re-export ToastProvider so tests can import it from this file
-export { ToastProvider };
+// Re-export ToastProvider and useToast so callers can import them from this file
+export { ToastProvider, useToast };
 
 /**
  * Individual Toast Item
